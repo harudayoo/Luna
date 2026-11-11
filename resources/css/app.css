@@ -1,0 +1,90 @@
+/* Tailwind v4 + Orchid City Software design system (resources/ocs, copied from orchid-city-ui). */
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '../ocs/tokens.css';
+@import '../ocs/ocs.css' layer(components);
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+/* dark: utilities follow <html data-theme="dark">, not the OS setting */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * OCS tokens as Tailwind names. "inline" keeps them as var() so they switch with the theme.
+ *
+ * The kit's names come first and win: text-ink, text-muted (muted TEXT), bg-surface,
+ * bg-primary, text-on-primary, bg-accent (brand teal / orchid), text-success, text-danger.
+ *
+ * The shadcn names below are aliases so the copied ui/ components keep working. Two shadcn
+ * names clash with the kit and are NOT aliased: shadcn's bg-muted and bg-accent mean "subtle
+ * hover background"; in Luna write bg-surface-hover for that.
+ */
+@theme inline {
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-surface-hover: var(--surface-hover);
+    --color-ink: var(--ink);
+    --color-muted: var(--muted);
+    --color-primary: var(--primary);
+    --color-primary-hover: var(--primary-hover);
+    --color-on-primary: var(--on-primary);
+    --color-accent: var(--accent);
+    --color-on-accent: var(--on-accent);
+    --color-success: var(--success);
+    --color-danger: var(--danger);
+
+    /* shadcn aliases */
+    --color-background: var(--bg);
+    --color-foreground: var(--ink);
+    --color-card: var(--surface);
+    --color-card-foreground: var(--ink);
+    --color-popover: var(--surface);
+    --color-popover-foreground: var(--ink);
+    --color-primary-foreground: var(--on-primary);
+    --color-secondary: var(--surface);
+    --color-secondary-foreground: var(--ink);
+    --color-muted-foreground: var(--muted);
+    --color-accent-foreground: var(--on-accent);
+    --color-destructive: var(--danger);
+    --color-ring: var(--primary);
+    /* No lines: separate with solid shades, never a border. */
+    --color-border: transparent;
+    --color-input: transparent;
+
+    --font-sans: var(--font-sans);
+    --font-mono: var(--font-mono);
+
+    /* Square edges; 2px only for tiny badges and inputs. rounded-full (avatars) is untouched. */
+    --radius-xs: 0px;
+    --radius-sm: 2px; /* = token radius-sm */
+    --radius-md: 0px;
+    --radius-lg: 0px;
+    --radius-xl: 0px;
+    --radius-2xl: 0px;
+    --radius-3xl: 0px;
+    --radius-4xl: 0px;
+
+    /* No resting shadow on cards, buttons or inputs; floating panels lift like the kit's detail panel. */
+    --shadow-2xs: none;
+    --shadow-xs: none;
+    --shadow-sm: none;
+    --shadow-md: var(--lift);
+    --shadow-lg: var(--lift);
+    --shadow-xl: var(--lift);
+    --shadow-lift: var(--lift);
+    --shadow-press: var(--press);
+
+    --ease-ocs: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+
+    /* No body background: <html> paints var(--bg) (ocs.css) so the .ocs-bg canvas shows through. */
+    body {
+        @apply text-ink;
+    }
+}

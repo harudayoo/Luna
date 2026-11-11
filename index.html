@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PTO Leave Planner · Orchid City</title>
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('ocs-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))}catch(e){}</script>
+<link rel="stylesheet" href="ocs/tokens.css">
+<link rel="stylesheet" href="ocs/ocs.css">
+<style>
+/* PTO Leave Planner on the Orchid City design system: tokens only, square edges,
+   no borders or outlines on cards and buttons, separation by solid shade. */
+:root{
+  --sunken:color-mix(in srgb,var(--surface) 55%,var(--bg));
+  --zebra:color-mix(in srgb,var(--surface-hover) 45%,var(--surface));
+  --danger-soft:color-mix(in srgb,var(--danger) 12%,var(--surface));
+  --success-soft:color-mix(in srgb,var(--success) 12%,var(--surface));
+  --primary-soft:color-mix(in srgb,var(--primary) 14%,var(--surface));
+}
+*{box-sizing:border-box}
+[hidden]:not([hidden=until-found i]){display:none!important}
+body{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:1200px;margin:0 auto;padding:24px 16px 96px}
+@media (min-width:768px){.wrap{padding-inline:24px}}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px}
+h1{margin:0;font-size:28px;line-height:34px;letter-spacing:-.5px;font-weight:700}
+.sub{color:var(--muted);margin:8px 0 0;max-width:62ch;font-size:14px}
+.topr{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:400 12px/16px var(--font-mono);color:var(--muted);background:var(--surface);padding:6px 10px;border-radius:var(--radius-sm);white-space:nowrap}
+.chip b{color:var(--ink);font-weight:600}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+@media (min-width:1024px){.grid{grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:24px}}
+.rail{display:flex;flex-direction:column;gap:16px}
+@media (min-width:1024px){.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}}
+
+/* panels are static OCS cards with their own inner padding */
+.ocs-card.panel{padding:0}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px 0}
+.panel-b{padding:16px}
+h2{font-weight:700;font-size:15px;line-height:20px;margin:0}
+
+/* form controls: radius-sm, no border, focus shown by a solid primary bar */
+label,.lbl{display:block;font-size:13px;font-weight:600;margin-bottom:5px;color:var(--ink)}
+.opt{font-weight:400;color:var(--muted)}
+.field{display:flex;flex-direction:column;min-width:0}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+input[type="date"]{min-width:0}
+input,select,textarea{width:100%;font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:0;border-radius:var(--radius-sm);padding:8px 10px;min-height:40px;outline:0;transition:background-color var(--dur-fast) ease,box-shadow var(--dur-fast) ease}
+input:hover,select:hover,textarea:hover{background:var(--surface-hover)}
+input:focus-visible,select:focus-visible,textarea:focus-visible{background:var(--bg);box-shadow:inset 0 -2px 0 var(--primary)}
+input[type="checkbox"]{width:auto;min-height:0}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:500;margin:0;cursor:pointer;min-height:40px}
+.check input{width:18px;height:18px;accent-color:var(--primary)}
+.seg{position:relative;display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border-radius:var(--radius-sm);padding:3px;gap:3px}
+.seg input{position:absolute;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none}
+.seg label{margin:0;text-align:center;padding:8px;cursor:pointer;font-weight:600;color:var(--muted);font-size:13.5px;min-height:34px}
+.seg label:hover{background:var(--surface-hover)}
+.seg input:checked+label{background:var(--primary);color:var(--on-primary)}
+.seg input:focus-visible+label{box-shadow:var(--lift)}
+.hint{font-size:12.5px;line-height:18px;color:var(--muted);margin:4px 0 0}
+button{font:inherit;cursor:pointer;color:inherit}
+.btn-danger{color:var(--danger)}
+/* secondary buttons sit on a panel's surface, so they take the page shade instead */
+.panel .ocs-btn-secondary{background:var(--bg)}
+.panel .ocs-btn-secondary:hover,.panel .ocs-btn-secondary:focus-visible{background:var(--surface-hover)}
+.ocs-btn.block{width:100%}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+.err{color:var(--danger);background:var(--danger-soft);font-size:13px;padding:8px 10px}
+textarea{min-height:120px;font-family:var(--font-mono);font-size:12px}
+
+details.fold summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;min-height:48px}
+details.fold summary:hover{background:var(--surface-hover)}
+details.fold summary:focus-visible{outline:0;background:var(--surface-hover);box-shadow:inset 3px 0 0 var(--primary)}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary .chev{transition:transform var(--dur-base);color:var(--muted)}
+details.fold[open] summary .chev{transform:rotate(180deg)}
+details.fold .panel-b{padding-top:4px}
+
+.sync{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:18px;color:var(--muted)}
+.sync .dot{flex:none;width:8px;height:8px;margin-top:5px;background:var(--muted)}
+.sync.cloud .dot{background:var(--success)} .sync.saving .dot{background:var(--primary)} .sync.error .dot{background:var(--danger)}
+
+/* main top bar */
+.mainbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.tabs{display:inline-grid;grid-auto-flow:column;background:var(--surface);padding:3px;gap:3px}
+.tab{border:0;background:none;padding:8px 14px;font-weight:600;font-size:13.5px;color:var(--muted);min-height:40px}
+.tab:hover{background:var(--surface-hover);color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--primary);color:var(--on-primary)}
+.tab:focus-visible{outline:0;box-shadow:var(--lift)}
+.yearpick{display:flex;align-items:center;gap:8px}
+.yearpick label{margin:0;color:var(--muted)}
+.yearpick select{width:auto;min-width:130px;background:var(--surface)}
+
+/* summary band: four static cards */
+.band{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-bottom:16px}
+@media (min-width:640px){.band{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:1280px){.band{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.stat{min-width:0}
+.stat .k{display:flex;align-items:center;gap:8px}
+.stat .k.ocs-eyebrow{margin:0}
+.stat .v{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-weight:600;font-size:clamp(20px,2.3vw,26px);letter-spacing:-.02em;margin-top:8px;line-height:1.1;overflow-wrap:anywhere}
+.stat .s{font:400 12px/18px var(--font-mono);color:var(--muted);margin-top:4px}
+.stat.bad .v{color:var(--danger)} .stat.good .v{color:var(--success)}
+.stat .dot{width:8px;height:8px;background:var(--muted)}
+.stat.bad .dot{background:var(--danger)} .stat.good .dot{background:var(--success)} .stat.plan .dot{background:var(--primary)}
+.stat.active{background:var(--surface-hover);box-shadow:inset 0 3px 0 var(--primary)}
+
+/* toolbar + verdict */
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 12px;padding:12px 16px}
+.toolbar .tabs{background:var(--bg)}
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;margin:0;user-select:none;min-height:40px}
+.toggle input{appearance:none;-webkit-appearance:none;width:36px;height:20px;min-height:0;padding:0;border-radius:var(--radius-none);background:var(--surface-hover);position:relative;cursor:pointer;box-shadow:none}
+.toggle input::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;background:var(--muted);transition:transform var(--dur-fast),background-color var(--dur-fast)}
+.toggle input:checked{background:var(--primary)}
+.toggle input:checked::after{transform:translateX(16px);background:var(--on-primary)}
+.toggle input:focus-visible{box-shadow:var(--lift)}
+.verdict{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;margin:0 16px 12px}
+.verdict.bad{background:var(--danger-soft)} .verdict.good{background:var(--success-soft)}
+.verdict .ic{flex:none;width:28px;height:28px;display:grid;place-items:center;font:700 14px/1 var(--font-mono)}
+.verdict.bad .ic{background:var(--danger);color:var(--bg)}
+.verdict.good .ic{background:var(--success);color:var(--bg)}
+.verdict p{margin:0;font-size:14.5px;line-height:21px;max-width:80ch;color:var(--ink)}
+.verdict strong{font-family:var(--font-mono);font-weight:600}
+
+/* ledger table: zebra shading, no rules */
+.ledgerbox{container-type:inline-size;container-name:ledger}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+thead th{position:sticky;top:0;z-index:1;background:var(--surface-hover);font:600 11px/14px var(--font-mono);text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:right;padding:10px;vertical-align:bottom}
+thead th .u{display:block;font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;opacity:.8}
+th.l,td.l{text-align:left}
+tbody td{padding:10px;text-align:right;white-space:nowrap;vertical-align:middle}
+tbody tr:nth-child(even) td{background:var(--zebra)}
+tbody tr:hover td{background:var(--surface-hover)}
+tbody tr.ded td{background:var(--danger-soft)}
+tbody tr.ded td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
+tbody tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
+tbody tr.ded.cur td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
+.pcell{display:flex;flex-direction:column;gap:3px}
+.pmeta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;white-space:normal}
+td .per{font-weight:600}
+td .yr{color:var(--muted);font-size:12.5px}
+.d0{color:var(--muted);opacity:.7}
+.neg{color:var(--danger)}
+.lose{color:var(--danger);font-weight:600}
+.reduced{color:var(--accent)}
+.status{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:var(--radius-sm);font:600 11px/16px var(--font-mono);white-space:nowrap;background:var(--bg)}
+.status.w{background:var(--danger);color:var(--bg)}
+.status.o{color:var(--success)}
+.status.now{background:var(--accent);color:var(--on-accent)}
+.status.past{color:var(--muted)}
+tfoot td{background:var(--surface-hover);padding:12px 10px;text-align:right;font-weight:700;white-space:nowrap}
+tfoot .cap{display:block;font-weight:500;font-size:12px;color:var(--muted)}
+.foot{padding:12px 16px 16px;color:var(--muted);font-size:13px;line-height:19px}
+.foot p{margin:0;max-width:85ch}
+.foot p+p{margin-top:4px}
+.empty{padding:32px 16px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.empty .btnrow{justify-content:center;margin-top:12px}
+
+@container ledger (max-width:640px){
+  table,thead,tbody,tfoot,tr,td{display:block}
+  thead{display:none}
+  tbody{display:flex;flex-direction:column;gap:8px;padding:0 12px 12px}
+  tbody tr{background:var(--bg)}
+  tbody tr.ded{background:var(--danger-soft)}
+  tbody tr.cur{box-shadow:inset 3px 0 0 var(--primary)}
+  tbody tr.ded.cur{box-shadow:inset 3px 0 0 var(--danger)}
+  tbody td,tbody tr:nth-child(even) td,tbody tr:hover td,tbody tr.ded td{display:flex;justify-content:space-between;gap:12px;padding:8px 12px;text-align:right;background:transparent}
+  tbody td::before{content:attr(data-k);font-size:12.5px;font-weight:600;color:var(--muted);text-align:left}
+  tbody td.cardhead,tbody tr:nth-child(even) td.cardhead{background:var(--surface-hover)}
+  tbody td.cardhead::before{display:none}
+  tbody tr td:first-child{box-shadow:none!important}
+  tfoot tr{display:flex;flex-wrap:wrap;gap:4px 16px;padding:12px 16px;background:var(--surface-hover)}
+  tfoot td{padding:0;display:flex;gap:6px;background:none}
+  tfoot td:empty{display:none}
+  tfoot td[data-k]::before{content:attr(data-k);color:var(--muted);font-weight:600}
+}
+
+/* pager */
+.pager{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:12px 16px}
+.pager .range{margin:0;font-size:13px;color:var(--muted)}
+.pager .range b{color:var(--ink);font-family:var(--font-mono);font-weight:600}
+.pg{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.pg button{min-width:40px;height:40px;padding:0 8px;border:0;background:var(--bg);font:600 13px/1 var(--font-mono);color:var(--muted)}
+.pg button:hover:not([disabled]){background:var(--surface-hover);color:var(--ink)}
+.pg button:focus-visible{outline:0;box-shadow:var(--lift)}
+.pg button[aria-current="page"]{background:var(--primary);color:var(--on-primary)}
+.pg button[disabled]{opacity:.4;cursor:not-allowed}
+.pg .arrow{font-family:var(--font-sans);padding:0 12px}
+.pg .gap{min-width:24px;text-align:center;color:var(--muted)}
+.pager .size{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;color:var(--muted);font-weight:600}
+.pager .size select{width:auto;min-height:40px;padding:4px 8px}
+@media (max-width:639px){.pager{justify-content:center}.pager .range{width:100%;text-align:center}.pg .pnum{display:none}.pg .pnum[aria-current="page"]{display:inline-block}.pg .gap{display:none}}
+
+/* leave history */
+.search{position:relative;min-width:200px;flex:1 1 220px;max-width:340px}
+.search input{padding-left:34px}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.lh{list-style:none;margin:0;padding:0}
+.lh .yh{position:sticky;top:0;z-index:1;background:var(--surface-hover);padding:6px 16px;font:600 12px/18px var(--font-mono);color:var(--muted);display:flex;justify-content:space-between}
+.lh .item{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 16px}
+.lh .item:nth-of-type(even){background:var(--zebra)}
+.lh .item:hover{background:var(--surface-hover)}
+.lh .item.past .cal{background:var(--bg);color:var(--muted)}
+.cal{display:flex;flex-direction:column;align-items:center;justify-content:center;width:44px;height:44px;background:var(--primary-soft);color:var(--primary);line-height:1}
+.cal .m{font:600 10px/1 var(--font-mono);letter-spacing:1px;text-transform:uppercase}
+.cal .d{font-weight:800;font-size:18px;margin-top:3px}
+.li-t{font-weight:600;font-size:14px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.li-n{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.half{font:600 10.5px/16px var(--font-mono);padding:0 6px;border-radius:var(--radius-sm);background:var(--bg);color:var(--muted)}
+.acts{display:flex;gap:2px}
+.ib{width:40px;height:40px;display:grid;place-items:center;border:0;background:none;color:var(--muted)}
+.ib:hover{background:var(--bg);color:var(--ink)}
+.ib:focus-visible{outline:0;box-shadow:var(--lift);background:var(--bg)}
+.ib.del:hover{background:var(--danger-soft);color:var(--danger)}
+@media (pointer:coarse){.ib{width:44px;height:44px}}
+.editrow{padding:12px 16px;background:var(--surface-hover)}
+.editgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+.editgrid .note,.editgrid .btnrow{grid-column:1/-1}
+@media (min-width:640px){.editgrid{grid-template-columns:minmax(0,1fr) 120px minmax(0,1.4fr) auto}.editgrid .note,.editgrid .btnrow{grid-column:auto}}
+.editrow .ocs-btn-secondary{background:var(--bg)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:14px;background:var(--ink);color:var(--bg);padding:10px 12px 10px 16px;box-shadow:var(--lift);font-size:14px;max-width:calc(100% - 32px)}
+.toast button{background:none;border:0;color:inherit;padding:6px 10px;min-height:32px;font:600 13px/1 var(--font-mono);text-decoration:underline;text-underline-offset:3px}
+.toast .x{text-decoration:none;opacity:.7;font-size:16px;padding:2px 6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<canvas class="ocs-bg" aria-hidden="true"></canvas>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <p class="ocs-eyebrow">Luna · Leave &amp; payroll estimate</p>
+      <h1>PTO Leave Planner</h1>
+      <p class="sub">Plan leave, track PTO, and see what gets deducted from pay under monthly or semi-monthly cut-offs.</p>
+    </div>
+    <div class="topr">
+      <div class="chips" id="chips"></div>
+      <button class="ocs-btn ocs-icon-btn" type="button" data-ocs="theme-toggle squish" aria-label="Toggle dark mode">
+        <svg class="ocs-theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true">
+          <g class="sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g>
+          <path class="moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <aside class="rail">
+      <section class="ocs-card panel">
+        <div class="panel-h"><div><p class="ocs-eyebrow">Request</p><h2>Add leave</h2></div></div>
+        <form id="addForm" class="panel-b stack" novalidate>
+          <div class="row2">
+            <div class="field">
+              <label for="lvFrom">Date</label>
+              <input type="date" id="lvFrom" required>
+            </div>
+            <div class="field">
+              <label for="lvTo">Until <span class="opt">(optional)</span></label>
+              <input type="date" id="lvTo">
+            </div>
+          </div>
+          <div class="field" id="lenBox">
+            <span class="lbl">Length</span>
+            <div class="seg" role="radiogroup" aria-label="Leave length">
+              <input type="radio" name="len" id="lenFull" value="1" checked><label for="lenFull">Full day</label>
+              <input type="radio" name="len" id="lenHalf" value="0.5"><label for="lenHalf">Half day</label>
+            </div>
+          </div>
+          <label class="check" id="wkBox" hidden><input type="checkbox" id="skipWk" checked> Skip Saturdays and Sundays</label>
+          <div class="field">
+            <label for="lvNote">Note <span class="opt">(optional)</span></label>
+            <input type="text" id="lvNote" placeholder="e.g. Family trip" maxlength="80">
+          </div>
+          <div class="err" id="addErr" role="alert" hidden></div>
+          <button class="ocs-btn ocs-btn-primary block" type="submit" id="addBtn" data-ocs="magnetic squish">Add leave</button>
+        </form>
+      </section>
+
+      <details class="ocs-card panel fold" id="setBox">
+        <summary><h2>Settings</h2><span class="chev" aria-hidden="true">▾</span></summary>
+        <div class="panel-b stack">
+          <div class="field">
+            <label for="sRate">Daily rate (₱)</label>
+            <input type="number" id="sRate" step="0.01" min="0" inputmode="decimal">
+            <p class="hint" id="rateHint"></p>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="sAcc">Accrual / cut-off (h)</label>
+              <input type="number" id="sAcc" step="0.01" min="0" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label for="sHpd">Hours per day</label>
+              <input type="number" id="sHpd" step="0.5" min="0.5" inputmode="decimal">
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="sStart">Accrual start</label>
+              <input type="date" id="sStart">
+            </div>
+            <div class="field">
+              <label for="sBal">Starting PTO (h)</label>
+              <input type="number" id="sBal" step="0.01" min="0" inputmode="decimal">
+            </div>
+          </div>
+          <div class="field">
+            <label for="sMode">Accrual during leave</label>
+            <select id="sMode">
+              <option value="full">Full accrual, even on leave</option>
+              <option value="unpaid">No accrual on unpaid hours</option>
+              <option value="all">No accrual on any leave</option>
+            </select>
+            <p class="hint" id="modeHint"></p>
+          </div>
+          <p class="hint">Start date snaps to the 1st or 16th. PTO is credited on the 15th and on the last day of each month.</p>
+        </div>
+      </details>
+
+      <details class="ocs-card panel fold" id="dataBox">
+        <summary><h2>Your data</h2><span class="chev" aria-hidden="true">▾</span></summary>
+        <div class="panel-b stack">
+          <div class="sync" id="sync" role="status"><span class="dot"></span><span id="syncText">Connecting…</span></div>
+          <div class="btnrow">
+            <button class="ocs-btn ocs-btn-code" type="button" id="exportBtn" data-ocs="decode squish">Export CSV</button>
+            <label class="ocs-btn ocs-btn-code" for="importFile" style="margin:0" data-ocs="decode squish">Import CSV</label>
+            <input type="file" id="importFile" accept=".csv,text/csv" class="sr">
+          </div>
+          <p class="hint">CSV columns: date (YYYY-MM-DD), days (1 or 0.5), note. Duplicate dates are skipped.</p>
+          <div id="csvBox" hidden>
+            <label for="csvText">Copy this CSV</label>
+            <textarea id="csvText" readonly></textarea>
+          </div>
+          <button class="ocs-btn ocs-btn-secondary btn-danger" type="button" id="clearBtn" data-ocs="wave squish">Clear all leave</button>
+        </div>
+      </details>
+    </aside>
+
+    <main style="min-width:0">
+      <div class="mainbar">
+        <div class="tabs" role="tablist" aria-label="View">
+          <button class="tab" role="tab" id="vLedger" type="button" aria-controls="viewPanel">Payroll ledger</button>
+          <button class="tab" role="tab" id="vHistory" type="button" aria-controls="viewPanel">Leave history</button>
+        </div>
+        <div class="yearpick"><label for="yearSel">Year</label><select id="yearSel"></select></div>
+      </div>
+
+      <section class="band" id="band" aria-live="polite"></section>
+      <section class="ocs-card panel" id="viewPanel" role="tabpanel"></section>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="ocs/vendor/anime.umd.min.js"></script>
+<script src="ocs/ocs.js"></script>
+<script>
+(function(){
+  "use strict";
+  const $=id=>document.getElementById(id);
+  const OCS=window.OrchidCity||null;
+  const ocsInit=scope=>{if(OCS)try{OCS.init(scope)}catch(e){}};
+  const setLabel=(el,text)=>{(el.querySelector(".ocs-btn-label")||el).textContent=text};
+  const DATA_KEY="pto-planner-data-v2", UI_KEY="pto-planner-ui-v2", LEGACY="pto-leave-planner-v1";
+  const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const MONL=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const DAY=86400000;
+  const DEFAULT_SETTINGS={acc:3.33,hpd:8,rate:2727.272727,start:"2026-10-01",bal:0,accMode:"full"};
+  const MODES={full:"Full accrual, even on leave",unpaid:"No accrual on unpaid hours",all:"No accrual on any leave"};
+  const MODE_HINT={full:"You earn the full amount every cut-off, even on leave days.",unpaid:"PTO-covered days still earn PTO. Unpaid hours earn nothing, so accrual is prorated by working hours in the cut-off.",all:"Any leave hour earns nothing. Accrual is prorated by hours actually worked in the cut-off."};
+  const REPORT=["2026-10-30","2026-11-03","2026-12-28","2026-12-29","2027-01-04"];
+
+  // ---------- helpers ----------
+  const parse=s=>{const [y,m,d]=s.split("-").map(Number);return Date.UTC(y,m-1,d)};
+  const ymd=t=>{const d=new Date(t);return [d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()]};
+  const iso=t=>{const [y,m,d]=ymd(t);return y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0")};
+  const eom=(y,m)=>new Date(Date.UTC(y,m+1,0)).getUTCDate();
+  const fmt=t=>{const [y,m,d]=ymd(t);return MON[m]+" "+d+", "+y};
+  const fmtS=t=>{const [,m,d]=ymd(t);return MON[m]+" "+d};
+  const dow=t=>new Date(t).getUTCDay();
+  const todayT=(()=>{const n=new Date();return Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())})();
+  const r2=x=>Math.round(x*100)/100;
+  const n2=x=>r2(x).toFixed(2);
+  const h=x=>n2(x)+" h";
+  const PHP=new Intl.NumberFormat("en-PH",{style:"currency",currency:"PHP",minimumFractionDigits:2,maximumFractionDigits:2});
+  const NUM=new Intl.NumberFormat("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const newId=()=>(window.crypto&&crypto.randomUUID)?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+  const validISO=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&iso(parse(s))===s;
+
+  // ---------- state ----------
+  let data={leaves:[],settings:{...DEFAULT_SETTINGS},updatedAt:0};
+  const ui={view:"ledger",struct:"semi",year:"all",only:false,page:0,size:12,lpage:1,lsize:10,lq:"",lf:"all",ldir:"asc"};
+  let editing=null;
+
+  function normalize(d){
+    const s=Object.assign({},DEFAULT_SETTINGS,(d&&d.settings)||{});
+    ["acc","hpd","rate","bal"].forEach(k=>{s[k]=Number(s[k]);if(!isFinite(s[k])||s[k]<0)s[k]=DEFAULT_SETTINGS[k]});
+    if(s.hpd<0.5)s.hpd=DEFAULT_SETTINGS.hpd;
+    if(!validISO(s.start))s.start=DEFAULT_SETTINGS.start;
+    if(!MODES[s.accMode])s.accMode="full";
+    const seen=new Set(),leaves=[];
+    ((d&&d.leaves)||[]).forEach(l=>{
+      if(!l||!validISO(l.date))return;
+      const days=Number(l.days)===0.5?0.5:1;
+      const key=l.date+"|"+days; if(seen.has(key))return; seen.add(key);
+      leaves.push({id:typeof l.id==="string"&&l.id?l.id:newId(),date:l.date,days,note:String(l.note||"").slice(0,80)});
+    });
+    return {leaves,settings:s,updatedAt:Number(d&&d.updatedAt)||0};
+  }
+  function loadLocal(){
+    try{
+      const d=JSON.parse(localStorage.getItem(DATA_KEY)||"null");
+      if(d&&Array.isArray(d.leaves))data=normalize(d);
+      else{
+        const old=JSON.parse(localStorage.getItem(LEGACY)||"null");
+        if(old&&Array.isArray(old.leaves))data=normalize({leaves:old.leaves,settings:{acc:old.acc,hpd:old.hpd,rate:old.rate,start:old.start,bal:old.bal},updatedAt:1});
+      }
+    }catch(e){}
+    try{const u=JSON.parse(localStorage.getItem(UI_KEY)||"null");if(u)["view","struct","year","only","size","lsize","lf","ldir"].forEach(k=>{if(k in u)ui[k]=u[k]})}catch(e){}
+  }
+  const saveLocal=()=>{try{localStorage.setItem(DATA_KEY,JSON.stringify(data))}catch(e){}};
+  const saveUI=()=>{try{const {page,lpage,lq,...keep}=ui;localStorage.setItem(UI_KEY,JSON.stringify(keep))}catch(e){}};
+
+  // ---------- cloud sync (private per person; only when hosted where window.claude exists) ----------
+  let ref=null,writing=false,pending=false,saveTimer=null,lastCloudJSON="",dl=null,syncState="connecting";
+  function setSync(s){
+    syncState=s;
+    const map={connecting:"Connecting to your account…",cloud:"Saved to your account. Available on any device you sign in from.",saving:"Saving…",local:"Saved in this browser only. Clearing site data will erase it, so export a CSV backup now and then.",error:"Could not save to your account. Changes are kept in this browser. They will sync on your next edit.",full:"Your account storage for this page is full. Delete old leave or export and clear it."};
+    $("sync").className="sync "+(s==="cloud"?"cloud":s==="saving"||s==="connecting"?"saving":s==="local"?"":"error");
+    $("syncText").textContent=map[s];
+  }
+  function queueSave(){if(!ref)return;clearTimeout(saveTimer);saveTimer=setTimeout(flush,700)}
+  async function flush(){
+    if(!ref)return; if(writing){pending=true;return}
+    writing=true; setSync("saving");
+    const body={data:JSON.parse(JSON.stringify(data))};
+    try{await ref.set(body);lastCloudJSON=JSON.stringify(body.data);setSync("cloud")}
+    catch(e){setSync(e&&e.code==="quota_exceeded"?"full":"error")}
+    writing=false; if(pending){pending=false;flush()}
+  }
+  async function initCloud(){
+    const c=window.claude;
+    if(!c||typeof c.use!=="function"){setSync("local");return}
+    c.use("downloads").then(ns=>{dl=ns}).catch(()=>{});
+    let db=null,user=null;
+    try{[db,user]=await Promise.all([c.use("db"),c.use("user")])}catch(e){}
+    if(!db||!user){setSync("local");return}
+    let id=null; try{id=await user.id()}catch(e){}
+    if(!id){setSync("local");return}
+    try{ref=db.doc("data/users/"+id+"/planner")}catch(e){setSync("local");return}
+    let first=true;
+    ref.onSnapshot(snap=>{
+      if(snap.metadata&&snap.metadata.hasPendingWrites)return;
+      if(snap.exists){
+        const incoming=normalize((snap.data()||{}).data||{});
+        const js=JSON.stringify(incoming);
+        if(js!==lastCloudJSON&&js!==JSON.stringify(data)){
+          if(incoming.updatedAt>=data.updatedAt){data=incoming;saveLocal();render()}
+          else if(first){queueSave()}
+        }
+        lastCloudJSON=js; if(syncState!=="saving")setSync("cloud");
+      }else if(first){
+        if(data.leaves.length||data.updatedAt)queueSave(); else setSync("cloud");
+      }
+      first=false;
+    },()=>{ref=null;setSync("local")});
+  }
+
+  // ---------- mutations with undo ----------
+  let undoSnap=null,toastTimer=null;
+  function persist(){data.updatedAt=Date.now();saveLocal();queueSave()}
+  function mutate(fn,msg){
+    const before=JSON.stringify(data);
+    fn(); undoSnap=before; persist(); render();
+    if(msg)toast(msg,true);
+  }
+  function undo(){
+    if(!undoSnap)return;
+    data=normalize(JSON.parse(undoSnap)); undoSnap=null; editing=null;
+    persist(); render(); toast("Undone",false);
+  }
+  function toast(msg,canUndo){
+    const t=$("toast");clearTimeout(toastTimer);
+    t.innerHTML='<span></span>'+(canUndo?'<button type="button" id="undoBtn">Undo</button>':'')+'<button type="button" class="x" aria-label="Dismiss">×</button>';
+    t.firstChild.textContent=msg; t.hidden=false;
+    if(canUndo)$("undoBtn").onclick=()=>{undo()};
+    t.querySelector(".x").onclick=()=>{t.hidden=true};
+    toastTimer=setTimeout(()=>{t.hidden=true;if(canUndo)undoSnap=null},canUndo?8000:3500);
+  }
+
+  // ---------- engine ----------
+  const st=()=>data.settings;
+  function startPeriod(){const [y,m,d]=ymd(parse(st().start));return d>=16?Date.UTC(y,m,16):Date.UTC(y,m,1)}
+  function horizon(){
+    let last=Math.max(todayT,startPeriod());
+    data.leaves.forEach(l=>{const t=parse(l.date);if(t>last)last=t});
+    return Date.UTC(ymd(last)[0],11,31);
+  }
+  // Mon-Fri hours in [a,b]; public holidays are not excluded
+  function workHours(a,b){let c=0;for(let t=a;t<=b;t+=DAY){const w=dow(t);if(w!==0&&w!==6)c++}return c*st().hpd}
+  // returns {acc, bal, ded} for one cut-off under the chosen accrual mode
+  function settle(carry,full,taken,P){
+    const mode=st().accMode; let acc=full;
+    if(mode==="all"&&P>0)acc=Math.max(0,full*(1-Math.min(taken,P)/P));
+    let bal=carry+acc-taken;
+    if(mode==="unpaid"&&bal<0&&P>0){
+      const k=full/P; let u=(taken-carry-full)/(1-k);
+      u=Math.min(Math.max(u,0),P); acc=Math.max(0,full-k*u); bal=carry+acc-taken;
+    }
+    acc=r2(acc); bal=r2(carry+acc-taken);
+    return {acc,bal,ded:bal<0?r2(-bal):0,full:r2(full)};
+  }
+  function sortedLeaves(){return data.leaves.map(l=>({...l,t:parse(l.date)})).sort((a,b)=>a.t-b.t)}
+  function buildSemi(L){
+    const s=startPeriod(),H=horizon(),out=[];let carry=r2(st().bal),p=s,i=0;
+    while(i<L.length&&L[i].t<s)i++;
+    while(p<=H&&out.length<2400){
+      const [y,m,d]=ymd(p);const end=d===1?Date.UTC(y,m,15):Date.UTC(y,m,eom(y,m));
+      const lv=[];while(i<L.length&&L[i].t<=end){lv.push(L[i]);i++}
+      const taken=r2(lv.reduce((a,l)=>a+l.days*st().hpd,0));
+      const r=settle(carry,st().acc,taken,workHours(p,end)),bal=r.bal,ded=r.ded;
+      out.push({a:p,b:end,yr:ymd(end)[0],startBal:carry,acc:r.acc,full:r.full,taken,bal,ded,lv});
+      carry=bal>0?bal:0;p=end+DAY;
+    }
+    return out;
+  }
+  function buildMonthly(L){
+    const s=startPeriod(),H=horizon(),out=[];let carry=r2(st().bal);let [y,m,d]=ymd(s);let first=true,i=0;
+    while(i<L.length&&L[i].t<s)i++;
+    while(Date.UTC(y,m,1)<=H&&out.length<1200){
+      const a=first?s:Date.UTC(y,m,1),b=Date.UTC(y,m,eom(y,m));
+      const lv=[];while(i<L.length&&L[i].t<=b){lv.push(L[i]);i++}
+      const taken=r2(lv.reduce((a2,l)=>a2+l.days*st().hpd,0));
+      const r=settle(carry,(first&&d>=16?1:2)*st().acc,taken,workHours(a,b)),acc=r.acc,bal=r.bal,ded=r.ded;
+      out.push({a,b,yr:y,label:MONL[m],startBal:carry,acc,full:r.full,taken,bal,ded,lv});
+      carry=bal>0?bal:0;first=false;m++;if(m>11){m=0;y++}
+    }
+    return out;
+  }
+  function neededBuffer(rows){let run=st().bal,min=st().bal;rows.forEach(r=>{run=r2(run+r.acc-r.taken);if(run<min)min=run});return r2(Math.max(0,-min))}
+  const peso=hrs=>PHP.format(hrs/st().hpd*st().rate);
+  const pesoN=hrs=>NUM.format(hrs/st().hpd*st().rate);
+  const days=hrs=>n2(hrs/st().hpd)+" days";
+
+  // ---------- pagination ----------
+  function pageItems(cur,n){
+    if(n<=7)return Array.from({length:n},(_,i)=>i+1);
+    const s=new Set([1,n,cur-1,cur,cur+1]);
+    if(cur<=4)[2,3,4,5].forEach(x=>s.add(x));
+    if(cur>=n-3)[n-1,n-2,n-3,n-4].forEach(x=>s.add(x));
+    const arr=[...s].filter(x=>x>=1&&x<=n).sort((a,b)=>a-b),out=[];let prev=0;
+    arr.forEach(x=>{if(x-prev>1)out.push("…");out.push(x);prev=x});
+    return out;
+  }
+  function pagerHTML(key,total,page,size,sizes,noun){
+    const n=Math.max(1,Math.ceil(total/size)),from=total?(page-1)*size+1:0,to=Math.min(total,page*size);
+    return '<nav class="pager" aria-label="'+esc(noun)+' pages" data-pager="'+key+'">'+
+      '<p class="range">Showing <b>'+from+'–'+to+'</b> of <b>'+total+'</b> '+esc(noun)+'</p>'+
+      '<div class="pg">'+
+        '<button type="button" class="arrow" data-go="'+(page-1)+'" aria-label="Previous page"'+(page<=1?' disabled aria-disabled="true"':'')+'>‹ Prev</button>'+
+        pageItems(page,n).map(x=>x==="…"?'<span class="gap" aria-hidden="true">…</span>':'<button type="button" class="pnum" data-go="'+x+'" aria-label="Page '+x+' of '+n+'"'+(x===page?' aria-current="page"':'')+'>'+x+'</button>').join("")+
+        '<button type="button" class="arrow" data-go="'+(page+1)+'" aria-label="Next page"'+(page>=n?' disabled aria-disabled="true"':'')+'>Next ›</button>'+
+      '</div>'+
+      '<label class="size">Per page <select data-size>'+sizes.map(s=>'<option value="'+s+'"'+(s===size?' selected':'')+'>'+s+'</option>').join("")+'</select></label>'+
+    '</nav>';
+  }
+  function wirePager(root,onGo,onSize){
+    const nav=root.querySelector(".pager");if(!nav)return;
+    nav.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(!b||b.disabled)return;onGo(Number(b.dataset.go))});
+    nav.querySelector("[data-size]").addEventListener("change",e=>onSize(Number(e.target.value)));
+  }
+  function afterPage(){
+    const p=$("viewPanel"),r=p.getBoundingClientRect();
+    if(r.top<0)p.scrollIntoView({block:"start"});
+    const cur=p.querySelector('.pager [aria-current="page"]');if(cur)cur.focus({preventScroll:true});
+  }
+
+  // ---------- render ----------
+  function render(){
+    const L=sortedLeaves(),S=buildSemi(L),M=buildMonthly(L);
+    renderChrome(S);
+    renderSummary(L,S,M);
+    if(ui.view==="ledger")renderLedger(S,M); else renderHistory(L,S,M);
+    ocsInit($("viewPanel"));
+  }
+
+  function renderChrome(S){
+    const s=st(),hourly=s.rate/s.hpd;
+    $("chips").innerHTML='<span class="chip"><b>+'+n2(s.acc)+' h</b> per cut-off</span><span class="chip">'+MODES[s.accMode]+'</span><span class="chip"><b>'+PHP.format(s.rate)+'</b> / day</span><span class="chip"><b>'+PHP.format(hourly)+'</b> / hour</span>';
+    $("modeHint").textContent=MODE_HINT[s.accMode];
+    $("rateHint").textContent="Hourly rate: "+PHP.format(hourly)+" at "+s.hpd+" h per day.";
+    $("vLedger").setAttribute("aria-selected",String(ui.view==="ledger"));
+    $("vHistory").setAttribute("aria-selected",String(ui.view==="history"));
+    const y0=ymd(startPeriod())[0],y1=ymd(horizon())[0],sel=$("yearSel");
+    let opts='<option value="all">All years</option>';
+    for(let y=y1;y>=y0;y--)opts+='<option value="'+y+'">'+y+'</option>';
+    sel.innerHTML=opts;
+    if(ui.year!=="all"&&(+ui.year<y0||+ui.year>y1))ui.year="all";
+    sel.value=String(ui.year);
+    $("clearBtn").disabled=!data.leaves.length;
+  }
+
+  function inYear(yr){return ui.year==="all"||String(yr)===String(ui.year)}
+
+  function renderSummary(L,S,M){
+    const Ly=L.filter(l=>inYear(ymd(l.t)[0]));
+    const lh=r2(Ly.reduce((a,l)=>a+l.days*st().hpd,0));
+    const sd=r2(S.filter(r=>inYear(r.yr)).reduce((a,r)=>a+r.ded,0));
+    const md=r2(M.filter(r=>inYear(r.yr)).reduce((a,r)=>a+r.ded,0));
+    const cur=S.find(r=>todayT>=r.a&&todayT<=r.b);
+    const avail=cur?cur.startBal:(todayT<startPeriod()?st().bal:0);
+    const up=L.filter(l=>l.t>=todayT).length;
+    const scope=ui.year==="all"?"all years":String(ui.year);
+    const isS=ui.struct==="semi";
+    const stat=(k,v,s,cls)=>'<div class="ocs-card stat '+cls+'"><div class="k ocs-eyebrow"><span class="dot"></span>'+k+'</div><div class="v">'+v+'</div><div class="s">'+s+'</div></div>';
+    $("band").innerHTML=
+      stat("Leave planned",h(lh),days(lh)+" · "+scope,"plan")+
+      stat("PTO available today",h(avail),cur?"Opening balance for "+fmtS(cur.a)+" – "+fmtS(cur.b):"Before accrual start",avail>0?"good":"")+
+      stat("Semi-monthly deduction",peso(sd),h(sd)+" unpaid · "+scope,(sd>0?"bad":"good")+(isS?" active":""))+
+      stat("Monthly deduction",peso(md),h(md)+" unpaid · "+scope,(md>0?"bad":"good")+(isS?"":" active"));
+    $("band").setAttribute("aria-label","Summary for "+scope+", "+up+" upcoming leave days");
+  }
+
+  function renderLedger(S,M){
+    const isS=ui.struct==="semi",all=isS?S:M;
+    const inY=all.filter(r=>inYear(r.yr));
+    const rows=ui.only?inY.filter(r=>r.taken>0):inY;
+    const curIdx=rows.findIndex(r=>todayT>=r.a&&todayT<=r.b);
+    const nPages=Math.max(1,Math.ceil(rows.length/ui.size));
+    if(ui.page===0)ui.page=curIdx>=0?Math.floor(curIdx/ui.size)+1:1;
+    ui.page=Math.min(Math.max(1,ui.page),nPages);
+    const view=rows.slice((ui.page-1)*ui.size,ui.page*ui.size);
+    const tot=r2(inY.reduce((a,r)=>a+r.ded,0)),hit=inY.filter(r=>r.ded>0),worst=inY.reduce((a,r)=>r.ded>a.ded?r:a,{ded:0});
+    const scope=ui.year==="all"?"":" in "+ui.year;
+    const when=r=>isS?"the "+fmt(r.b)+" payroll":r.label+" "+r.yr;
+    const noun=isS?"pay periods":"months";
+
+    let verdict;
+    if(tot>0)verdict='<div class="verdict bad"><span class="ic" aria-hidden="true">!</span><p>About <strong>'+peso(tot)+'</strong> ('+h(tot)+') will be deducted'+scope+' across '+hit.length+' '+(isS?"cut-off":"month")+(hit.length===1?"":"s")+'. The largest is <strong>'+peso(worst.ded)+'</strong> on '+when(worst)+'.</p></div>';
+    else verdict='<div class="verdict good"><span class="ic" aria-hidden="true">✓</span><p>No pay deduction'+scope+'. Accrued PTO covers every leave day at its cut-off.</p></div>';
+
+    const status=r=>r.ded>0?'<span class="status w">Deducted</span>':(r.taken>0?'<span class="status o">Covered</span>':'');
+    const perT=r=>isS?'<span class="per">'+fmtS(r.a)+' – '+fmtS(r.b)+'</span> <span class="yr">'+r.yr+'</span>':'<span class="per">'+r.label+'</span> <span class="yr">'+r.yr+'</span>';
+    const per=r=>{
+      const isCur=todayT>=r.a&&todayT<=r.b;
+      const meta=(isCur?'<span class="status now">Current</span>':'')+status(r)+(r.lv.length?'<span>'+r.lv.map(l=>fmtS(l.t)+(l.days<1?" (½)":"")).join(", ")+'</span>':'');
+      return '<div class="pcell"><div>'+perT(r)+'</div>'+(meta?'<div class="pmeta">'+meta+'</div>':'')+'</div>';
+    };
+    const balLabel=isS?"Cut-off balance":"Month-end balance";
+    let body;
+    if(!rows.length){
+      body='<div class="empty"><b>No '+noun+' with leave'+scope+'</b>Turn off “Only with leave” or add a leave day.</div>';
+    }else{
+      body='<div class="ledgerbox"><div class="tablewrap"><table><caption class="sr">'+(isS?"Semi-monthly":"Monthly")+' payroll ledger</caption>'+
+      '<thead><tr><th class="l" scope="col">'+(isS?"Pay period":"Month")+'</th><th scope="col">Opening PTO<span class="u">hours</span></th><th scope="col">Accrued<span class="u">hours</span></th><th scope="col">Leave used<span class="u">hours</span></th><th scope="col">'+balLabel+'<span class="u">hours</span></th><th scope="col">Unpaid<span class="u">hours</span></th><th scope="col">Pay deducted<span class="u">PHP</span></th></tr></thead><tbody>'+
+      view.map(r=>{
+        const isCur=todayT>=r.a&&todayT<=r.b;
+        return '<tr class="'+(r.ded>0?"ded ":"")+(isCur?"cur":"")+'"'+(isCur?' id="curRow"':'')+'>'+
+        '<td class="l cardhead">'+per(r)+'</td>'+
+        '<td class="num" data-k="Opening PTO">'+n2(r.startBal)+'</td>'+
+        '<td class="num" data-k="Accrued">'+(r.acc<r.full?'<span class="reduced" title="Reduced from '+n2(r.full)+' h because of leave">+'+n2(r.acc)+'</span>':'+'+n2(r.acc))+'</td>'+
+        '<td class="num" data-k="Leave used">'+(r.taken?'−'+n2(r.taken):'<span class="d0">—</span>')+'</td>'+
+        '<td class="num" data-k="'+balLabel+'">'+(r.bal<0?'<span class="neg">'+n2(r.bal)+'</span>':n2(r.bal))+'</td>'+
+        '<td class="num" data-k="Unpaid hours">'+(r.ded?'<span class="lose">'+n2(r.ded)+'</span>':'<span class="d0">—</span>')+'</td>'+
+        '<td class="num" data-k="Pay deducted">'+(r.ded?'<span class="lose">'+pesoN(r.ded)+'</span>':'<span class="d0">—</span>')+'</td></tr>'}).join("")+
+      '</tbody><tfoot><tr><td class="l">Total<span class="cap">'+(ui.year==="all"?"All years":ui.year)+(ui.only?", all "+noun:"")+'</span></td><td></td>'+
+        '<td class="num" data-k="Accrued">+'+n2(inY.reduce((a,r)=>a+r.acc,0))+'</td>'+
+        '<td class="num" data-k="Leave used">−'+n2(inY.reduce((a,r)=>a+r.taken,0))+'</td><td></td>'+
+        '<td class="num" data-k="Unpaid">'+(tot?'<span class="lose">'+n2(tot)+' h</span>':'0.00 h')+'</td>'+
+        '<td class="num" data-k="Pay deducted">'+(tot?'<span class="lose">'+peso(tot)+'</span>':PHP.format(0))+'</td></tr></tfoot></table></div></div>'+
+      pagerHTML("ledger",rows.length,ui.page,ui.size,[6,12,24,48],noun);
+    }
+    const need=neededBuffer(S);
+    const foot='<div class="foot">'+(isS
+      ?'<p>Cut-offs fall on the 15th and the last day of each month. A positive balance carries into the next period. A negative balance is deducted from that payroll, and PTO resets to 0.</p>'+(need>0?'<p>To avoid every semi-monthly deduction you would need about <b class="num">'+h(need)+'</b> more PTO before the first period.</p>':'')
+      :'<p>Both accruals in a month count before the month-end check. A negative balance is deducted from the month-end payroll, and PTO resets to 0.</p>')+
+      (st().accMode!=="full"?'<p>Accrual mode: <b>'+MODES[st().accMode]+'</b>. Reduced accruals are shown in the accent color. Working hours count Monday to Friday and do not exclude public holidays.</p>':'')+
+      '<p>Peso amounts are estimates: unpaid hours ÷ '+st().hpd+' × daily rate. Your payslip may differ.</p></div>';
+
+    const p=$("viewPanel");
+    p.setAttribute("aria-labelledby","vLedger");
+    p.innerHTML='<div class="toolbar">'+
+        '<div class="tabs" role="tablist" aria-label="Deduction structure"><button class="tab" role="tab" type="button" data-struct="semi" aria-selected="'+isS+'">Semi-monthly</button><button class="tab" role="tab" type="button" data-struct="mon" aria-selected="'+!isS+'">Monthly</button></div>'+
+        '<div class="tools"><label class="toggle" for="onlyLeave"><input type="checkbox" id="onlyLeave"'+(ui.only?" checked":"")+'>Only with leave</label>'+
+        '<button class="ocs-btn ocs-btn-secondary" type="button" id="todayBtn" data-ocs="wave squish">Go to today</button></div>'+
+      '</div>'+verdict+body+foot;
+
+    p.querySelectorAll("[data-struct]").forEach(b=>b.onclick=()=>{ui.struct=b.dataset.struct;ui.page=0;saveUI();render()});
+    $("onlyLeave").onchange=e=>{ui.only=e.target.checked;ui.page=0;saveUI();render()};
+    $("todayBtn").onclick=()=>{
+      const ty=ymd(todayT)[0];
+      if(ui.year!=="all"&&+ui.year!==ty)ui.year=String(ty);
+      const curRow=(isS?S:M).find(r=>todayT>=r.a&&todayT<=r.b);
+      if(ui.only&&curRow&&!curRow.taken)ui.only=false;
+      ui.page=0;saveUI();render();
+      const el=$("curRow");if(el)el.scrollIntoView({block:"center"});
+      else toast("Today is outside the ledger range. Check the accrual start date.",false);
+    };
+    wirePager(p,n=>{ui.page=n;render();afterPage()},s=>{ui.size=s;ui.page=0;saveUI();render()});
+  }
+
+  function renderHistory(L,S,M){
+    const isS=ui.struct==="semi",rows=isS?S:M;
+    const periodOf=t=>rows.find(r=>t>=r.a&&t<=r.b);
+    const q=ui.lq.trim().toLowerCase();
+    let list=L.filter(l=>inYear(ymd(l.t)[0]));
+    if(ui.lf==="upcoming")list=list.filter(l=>l.t>=todayT);
+    if(ui.lf==="past")list=list.filter(l=>l.t<todayT);
+    if(q)list=list.filter(l=>(l.note+" "+fmt(l.t)+" "+DOW[dow(l.t)]+" "+l.date+" "+MONL[ymd(l.t)[1]]).toLowerCase().includes(q));
+    if(ui.ldir==="desc")list.reverse();
+    const n=Math.max(1,Math.ceil(list.length/ui.lsize));
+    ui.lpage=Math.min(Math.max(1,ui.lpage),n);
+    const view=list.slice((ui.lpage-1)*ui.lsize,ui.lpage*ui.lsize);
+    const filt=(v,t)=>'<input type="radio" name="lf" id="lf_'+v+'" value="'+v+'"'+(ui.lf===v?" checked":"")+'><label for="lf_'+v+'">'+t+'</label>';
+
+    let body;
+    if(!data.leaves.length){
+      body='<div class="empty"><b>No leave planned yet</b>Add a date on the left, or start with the leave days from your PTO report.'+
+        '<div class="btnrow"><button class="ocs-btn ocs-btn-secondary" type="button" id="loadReport" data-ocs="wave squish">Add the 5 report days</button><label class="ocs-btn ocs-btn-code" for="importFile" style="margin:0" data-ocs="decode squish">Import CSV</label></div></div>';
+    }else if(!list.length){
+      body='<div class="empty"><b>No leave matches</b>'+(q?'Nothing found for “'+esc(ui.lq)+'”. ':'')+'Try another filter or year.'+
+        '<div class="btnrow"><button class="ocs-btn ocs-btn-secondary" type="button" id="resetFilters" data-ocs="wave squish">Clear filters</button></div></div>';
+    }else{
+      let lastY=null,html='<ul class="lh" aria-label="Leave days">';
+      view.forEach(l=>{
+        const [y,m,d]=ymd(l.t);
+        if(y!==lastY){
+          const cnt=list.filter(x=>ymd(x.t)[0]===y);
+          const hrs=cnt.reduce((a,x)=>a+x.days*st().hpd,0);
+          html+='<li class="yh" aria-hidden="true"><span>'+y+'</span><span>'+cnt.length+' '+(cnt.length===1?"entry":"entries")+' · '+h(hrs)+'</span></li>';lastY=y;
+        }
+        if(editing===l.id){
+          html+='<li class="editrow"><form class="editgrid" data-edit="'+esc(l.id)+'">'+
+            '<div class="field"><label for="ed_date">Date</label><input type="date" id="ed_date" value="'+l.date+'" required></div>'+
+            '<div class="field"><label for="ed_len">Length</label><select id="ed_len"><option value="1"'+(l.days===1?" selected":"")+'>Full day</option><option value="0.5"'+(l.days<1?" selected":"")+'>Half day</option></select></div>'+
+            '<div class="field note"><label for="ed_note">Note</label><input type="text" id="ed_note" maxlength="80" value="'+esc(l.note)+'"></div>'+
+            '<div class="btnrow"><button class="ocs-btn ocs-btn-accent" type="submit" data-ocs="squish">Save</button><button class="ocs-btn ocs-btn-secondary" type="button" data-cancel data-ocs="wave squish">Cancel</button></div>'+
+            '<div class="err" id="edErr" role="alert" hidden style="grid-column:1/-1"></div></form></li>';
+          return;
+        }
+        const pr=periodOf(l.t),past=l.t<todayT;
+        const badge=pr?(pr.ded>0?'<span class="status w">Deducted period</span>':'<span class="status o">Covered</span>'):'';
+        html+='<li class="item'+(past?" past":"")+'">'+
+          '<div class="cal" aria-hidden="true"><span class="m">'+MON[m]+'</span><span class="d">'+d+'</span></div>'+
+          '<div style="min-width:0"><div class="li-t">'+DOW[dow(l.t)]+', '+fmt(l.t)+(l.days<1?'<span class="half">½ DAY</span>':'')+(past?'<span class="status past">Taken</span>':'')+badge+'</div>'+
+          '<div class="li-n">'+(l.note?esc(l.note):'<span class="d0">No note</span>')+' · '+h(l.days*st().hpd)+(pr?' · '+(isS?fmtS(pr.a)+' – '+fmtS(pr.b):pr.label)+' cut-off':'')+'</div></div>'+
+          '<div class="acts"><button class="ib" type="button" data-editid="'+esc(l.id)+'" aria-label="Edit leave on '+fmt(l.t)+'" title="Edit"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11 2.5l2.5 2.5L6 12.5H3.5V10L11 2.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="miter"/></svg></button>'+
+          '<button class="ib del" type="button" data-delid="'+esc(l.id)+'" aria-label="Delete leave on '+fmt(l.t)+'" title="Delete"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="miter" stroke-linecap="square"/></svg></button></div></li>';
+      });
+      html+='</ul>';
+      body=html+pagerHTML("history",list.length,ui.lpage,ui.lsize,[10,25,50,100],"leave days");
+    }
+
+    const p=$("viewPanel");
+    p.setAttribute("aria-labelledby","vHistory");
+    p.innerHTML='<div class="toolbar">'+
+        '<div class="search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>'+
+        '<label for="lq" class="sr">Search leave</label><input type="search" id="lq" placeholder="Search notes, dates, months" value="'+esc(ui.lq)+'"></div>'+
+        '<div class="tools"><div class="seg" role="radiogroup" aria-label="Show" style="grid-template-columns:repeat(3,auto)">'+filt("all","All")+filt("upcoming","Upcoming")+filt("past","Past")+'</div>'+
+        '<label class="sr" for="ldir">Sort</label><select id="ldir" style="width:auto"><option value="asc"'+(ui.ldir==="asc"?" selected":"")+'>Oldest first</option><option value="desc"'+(ui.ldir==="desc"?" selected":"")+'>Newest first</option></select></div>'+
+      '</div>'+body+
+      '<div class="foot"><p>Badges use the '+(isS?"semi-monthly":"monthly")+' structure. Switch it on the Payroll ledger tab.</p></div>';
+
+    const lq=$("lq");
+    lq.oninput=()=>{ui.lq=lq.value;ui.lpage=1;const pos=lq.selectionStart;render();const n2=$("lq");n2.focus();try{n2.setSelectionRange(pos,pos)}catch(e){}};
+    p.querySelectorAll('input[name="lf"]').forEach(r=>r.onchange=()=>{ui.lf=r.value;ui.lpage=1;saveUI();render()});
+    $("ldir").onchange=e=>{ui.ldir=e.target.value;ui.lpage=1;saveUI();render()};
+    const lr=$("loadReport");if(lr)lr.onclick=()=>addDates(REPORT.map(d=>({date:d,days:1,note:"From PTO report"})),"report");
+    const rf=$("resetFilters");if(rf)rf.onclick=()=>{ui.lq="";ui.lf="all";ui.year="all";ui.lpage=1;saveUI();render()};
+    p.querySelectorAll("[data-editid]").forEach(b=>b.onclick=()=>{editing=b.dataset.editid;render();const f=$("ed_date");if(f)f.focus()});
+    p.querySelectorAll("[data-delid]").forEach(b=>b.onclick=()=>{
+      const l=data.leaves.find(x=>x.id===b.dataset.delid);if(!l)return;
+      mutate(()=>{data.leaves=data.leaves.filter(x=>x.id!==l.id)},"Deleted leave on "+fmt(parse(l.date)));
+    });
+    const ef=p.querySelector("[data-edit]");
+    if(ef){
+      ef.querySelector("[data-cancel]").onclick=()=>{editing=null;render()};
+      ef.addEventListener("keydown",e=>{if(e.key==="Escape"){editing=null;render()}});
+      ef.onsubmit=e=>{
+        e.preventDefault();
+        const id=ef.dataset.edit,date=$("ed_date").value,dd=Number($("ed_len").value),note=$("ed_note").value.trim();
+        const err=$("edErr");
+        if(!validISO(date)){err.textContent="Enter a valid date.";err.hidden=false;return}
+        if(parse(date)<startPeriod()){err.textContent="That date is before the accrual start ("+fmt(startPeriod())+").";err.hidden=false;return}
+        const used=data.leaves.filter(x=>x.id!==id&&x.date===date).reduce((a,x)=>a+x.days,0);
+        if(used+dd>1){err.textContent=fmt(parse(date))+" already has "+(used>=1?"a full day":"a half day")+" logged.";err.hidden=false;return}
+        mutate(()=>{const l=data.leaves.find(x=>x.id===id);if(l){l.date=date;l.days=dd;l.note=note}editing=null},"Leave updated");
+      };
+    }
+    wirePager(p,n=>{ui.lpage=n;render();afterPage()},s=>{ui.lsize=s;ui.lpage=1;saveUI();render()});
+  }
+
+  // ---------- add leave ----------
+  function addDates(items,source){
+    const sp=startPeriod();let added=0,dup=0,early=0;const next=[];
+    items.forEach(it=>{
+      if(parse(it.date)<sp){early++;return}
+      const used=data.leaves.concat(next).filter(x=>x.date===it.date).reduce((a,x)=>a+x.days,0);
+      if(used+it.days>1){dup++;return}
+      next.push({id:newId(),date:it.date,days:it.days,note:(it.note||"").slice(0,80)});added++;
+    });
+    if(!added){
+      const why=dup?"already logged":"before the accrual start ("+fmt(sp)+")";
+      return {ok:false,msg:(items.length===1?"That day is ":"All those days are ")+why+"."};
+    }
+    let msg=source==="import"?"Imported "+added+" leave "+(added===1?"day":"days"):"Added "+added+" leave "+(added===1?"day":"days");
+    const skip=[];if(dup)skip.push(dup+" already logged");if(early)skip.push(early+" before accrual start");
+    if(skip.length)msg+=". Skipped "+skip.join(", ");
+    mutate(()=>{data.leaves=data.leaves.concat(next)},msg);
+    return {ok:true};
+  }
+  function showErr(m){const e=$("addErr");e.textContent=m;e.hidden=!m}
+  function syncRangeUI(){
+    const from=$("lvFrom").value,to=$("lvTo").value,range=!!(from&&to&&to!==from);
+    $("lenBox").hidden=range;$("wkBox").hidden=!range;
+    let label="Add leave";
+    if(range&&to>from){
+      let c=0;for(let t=parse(from);t<=parse(to);t+=DAY){const w=dow(t);if(!$("skipWk").checked||(w!==0&&w!==6))c++}
+      label="Add "+c+" leave "+(c===1?"day":"days");
+    }
+    setLabel($("addBtn"),label);
+  }
+  ["lvFrom","lvTo","skipWk"].forEach(id=>$(id).addEventListener("input",()=>{showErr("");syncRangeUI()}));
+  $("addForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const from=$("lvFrom").value,to=$("lvTo").value||from,note=$("lvNote").value.trim();
+    if(!validISO(from))return showErr("Pick a date for the leave.");
+    if(!validISO(to))return showErr("The end date is not valid.");
+    if(to<from)return showErr("The end date is before the start date.");
+    const span=(parse(to)-parse(from))/DAY+1;
+    if(span>62)return showErr("Add at most 62 days at a time.");
+    const items=[];const single=span===1;
+    for(let t=parse(from);t<=parse(to);t+=DAY){
+      const w=dow(t);if(!single&&$("skipWk").checked&&(w===0||w===6))continue;
+      items.push({date:iso(t),days:single?Number(document.querySelector('input[name="len"]:checked').value):1,note});
+    }
+    if(!items.length)return showErr("That range only has weekend days.");
+    const r=addDates(items,"form");
+    if(!r.ok)return showErr(r.msg);
+    showErr("");$("lvFrom").value="";$("lvTo").value="";$("lvNote").value="";syncRangeUI();
+  });
+
+  // ---------- settings ----------
+  const s0=st();$("sAcc").value=s0.acc;$("sHpd").value=s0.hpd;$("sStart").value=s0.start;$("sBal").value=s0.bal;$("sRate").value=s0.rate;
+  function fillSettings(){const s=st();[["sAcc","acc"],["sHpd","hpd"],["sBal","bal"],["sRate","rate"],["sStart","start"],["sMode","accMode"]].forEach(([id,k])=>{if(document.activeElement!==$(id))$(id).value=s[k]})}
+  const num=(id,key,min)=>$(id).addEventListener("input",()=>{const v=parseFloat($(id).value);if(!isNaN(v)&&v>=min){data.settings[key]=v;persist();ui.page=0;render()}});
+  num("sAcc","acc",0);num("sHpd","hpd",0.5);num("sBal","bal",0);num("sRate","rate",0);
+  $("sMode").addEventListener("change",()=>{const v=$("sMode").value;if(MODES[v]){data.settings.accMode=v;persist();render();toast("Accrual set to: "+MODES[v],false)}});
+  $("sStart").addEventListener("change",()=>{const v=$("sStart").value;if(validISO(v)){data.settings.start=v;persist();ui.page=0;render()}});
+
+  // ---------- data ----------
+  function toCSV(){
+    const q=s=>/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+    return "date,days,hours,note\n"+sortedLeaves().map(l=>[l.date,l.days,n2(l.days*st().hpd),q(l.note||"")].join(",")).join("\n")+"\n";
+  }
+  function showCSV(csv){$("csvBox").hidden=false;const t=$("csvText");t.value=csv;t.focus();t.select()}
+  // Plain browser download for the office server; falls back to clipboard, then a copy box
+  function downloadCSV(csv,name){
+    try{
+      const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+      const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      toast("CSV downloaded",false);
+    }catch(e){copyCSV(csv)}
+  }
+  $("exportBtn").onclick=()=>{
+    if(!data.leaves.length)return toast("There is no leave to export yet.",false);
+    const csv=toCSV(),name="pto-leave-"+iso(todayT)+".csv";
+    if(dl&&dl.save){
+      dl.save({filename:name,data:csv}).then(()=>toast("CSV saved",false)).catch(e=>{if(e&&e.code==="declined")return;copyCSV(csv)});
+    }else downloadCSV(csv,name);
+  };
+  function copyCSV(csv){
+    try{navigator.clipboard.writeText(csv).then(()=>{toast("CSV copied to clipboard",false);showCSV(csv)},()=>showCSV(csv))}catch(e){showCSV(csv)}
+  }
+  function parseCSV(text){
+    const out=[],lines=text.replace(/\r/g,"").split("\n");
+    lines.forEach(line=>{
+      if(!line.trim())return;
+      const cells=[];let cur="",inQ=false;
+      for(let i=0;i<line.length;i++){const c=line[i];
+        if(inQ){if(c==='"'){if(line[i+1]==='"'){cur+='"';i++}else inQ=false}else cur+=c}
+        else if(c==='"')inQ=true; else if(c===","){cells.push(cur);cur=""} else cur+=c}
+      cells.push(cur);
+      let d=(cells[0]||"").trim();
+      const mdY=d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if(mdY)d=mdY[3]+"-"+mdY[1].padStart(2,"0")+"-"+mdY[2].padStart(2,"0");
+      if(!validISO(d))return;
+      const dv=parseFloat(cells[1]);
+      out.push({date:d,days:dv===0.5?0.5:1,note:(cells.length>=4?cells[3]:cells[2]||"").trim()});
+    });
+    return out;
+  }
+  $("importFile").addEventListener("change",e=>{
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    const rd=new FileReader();
+    rd.onload=()=>{
+      const items=parseCSV(String(rd.result||""));
+      if(!items.length){toast("No valid rows found. Use YYYY-MM-DD dates in the first column.",false);return}
+      const r=addDates(items,"import");if(!r.ok)toast(r.msg,false);
+    };
+    rd.onerror=()=>toast("Could not read that file.",false);
+    rd.readAsText(f);e.target.value="";
+  });
+  $("clearBtn").onclick=()=>{
+    const n=data.leaves.length;if(!n)return;
+    mutate(()=>{data.leaves=[]},"Cleared "+n+" leave "+(n===1?"day":"days"));
+  };
+
+  // ---------- views ----------
+  $("vLedger").onclick=()=>{ui.view="ledger";saveUI();render()};
+  $("vHistory").onclick=()=>{ui.view="history";editing=null;saveUI();render()};
+  $("yearSel").onchange=e=>{ui.year=e.target.value;ui.page=0;ui.lpage=1;saveUI();render()};
+  document.querySelectorAll('[role="tablist"]').forEach(tl=>tl.addEventListener("keydown",e=>{
+    if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft")return;
+    const tabs=[...tl.querySelectorAll('[role="tab"]')],i=tabs.indexOf(document.activeElement);if(i<0)return;
+    const n=tabs[(i+(e.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length];n.focus();n.click();
+  }));
+
+  // ---------- boot ----------
+  if(OCS){try{OCS.background(document.querySelector(".ocs-bg"))}catch(e){}}
+  ocsInit(document);
+  loadLocal();
+  fillSettings();
+  const _render=render;render=function(){_render();fillSettings()};
+  render();
+  setSync("connecting");
+  initCloud();
+})();
+</script>
+</body>
+</html>

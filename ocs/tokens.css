@@ -1,0 +1,58 @@
+/* Orchid City Software tokens. Generated from tokens.json. Light = paper, dark = code. */
+:root, [data-theme="light"] {
+  --bg: #fffdf8;
+  --surface: #f7efe1;
+  --surface-hover: #f1e4cc;
+  --ink: #1f1608;
+  --muted: #5e4f38;
+  --primary: #9a4700;
+  --primary-hover: #8a3f00;
+  --on-primary: #ffffff;
+  --accent: #0f766e;
+  --on-accent: #ffffff;
+  --line: rgba(15, 118, 110, 0.12);
+  --node: rgba(154, 71, 0, 0.45);
+  --success: #0f6b4a;
+  --danger: #8a1c3b;
+  --lift: 4px 4px 0 rgba(31, 22, 8, 0.88);
+  --press: 1px 1px 0 rgba(31, 22, 8, 0.88);
+}
+
+[data-theme="dark"] {
+  --bg: #06020c;
+  --surface: #140a24;
+  --surface-hover: #1d1033;
+  --ink: #f1e9ff;
+  --muted: #ada0c4;
+  --primary: #b794ff;
+  --primary-hover: #c7abff;
+  --on-primary: #06020c;
+  --accent: #f0abfc;
+  --on-accent: #06020c;
+  --line: rgba(183, 148, 255, 0.10);
+  --node: rgba(183, 148, 255, 0.30);
+  --success: #6fe0b0;
+  --danger: #ff8fa8;
+  --lift: 0 10px 30px rgba(183, 148, 255, 0.16);
+  --press: 0 4px 12px rgba(183, 148, 255, 0.12);
+}
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-none: 0px;
+  --radius-sm: 2px;
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --dur-fast: 160ms;
+  --dur-base: 320ms;
+  --dur-slow: 560ms;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+}
