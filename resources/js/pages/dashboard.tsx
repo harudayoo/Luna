@@ -1,5 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { dashboard } from '@/routes';
+import { index as analyticsIndex } from '@/routes/analytics';
 import { index as calendarIndex } from '@/routes/calendar';
 import { index as leaveIndex } from '@/routes/leave';
 
@@ -12,14 +13,6 @@ type Props = {
     };
     out_today: number;
 };
-
-const COMING = [
-    {
-        eyebrow: 'Payroll',
-        title: 'Cut-offs',
-        text: 'Accruals and deductions per pay period.',
-    },
-];
 
 const short = (iso: string) =>
     new Intl.DateTimeFormat('en-PH', {
@@ -73,16 +66,18 @@ export default function Dashboard({ pto, out_today }: Props) {
                         See who’s out →
                     </p>
                 </Link>
-                {COMING.map((m) => (
-                    <section key={m.eyebrow} className="ocs-card">
-                        <p className="ocs-eyebrow">{m.eyebrow}</p>
-                        <h3>{m.title}</h3>
-                        <p>{m.text}</p>
-                        <p className="mt-4">
-                            <span className="ocs-badge">coming soon</span>
-                        </p>
-                    </section>
-                ))}
+                <Link
+                    href={analyticsIndex()}
+                    prefetch
+                    className="ocs-card ocs-card-link block"
+                >
+                    <p className="ocs-eyebrow">Analytics</p>
+                    <h3>Leave and pay over the year</h3>
+                    <p>Your PTO by cut-off, and what came off your pay.</p>
+                    <p className="mt-4 text-sm font-semibold text-primary">
+                        See the numbers →
+                    </p>
+                </Link>
             </div>
         </>
     );
