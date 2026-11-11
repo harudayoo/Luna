@@ -13,6 +13,7 @@ Route::middleware(['auth', 'verified', 'can:hr'])->group(function () {
     Route::get('people', [PeopleController::class, 'index'])->name('people.index');
     Route::post('people', [PeopleController::class, 'store'])->name('people.store');
     Route::get('people/leave', [TeamLeaveController::class, 'index'])->name('people.leave');
+    Route::post('people/{user}/leave', [TeamLeaveController::class, 'store'])->name('people.leave.store');
     Route::get('people/policy', [PolicyController::class, 'edit'])->name('people.policy');
     Route::put('people/policy', [PolicyController::class, 'update'])->name('people.policy.update');
     Route::get('people/holidays', [HolidayController::class, 'index'])->name('people.holidays');

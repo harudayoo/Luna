@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreLeaveForRequest;
 use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
@@ -9,7 +10,9 @@ use App\Services\Pto\CutOff;
 use App\Services\Pto\Ledger;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -76,5 +79,31 @@ class TeamLeaveController extends Controller
                 'deducted_pesos' => round($rows->sum(fn ($r) => $r['deducted_pesos'] ?? 0), 2),
             ],
         ]);
+    }
+
+    /** HR logs leave for someone, past cut-offs included (to fix the record), then shows that cut-off. */
+    public function store(StoreLeaveForRequest $request, User $user): RedirectResponse
+    {
+        $dates = $request->dates();
+
+        DB::transaction(function () use ($request, $user, $dates) {
+            foreach ($dates as $date) {
+                $user->leaves()->create([
+                    'date' => $date->toDateString(),
+                    'days' => $request->daysEach(),
+                    'note' => $request->input('note'),
+                ]);
+            }
+        });
+
+        $days = count($dates) * $request->daysEach();
+        Inertia::flash('toast', ['type' => 'success', 'message' => sprintf(
+            '%s %s logged for %s.',
+            $days === 0.5 ? 'Half a' : (float) $days,
+            $days > 1 ? 'days' : 'day',
+            explode(' ', $user->name)[0],
+        )]);
+
+        return to_route('people.leave', ['cutoff' => Ledger::cutOffFor($dates[0])[0]->toDateString()]);
     }
 }

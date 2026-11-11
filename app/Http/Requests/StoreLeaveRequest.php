@@ -44,6 +44,19 @@ class StoreLeaveRequest extends FormRequest
         return $this->dates;
     }
 
+    /** Whose leave this is: the signed-in person here; StoreLeaveForRequest logs it for someone else. */
+    public function owner(): User
+    {
+        /** @var User */
+        return $this->user();
+    }
+
+    /** Employees can't change a cut-off once payroll ran; HR can (StoreLeaveForRequest). */
+    protected function allowsEndedCutOffs(): bool
+    {
+        return false;
+    }
+
     public function daysEach(): float
     {
         return $this->boolean('half_day') ? 0.5 : 1.0;
@@ -55,8 +68,9 @@ class StoreLeaveRequest extends FormRequest
         $to = CarbonImmutable::parse($this->input('to') ?: $this->input('from'));
         $today = CarbonImmutable::today();
         $policy = Policy::current();
-        /** @var User $user */
-        $user = $this->user();
+        $user = $this->owner();
+        $self = $user->id === $this->user()->id;
+        $first = explode(' ', $user->name)[0];
         $fail = fn (string $message) => $v->errors()->add('from', $message);
 
         if ($this->boolean('half_day') && ! $from->equalTo($to)) {
@@ -86,12 +100,12 @@ class StoreLeaveRequest extends FormRequest
         }
 
         if ($this->dates[0]->lessThan($user->ptoStart())) {
-            $fail('Your PTO starts on '.$user->ptoStart()->format('M j, Y').'.');
+            $fail(($self ? 'Your' : $first.'’s').' PTO starts on '.$user->ptoStart()->format('M j, Y').'.');
 
             return;
         }
 
-        if (Ledger::cutOffFor($this->dates[0])[1]->lessThan($today)) {
+        if (! $this->allowsEndedCutOffs() && Ledger::cutOffFor($this->dates[0])[1]->lessThan($today)) {
             $fail('That cut-off has ended and payroll ran. Ask HR to fix past leave.');
 
             return;
@@ -103,7 +117,7 @@ class StoreLeaveRequest extends FormRequest
 
         $clash = $taken->first(fn ($l) => in_array($l->date->toDateString(), array_map(fn ($d) => $d->toDateString(), $this->dates), true));
         if ($clash) {
-            $fail('You already logged leave on '.$clash->date->format('M j').'.');
+            $fail(($self ? 'You' : $first).' already logged leave on '.$clash->date->format('M j').'.');
 
             return;
         }

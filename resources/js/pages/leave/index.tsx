@@ -1,10 +1,9 @@
-import { Form, Head, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { Lock, X } from 'lucide-react';
 import { useState } from 'react';
 import LeaveController from '@/actions/App/Http/Controllers/LeaveController';
-import InputError from '@/components/input-error';
+import { LogLeaveDialog } from '@/components/log-leave-dialog';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogClose,
@@ -14,8 +13,6 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { index as leaveIndex } from '@/routes/leave';
 
@@ -80,7 +77,13 @@ export default function MyLeave(props: Props) {
                     <p className="ocs-eyebrow">Leave</p>
                     <h2 className="text-2xl font-semibold">My leave</h2>
                 </div>
-                <LogLeaveDialog />
+                <LogLeaveDialog
+                    form={LeaveController.store.form()}
+                    title="Log leave"
+                    description="No approval needed. Weekends and holidays in a range are skipped."
+                    trigger={<Button>Log leave</Button>}
+                    defaultFrom={today()}
+                />
             </div>
 
             {/* Gist first: what you have, what this cut-off does to it, how much of the month is left. */}
@@ -310,102 +313,6 @@ function CancelLeave({ entry }: { entry: LeaveEntry }) {
                         Cancel leave
                     </Button>
                 </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function LogLeaveDialog() {
-    const [open, setOpen] = useState(false);
-    const [from, setFrom] = useState(today());
-    const [to, setTo] = useState('');
-    const range = to !== '' && to !== from;
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button>Log leave</Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[90dvh] overflow-y-auto">
-                <DialogTitle>Log leave</DialogTitle>
-                <DialogDescription>
-                    No approval needed. Weekends and holidays in a range are
-                    skipped.
-                </DialogDescription>
-
-                <Form
-                    {...LeaveController.store.form()}
-                    resetOnSuccess
-                    onSuccess={() => {
-                        setOpen(false);
-                        setTo('');
-                    }}
-                    className="grid gap-4"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="from">From</Label>
-                                    <Input
-                                        id="from"
-                                        name="from"
-                                        type="date"
-                                        required
-                                        value={from}
-                                        onChange={(e) =>
-                                            setFrom(e.target.value)
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="to">To (optional)</Label>
-                                    <Input
-                                        id="to"
-                                        name="to"
-                                        type="date"
-                                        min={from}
-                                        value={to}
-                                        onChange={(e) => setTo(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <InputError message={errors.from ?? errors.to} />
-
-                            <div className="flex min-h-10 items-center gap-3">
-                                <Checkbox
-                                    id="half_day"
-                                    name="half_day"
-                                    value="1"
-                                    disabled={range}
-                                />
-                                <Label
-                                    htmlFor="half_day"
-                                    className={range ? 'text-muted' : ''}
-                                >
-                                    Half day {range && '(single dates only)'}
-                                </Label>
-                            </div>
-                            <InputError message={errors.half_day} />
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="note">Note (optional)</Label>
-                                <Input
-                                    id="note"
-                                    name="note"
-                                    maxLength={80}
-                                    placeholder="e.g. Dentist, family trip"
-                                />
-                                <InputError message={errors.note} />
-                            </div>
-
-                            <Button type="submit" disabled={processing}>
-                                {processing && <Spinner />}
-                                Log leave
-                            </Button>
-                        </>
-                    )}
-                </Form>
             </DialogContent>
         </Dialog>
     );

@@ -1,7 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import LeaveController from '@/actions/App/Http/Controllers/LeaveController';
+import TeamLeaveController from '@/actions/App/Http/Controllers/TeamLeaveController';
+import { LogLeaveDialog } from '@/components/log-leave-dialog';
 import { PeopleTabs } from '@/components/people-tabs';
 import { Button } from '@/components/ui/button';
 import {
@@ -65,6 +67,7 @@ const short = (iso: string) => fmt(iso, { month: 'short', day: 'numeric' });
 const day = (iso: string) =>
     fmt(iso, { weekday: 'short', month: 'short', day: 'numeric' });
 const hours = (h: number) => `${h.toFixed(2)} h`;
+const today = () => new Date().toLocaleDateString('en-CA'); // Y-m-d, local
 const peso = (n: number) =>
     new Intl.NumberFormat('en-PH', {
         style: 'currency',
@@ -189,34 +192,58 @@ export default function TeamLeave({ cutoff, rows, totals }: Props) {
                                 {hours(r.accrued)} · took {hours(r.taken_hours)}
                             </p>
                         )}
-                        {r.leaves.length > 0 && (
-                            <ul className="flex flex-wrap gap-2">
-                                {r.leaves.map((l) => (
-                                    <li
-                                        key={l.id}
-                                        className="flex items-center gap-1 bg-bg py-1 pr-1 pl-3 text-sm"
-                                        title={
-                                            l.holiday
-                                                ? `${l.holiday}: not charged`
-                                                : (l.note ?? undefined)
-                                        }
+                        <div className="flex flex-wrap items-center gap-2">
+                            {r.leaves.length > 0 && (
+                                <ul className="contents">
+                                    {r.leaves.map((l) => (
+                                        <li
+                                            key={l.id}
+                                            className="flex items-center gap-1 bg-bg py-1 pr-1 pl-3 text-sm"
+                                            title={
+                                                l.holiday
+                                                    ? `${l.holiday}: not charged`
+                                                    : (l.note ?? undefined)
+                                            }
+                                        >
+                                            {day(l.date)}
+                                            {l.days === 0.5 && (
+                                                <span className="text-xs text-muted">
+                                                    ½
+                                                </span>
+                                            )}
+                                            {l.holiday && (
+                                                <span className="text-xs text-muted">
+                                                    holiday
+                                                </span>
+                                            )}
+                                            <CancelLeave
+                                                name={r.name}
+                                                entry={l}
+                                            />
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            <LogLeaveDialog
+                                form={TeamLeaveController.store.form(r.id)}
+                                idPrefix={`add-${r.id}`}
+                                title={`Add leave for ${r.name}`}
+                                description="Ended cut-offs are open to HR, to fix the record. Weekends and holidays in a range are skipped."
+                                defaultFrom={
+                                    cutoff.is_current ? today() : cutoff.start
+                                }
+                                trigger={
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="min-h-10"
+                                        aria-label={`Add leave for ${r.name}`}
                                     >
-                                        {day(l.date)}
-                                        {l.days === 0.5 && (
-                                            <span className="text-xs text-muted">
-                                                ½
-                                            </span>
-                                        )}
-                                        {l.holiday && (
-                                            <span className="text-xs text-muted">
-                                                holiday
-                                            </span>
-                                        )}
-                                        <CancelLeave name={r.name} entry={l} />
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
+                                        <Plus /> Add leave
+                                    </Button>
+                                }
+                            />
+                        </div>
                     </li>
                 ))}
             </ul>
