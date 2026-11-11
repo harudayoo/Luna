@@ -8,6 +8,8 @@ use Carbon\CarbonImmutable;
  * The PTO ledger: a port of the old single-file planner's engine (index.html: startPeriod,
  * horizon, workHours, settle, buildSemi), kept step for step so figures match it exactly.
  * tests/Unit/PtoLedgerTest pins it to golden values produced by that original code.
+ * One addition the planner didn't have: public holidays aren't work hours, and leave dated on
+ * one isn't charged. With no holidays the figures are the planner's.
  *
  * Each cut-off: carry + accrued - taken. A negative balance is unpaid (deducted from that
  * payroll) and the next cut-off starts from zero.
@@ -19,13 +21,22 @@ final class Ledger
 
     /**
      * @param  iterable<array{date: string, days: float|int|string}>  $leaves
+     * @param  iterable<string>  $holidays  Y-m-d dates
      * @return list<CutOff>
      */
-    public static function build(Policy $policy, CarbonImmutable $start, float $openingHours, iterable $leaves, CarbonImmutable $today): array
+    public static function build(Policy $policy, CarbonImmutable $start, float $openingHours, iterable $leaves, CarbonImmutable $today, iterable $holidays = []): array
     {
+        $off = [];
+        foreach ($holidays as $date) {
+            $off[substr((string) $date, 0, 10)] = true;
+        }
+
         $sorted = [];
         foreach ($leaves as $leave) {
-            $sorted[] = ['date' => substr((string) $leave['date'], 0, 10), 'days' => (float) $leave['days']];
+            $date = substr((string) $leave['date'], 0, 10);
+            if (! isset($off[$date])) {
+                $sorted[] = ['date' => $date, 'days' => (float) $leave['days']];
+            }
         }
         usort($sorted, fn ($a, $b) => strcmp($a['date'], $b['date']));
 
@@ -49,7 +60,7 @@ final class Ledger
             }
 
             $taken = self::r2(array_sum(array_map(fn ($l) => $l['days'] * $policy->hoursPerDay, $inside)));
-            [$accrued, $balance, $deducted] = self::settle($policy, $carry, $taken, self::workHours($policy, $period, $end));
+            [$accrued, $balance, $deducted] = self::settle($policy, $carry, $taken, self::workHours($policy, $period, $end, $off));
 
             $out[] = new CutOff($period, $end, $carry, $accrued, $taken, $balance, $deducted, $inside);
 
@@ -98,12 +109,16 @@ final class Ledger
         return [$accrued, $balance, $balance < 0 ? self::r2(-$balance) : 0.0];
     }
 
-    /** Weekday hours in [a, b]. Public holidays aren't excluded yet (holiday calendar slice). */
-    private static function workHours(Policy $policy, CarbonImmutable $a, CarbonImmutable $b): float
+    /**
+     * Weekday hours in [a, b], less public holidays.
+     *
+     * @param  array<string, true>  $off  holidays keyed by Y-m-d
+     */
+    private static function workHours(Policy $policy, CarbonImmutable $a, CarbonImmutable $b, array $off): float
     {
         $days = 0;
         for ($d = $a; $d->lessThanOrEqualTo($b); $d = $d->addDay()) {
-            if (! $d->isWeekend()) {
+            if (! $d->isWeekend() && ! isset($off[$d->toDateString()])) {
                 $days++;
             }
         }

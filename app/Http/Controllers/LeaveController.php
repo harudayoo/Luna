@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreLeaveRequest;
+use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
 use App\Services\Pto\CutOff;
@@ -29,8 +30,11 @@ class LeaveController extends Controller
         $ledger = $user->ptoLedger($policy, $today);
         $current = collect($ledger)->first(fn (CutOff $c) => $c->contains($today)) ?? $ledger[0] ?? null;
 
+        // Leave on a holiday stays on record but isn't charged or counted toward the month.
+        $holidays = Holiday::names();
         $monthUsed = (float) $user->leaves()
             ->whereBetween('date', [$today->startOfMonth()->toDateString(), $today->endOfMonth()->toDateString()])
+            ->whereNotIn('date', array_keys($holidays))
             ->sum('days');
 
         return Inertia::render('leave/index', [
@@ -45,6 +49,7 @@ class LeaveController extends Controller
                 'days' => (float) $l->days,
                 'note' => $l->note,
                 'locked' => $this->isLocked($l, $today),
+                'holiday' => $holidays[$l->date->toDateString()] ?? null,
             ]),
             'history' => collect($ledger)
                 ->filter(fn (CutOff $c) => $c->takenHours > 0 && $c->end->year === $today->year)

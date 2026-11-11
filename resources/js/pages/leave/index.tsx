@@ -36,6 +36,8 @@ type LeaveEntry = {
     days: number;
     note: string | null;
     locked: boolean;
+    /** The holiday's name if one falls on this date: kept, but not charged. */
+    holiday: string | null;
 };
 
 type Props = {
@@ -231,7 +233,17 @@ function LeaveList({
                                             half day
                                         </span>
                                     )}
+                                    {l.holiday && (
+                                        <span className="ocs-badge ml-2">
+                                            holiday · not charged
+                                        </span>
+                                    )}
                                 </p>
+                                {l.holiday && (
+                                    <p className="truncate text-sm text-muted">
+                                        {l.holiday}
+                                    </p>
+                                )}
                                 {l.note && (
                                     <p className="truncate text-sm text-muted">
                                         {l.note}
@@ -317,7 +329,8 @@ function LogLeaveDialog() {
             <DialogContent className="max-h-[90dvh] overflow-y-auto">
                 <DialogTitle>Log leave</DialogTitle>
                 <DialogDescription>
-                    No approval needed. Weekends in a range are skipped.
+                    No approval needed. Weekends and holidays in a range are
+                    skipped.
                 </DialogDescription>
 
                 <Form

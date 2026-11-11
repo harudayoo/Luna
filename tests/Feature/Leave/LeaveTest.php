@@ -74,30 +74,30 @@ class LeaveTest extends TestCase
 
     public function test_the_monthly_cap_of_ten_days_counts_half_days_as_half()
     {
-        // 9.5 days in December
-        foreach (['01', '02', '03', '04', '07', '08', '09', '10', '11'] as $d) {
+        // 9.5 days in December (Dec 8 is a holiday, so it's skipped)
+        foreach (['01', '02', '03', '04', '07', '09', '10', '11', '14'] as $d) {
             Leave::factory()->for($this->me)->create(['date' => "2026-12-$d"]);
         }
-        Leave::factory()->for($this->me)->create(['date' => '2026-12-14', 'days' => 0.5]);
+        Leave::factory()->for($this->me)->create(['date' => '2026-12-15', 'days' => 0.5]);
 
         $this->actingAs($this->me)
-            ->post(route('leave.store'), ['from' => '2026-12-15'])
+            ->post(route('leave.store'), ['from' => '2026-12-16'])
             ->assertSessionHasErrors('from');
 
         $this->actingAs($this->me)
-            ->post(route('leave.store'), ['from' => '2026-12-15', 'half_day' => true])
+            ->post(route('leave.store'), ['from' => '2026-12-16', 'half_day' => true])
             ->assertSessionHasNoErrors();
     }
 
     public function test_the_cap_is_checked_per_month_for_a_range()
     {
-        foreach (['01', '02', '03', '04', '07', '08', '09', '10', '11', '14'] as $d) {
+        foreach (['01', '02', '03', '04', '07', '09', '10', '11', '14', '15'] as $d) {
             Leave::factory()->for($this->me)->create(['date' => "2026-12-$d"]);
         }
 
-        // Dec 31 would be the 11th December day.
+        // Dec 28 would be the 11th December day (Dec 30, Dec 31 and Jan 1 are holidays).
         $this->actingAs($this->me)
-            ->post(route('leave.store'), ['from' => '2026-12-31', 'to' => '2027-01-04'])
+            ->post(route('leave.store'), ['from' => '2026-12-28', 'to' => '2027-01-04'])
             ->assertSessionHasErrors('from');
 
         $this->assertSame(10, Leave::count());

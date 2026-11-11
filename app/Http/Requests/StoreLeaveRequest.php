@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Holiday;
 use App\Models\User;
 use App\Services\Pto\Ledger;
 use App\Services\Pto\Policy;
@@ -10,8 +11,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
- * Logging leave: one day, a half day, or a range (each weekday in it). The rules:
- * weekdays only, not before the person's PTO start, not in a cut-off that has ended
+ * Logging leave: one day, a half day, or a range (each working day in it). The rules:
+ * weekdays only, not on a public holiday, not before the person's PTO start, not in a cut-off that has ended
  * (payroll ran; HR fixes those), no date twice, and at most the monthly cap per month.
  */
 class StoreLeaveRequest extends FormRequest
@@ -69,14 +70,17 @@ class StoreLeaveRequest extends FormRequest
             return;
         }
 
+        $holidays = Holiday::names($from->toDateString(), $to->toDateString());
         for ($d = $from; $d->lessThanOrEqualTo($to); $d = $d->addDay()) {
-            if (! $d->isWeekend()) {
+            if (! $d->isWeekend() && ! isset($holidays[$d->toDateString()])) {
                 $this->dates[] = $d;
             }
         }
 
         if ($this->dates === []) {
-            $fail('Pick at least one weekday. Weekends aren\'t leave days.');
+            $fail($from->equalTo($to) && isset($holidays[$from->toDateString()])
+                ? $from->format('M j').' is '.$holidays[$from->toDateString()].'.'
+                : 'Pick at least one working day. Weekends and holidays aren\'t leave days.');
 
             return;
         }
@@ -103,6 +107,10 @@ class StoreLeaveRequest extends FormRequest
 
             return;
         }
+
+        // Leave already on a holiday isn't charged, so it doesn't count toward the cap.
+        $off = Holiday::names($this->dates[0]->startOfMonth()->toDateString(), end($this->dates)->endOfMonth()->toDateString());
+        $taken = $taken->reject(fn ($l) => isset($off[$l->date->toDateString()]));
 
         $perMonth = [];
         foreach ($this->dates as $d) {

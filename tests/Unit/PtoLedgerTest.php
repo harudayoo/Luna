@@ -77,6 +77,36 @@ class PtoLedgerTest extends TestCase
         $this->assertSame(['2027-02-16', '2027-02-28'], $this->dates(Ledger::cutOffFor(CarbonImmutable::parse('2027-02-16'))));
     }
 
+    public function test_holidays_are_not_work_hours_so_prorated_accrual_uses_fewer_hours()
+    {
+        // Nov 1-15 has 10 weekdays (80 h); Nov 2 is a holiday, so 72 h. 3.33 x (1 - 16/72) = 2.59.
+        $rows = Ledger::build(
+            new Policy(accrualHours: 3.33, hoursPerDay: 8, mode: AccrualMode::All, monthlyCapDays: 10),
+            CarbonImmutable::parse('2026-11-01'),
+            0,
+            [['date' => '2026-11-03', 'days' => 1.0], ['date' => '2026-11-04', 'days' => 1.0]],
+            CarbonImmutable::parse('2026-11-11'),
+            ['2026-11-02'],
+        );
+
+        $this->assertRows([['2026-11-01', '2026-11-15', 0, 2.59, 16, -13.41, 13.41]], $rows);
+    }
+
+    public function test_leave_on_a_holiday_is_not_charged()
+    {
+        $rows = Ledger::build(
+            new Policy(accrualHours: 3.33, hoursPerDay: 8, mode: AccrualMode::Full, monthlyCapDays: 10),
+            CarbonImmutable::parse('2026-11-01'),
+            0,
+            [['date' => '2026-11-02', 'days' => 1.0], ['date' => '2026-11-03', 'days' => 1.0]],
+            CarbonImmutable::parse('2026-11-11'),
+            ['2026-11-02'],
+        );
+
+        $this->assertRows([['2026-11-01', '2026-11-15', 0, 3.33, 8, -4.67, 4.67]], $rows);
+        $this->assertSame(['2026-11-03'], array_column($rows[0]->leaves, 'date'));
+    }
+
     /** @return list<CutOff> */
     private function ledger(AccrualMode $mode, string $start, float $opening): array
     {

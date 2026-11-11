@@ -16,7 +16,14 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { leave as leaveRoute } from '@/routes/people';
 
-type Entry = { id: number; date: string; days: number; note: string | null };
+type Entry = {
+    id: number;
+    date: string;
+    days: number;
+    note: string | null;
+    /** A holiday falls on it: kept, but not charged. */
+    holiday: string | null;
+};
 
 type Row = {
     id: number;
@@ -40,6 +47,7 @@ type Props = {
         next: string;
         ended: boolean;
         is_current: boolean;
+        holidays: { date: string; name: string }[];
     };
     rows: Row[];
     totals: {
@@ -113,6 +121,14 @@ export default function TeamLeave({ cutoff, rows, totals }: Props) {
                     </Link>
                 </Button>
             </div>
+            {cutoff.holidays.length > 0 && (
+                <p className="-mt-4 mb-6 text-center text-sm text-muted">
+                    Holidays:{' '}
+                    {cutoff.holidays
+                        .map((h) => `${short(h.date)} ${h.name}`)
+                        .join(' · ')}
+                </p>
+            )}
 
             {/* Gist first: how much leave, and what it costs this payroll. */}
             <div className="ocs-grid mb-6">
@@ -179,12 +195,21 @@ export default function TeamLeave({ cutoff, rows, totals }: Props) {
                                     <li
                                         key={l.id}
                                         className="flex items-center gap-1 bg-bg py-1 pr-1 pl-3 text-sm"
-                                        title={l.note ?? undefined}
+                                        title={
+                                            l.holiday
+                                                ? `${l.holiday}: not charged`
+                                                : (l.note ?? undefined)
+                                        }
                                     >
                                         {day(l.date)}
                                         {l.days === 0.5 && (
                                             <span className="text-xs text-muted">
                                                 ½
+                                            </span>
+                                        )}
+                                        {l.holiday && (
+                                            <span className="text-xs text-muted">
+                                                holiday
                                             </span>
                                         )}
                                         <CancelLeave name={r.name} entry={l} />

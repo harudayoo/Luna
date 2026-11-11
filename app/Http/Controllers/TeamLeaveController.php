@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
 use App\Services\Pto\CutOff;
@@ -24,8 +25,9 @@ class TeamLeaveController extends Controller
         $today = CarbonImmutable::today();
         [$start, $end] = Ledger::cutOffFor(CarbonImmutable::parse($request->input('cutoff', $today->toDateString())));
         $policy = Policy::current();
+        $holidays = Holiday::names($start->toDateString(), $end->toDateString());
 
-        $rows = User::query()->orderBy('id')->get()->map(function (User $user) use ($policy, $today, $start, $end) {
+        $rows = User::query()->orderBy('id')->get()->map(function (User $user) use ($policy, $today, $start, $end, $holidays) {
             // The ledger runs to the end of the later of today's or the viewed cut-off's year.
             $ledger = $user->ptoLedger($policy, $end->greaterThan($today) ? $end : $today);
             $c = collect($ledger)->first(fn (CutOff $c) => $c->start->equalTo($start));
@@ -52,6 +54,7 @@ class TeamLeaveController extends Controller
                         'date' => $l->date->toDateString(),
                         'days' => (float) $l->days,
                         'note' => $l->note,
+                        'holiday' => $holidays[$l->date->toDateString()] ?? null,
                     ]),
             ];
         });
@@ -64,6 +67,7 @@ class TeamLeaveController extends Controller
                 'next' => $end->addDay()->toDateString(),
                 'ended' => $end->lessThan($today),
                 'is_current' => $today->betweenIncluded($start, $end),
+                'holidays' => collect($holidays)->map(fn ($name, $date) => ['date' => $date, 'name' => $name])->values(),
             ],
             'rows' => $rows,
             'totals' => [

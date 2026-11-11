@@ -110,6 +110,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             (float) $this->pto_opening_hours,
             $this->leaves()->get(['date', 'days'])->map(fn (Leave $l) => ['date' => $l->date->toDateString(), 'days' => (float) $l->days]),
             $today ?? CarbonImmutable::today(),
+            array_keys(Holiday::names()),
         );
     }
 }
