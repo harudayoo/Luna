@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Holiday;
+use App\Models\Leave;
 use App\Models\User;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Policy;
@@ -27,6 +29,10 @@ class DashboardController extends Controller
                 'next_payday' => $current?->end->toDateString(),
                 'next_accrual' => $current?->accrued,
             ],
+            // People out today (none on a holiday: the office is closed).
+            'out_today' => Holiday::query()->where('date', $today->toDateString())->exists()
+                ? 0
+                : Leave::query()->where('date', $today->toDateString())->distinct()->count('user_id'),
         ]);
     }
 }

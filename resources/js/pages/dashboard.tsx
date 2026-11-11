@@ -1,5 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { dashboard } from '@/routes';
+import { index as calendarIndex } from '@/routes/calendar';
 import { index as leaveIndex } from '@/routes/leave';
 
 type Props = {
@@ -9,14 +10,10 @@ type Props = {
         next_payday: string | null;
         next_accrual: number | null;
     };
+    out_today: number;
 };
 
 const COMING = [
-    {
-        eyebrow: 'Calendar',
-        title: 'Office calendar',
-        text: 'Everyone’s leave and Philippine holidays.',
-    },
     {
         eyebrow: 'Payroll',
         title: 'Cut-offs',
@@ -31,7 +28,7 @@ const short = (iso: string) =>
         day: 'numeric',
     }).format(new Date(`${iso}T00:00:00Z`));
 
-export default function Dashboard({ pto }: Props) {
+export default function Dashboard({ pto, out_today }: Props) {
     const { auth } = usePage().props;
 
     return (
@@ -58,6 +55,22 @@ export default function Dashboard({ pto }: Props) {
                     </p>
                     <p className="mt-4 text-sm font-semibold text-primary">
                         Log or view leave →
+                    </p>
+                </Link>
+                <Link
+                    href={calendarIndex()}
+                    prefetch
+                    className="ocs-card ocs-card-link block"
+                >
+                    <p className="ocs-eyebrow">Calendar</p>
+                    <h3>
+                        {out_today === 0
+                            ? 'Everyone’s in today'
+                            : `${out_today} out today`}
+                    </h3>
+                    <p>Everyone’s leave and the office holidays.</p>
+                    <p className="mt-4 text-sm font-semibold text-primary">
+                        See who’s out →
                     </p>
                 </Link>
                 {COMING.map((m) => (

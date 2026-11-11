@@ -11,8 +11,9 @@
  */
 import type { InertiaLinkProps } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
-import { CalendarDays, House, Users } from 'lucide-react';
+import { CalendarDays, CalendarRange, House, Users } from 'lucide-react';
 import { dashboard } from '@/routes';
+import { index as calendar } from '@/routes/calendar';
 import { index as leave } from '@/routes/leave';
 import { index as people } from '@/routes/people';
 
@@ -41,6 +42,13 @@ export const MODULES: Module[] = [
         icon: CalendarDays,
         href: leave(),
         match: '/leave',
+    },
+    {
+        key: 'calendar',
+        title: 'Calendar',
+        icon: CalendarRange,
+        href: calendar(),
+        match: '/calendar',
     },
     {
         key: 'people',
