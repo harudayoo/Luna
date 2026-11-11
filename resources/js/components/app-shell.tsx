@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Settings } from 'lucide-react';
+import { LayoutGrid, Settings, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import AppLogo from '@/components/app-logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -12,16 +12,27 @@ import { UserInfo } from '@/components/user-info';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { dashboard } from '@/routes';
+import { index as people } from '@/routes/people';
 import { edit as editProfile } from '@/routes/profile';
 import type { NavItem } from '@/types';
 
-/** Main navigation. Phones show the first 4 as bottom tabs. `match` = the URL prefix it owns. */
-const NAV: (NavItem & { match: string })[] = [
+/**
+ * Main navigation. Phones show the first 4 as bottom tabs. `match` = the URL prefix it owns;
+ * `gate` hides items the role can't open (the route enforces it regardless).
+ */
+const NAV: (NavItem & { match: string; gate?: 'hr' | 'admin' })[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
         match: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'People',
+        href: people(),
+        match: '/people',
+        icon: Users,
+        gate: 'hr',
     },
     {
         title: 'Settings',
@@ -50,6 +61,7 @@ export function AppShell({
 }) {
     const { auth } = usePage().props;
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const nav = NAV.filter((item) => !item.gate || auth.can[item.gate]);
     const current = (item: (typeof NAV)[number]) =>
         isCurrentOrParentUrl(item.match) ? 'page' : undefined;
 
@@ -83,7 +95,7 @@ export function AppShell({
             </header>
 
             <nav className="hidden bg-surface md:block" aria-label="Main">
-                {NAV.map((item) => (
+                {nav.map((item) => (
                     <Link
                         key={item.title}
                         href={item.href}
@@ -102,8 +114,11 @@ export function AppShell({
                 <div className="mx-auto max-w-[1200px]">{children}</div>
             </main>
 
-            <nav className="ocs-shell-nav md:hidden" aria-label="Main">
-                {NAV.slice(0, 4).map((item) => (
+            <nav
+                className="ocs-shell-nav sticky bottom-0 z-10 md:hidden"
+                aria-label="Main"
+            >
+                {nav.slice(0, 4).map((item) => (
                     <Link
                         key={item.title}
                         href={item.href}

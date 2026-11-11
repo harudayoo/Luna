@@ -40,6 +40,11 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
+                // What the UI may show; the routes still enforce the same gates.
+                'can' => [
+                    'hr' => (bool) $request->user()?->can('hr'),
+                    'admin' => (bool) $request->user()?->can('admin'),
+                ],
             ],
         ];
     }

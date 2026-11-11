@@ -2,6 +2,7 @@ export type User = {
     id: number;
     name: string;
     email: string;
+    role: Role;
     avatar?: string;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
@@ -10,8 +11,13 @@ export type User = {
     [key: string]: unknown;
 };
 
+/** employee < hr < admin; each includes the ones below it (App\Enums\Role). */
+export type Role = 'employee' | 'hr' | 'admin';
+
 export type Auth = {
     user: User;
+    /** Mirrors the server gates, for showing UI only; the routes enforce them. */
+    can: { hr: boolean; admin: boolean };
 };
 
 export type Passkey = {
