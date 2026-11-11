@@ -27,6 +27,7 @@ class PeopleController extends Controller
             'email' => $user->email,
             'role' => $user->role->value,
             'invited' => $user->isPendingInvite(),
+            'deactivated' => $user->isDeactivated(),
             'invite_url' => $user->isPendingInvite() ? $user->inviteUrl() : null,
             'daily_rate' => $user->daily_rate === null ? null : (float) $user->daily_rate,
             'pto_start' => $user->pto_start?->toDateString(),
@@ -101,6 +102,50 @@ class PeopleController extends Controller
         $user->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name} is now {$role->label()}."]);
+
+        return to_route('people.index');
+    }
+
+    /** Admin ends someone's access. Their leave and payroll history stay, and they can be reactivated. */
+    public function deactivate(Request $request, User $user): RedirectResponse
+    {
+        $message = match (true) {
+            $user->is($request->user()) => "You can't deactivate your own account.",
+            $user->role === Role::Admin && User::where('role', Role::Admin)->whereNull('deactivated_at')->count() === 1 => 'Luna needs at least one active admin. Make someone else admin first.',
+            default => null,
+        };
+        if ($message !== null) {
+            throw ValidationException::withMessages(['account' => $message]);
+        }
+
+        $user->forceFill(['deactivated_at' => now()])->save();
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name} is deactivated and can't sign in. Their history stays."]);
+
+        return to_route('people.index');
+    }
+
+    public function reactivate(User $user): RedirectResponse
+    {
+        $user->forceFill(['deactivated_at' => null])->save();
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name} can sign in again."]);
+
+        return to_route('people.index');
+    }
+
+    /** Emails a pending invite again (a fresh 7-day link). */
+    public function resendInvite(Request $request, User $user): RedirectResponse
+    {
+        if (! $user->isPendingInvite()) {
+            throw ValidationException::withMessages(['invite' => "{$user->name} already accepted their invite."]);
+        }
+
+        try {
+            $user->notify(new InviteNotification($request->user()));
+            Inertia::flash('toast', ['type' => 'success', 'message' => "Invite sent to {$user->email} again."]);
+        } catch (Throwable $e) {
+            report($e);
+            Inertia::flash('toast', ['type' => 'warning', 'message' => "The email didn't send. Copy {$user->name}'s invite link instead."]);
+        }
 
         return to_route('people.index');
     }

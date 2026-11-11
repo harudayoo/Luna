@@ -3,12 +3,16 @@
 namespace App\Providers;
 
 use App\Actions\Fortify\ResetUserPassword;
+use App\Http\Middleware\EnsureAccountIsActive;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
@@ -40,6 +44,20 @@ class FortifyServiceProvider extends ServiceProvider
     {
         // No self-registration: HR creates accounts (config/fortify.php has no registration feature).
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
+
+        // The usual email + password check, but a deactivated account is told why it can't sign in.
+        Fortify::authenticateUsing(function (Request $request) {
+            $user = User::query()->where(Fortify::username(), $request->input(Fortify::username()))->first();
+
+            if ($user === null || $user->password === null || ! Hash::check((string) $request->input('password'), $user->password)) {
+                return null;
+            }
+            if ($user->isDeactivated()) {
+                throw ValidationException::withMessages([Fortify::username() => EnsureAccountIsActive::MESSAGE]);
+            }
+
+            return $user;
+        });
     }
 
     /**

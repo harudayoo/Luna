@@ -21,11 +21,15 @@ Route::middleware(['auth', 'verified', 'can:hr'])->group(function () {
     Route::patch('people/holidays/{holiday}', [HolidayController::class, 'update'])->name('people.holidays.update');
     Route::delete('people/holidays/{holiday}', [HolidayController::class, 'destroy'])->name('people.holidays.destroy');
     Route::patch('people/{user}', [PeopleController::class, 'update'])->name('people.update');
+    Route::post('people/{user}/invite', [PeopleController::class, 'resendInvite'])->name('people.invite');
 });
 
-Route::patch('people/{user}/role', [PeopleController::class, 'updateRole'])
-    ->middleware(['auth', 'verified', 'can:admin'])
-    ->name('people.role');
+// Admin only: roles, and ending or restoring someone's access (deactivated accounts keep their history).
+Route::middleware(['auth', 'verified', 'can:admin'])->group(function () {
+    Route::patch('people/{user}/role', [PeopleController::class, 'updateRole'])->name('people.role');
+    Route::patch('people/{user}/deactivate', [PeopleController::class, 'deactivate'])->name('people.deactivate');
+    Route::patch('people/{user}/reactivate', [PeopleController::class, 'reactivate'])->name('people.reactivate');
+});
 
 // Invite links (User::inviteUrl): signed, expire after User::INVITE_DAYS, spent once a password is set.
 Route::middleware(['guest', 'signed'])->group(function () {

@@ -48,6 +48,7 @@ class TeamLeaveController extends Controller
                     ? round($c->deductedHours / $policy->hoursPerDay * (float) $user->daily_rate, 2)
                     : null,
                 'has_rate' => $user->daily_rate !== null,
+                'deactivated' => $user->isDeactivated(),
                 'leaves' => $user->leaves()
                     ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
                     ->orderBy('date')
@@ -60,7 +61,10 @@ class TeamLeaveController extends Controller
                         'holiday' => $holidays[$l->date->toDateString()] ?? null,
                     ]),
             ];
-        });
+        })
+            // Someone deactivated only shows up for a cut-off they had leave in.
+            ->reject(fn (array $row) => $row['deactivated'] && $row['leaves']->isEmpty())
+            ->values();
 
         return Inertia::render('people/leave', [
             'cutoff' => [

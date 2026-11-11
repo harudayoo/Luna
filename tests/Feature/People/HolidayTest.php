@@ -121,7 +121,11 @@ class HolidayTest extends TestCase
 
     public function test_the_seed_rolls_back()
     {
-        Artisan::call('migrate:rollback', ['--step' => 2]);
+        // Just the two holiday migrations, whatever was added after them.
+        Artisan::call('migrate:rollback', ['--path' => [
+            'database/migrations/2026_11_11_000006_seed_2026_philippine_holidays.php',
+            'database/migrations/2026_11_11_000005_create_holidays_table.php',
+        ]]);
         $this->assertFalse(Schema::hasTable('holidays'));
 
         Artisan::call('migrate');

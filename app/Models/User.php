@@ -29,6 +29,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $daily_rate pesos; HR sets it
  * @property Carbon|null $pto_start null = the office start (Policy::officeStartedOn)
  * @property string $pto_opening_hours
+ * @property Carbon|null $deactivated_at set by an admin: no sign-in, history kept
  * @property Carbon|null $email_verified_at
  * @property string|null $password null while an invite is pending
  * @property string|null $two_factor_secret
@@ -65,10 +66,17 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'daily_rate' => 'decimal:2',
             'pto_start' => 'date',
             'pto_opening_hours' => 'decimal:2',
+            'deactivated_at' => 'datetime',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /** An admin ended this person's access; their leave and payroll history stay. */
+    public function isDeactivated(): bool
+    {
+        return $this->deactivated_at !== null;
     }
 
     /** Invited but hasn't set a password yet. */

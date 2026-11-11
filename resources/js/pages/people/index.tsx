@@ -1,4 +1,5 @@
 import { Form, Head, router, usePage } from '@inertiajs/react';
+import { UserX } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import PeopleController from '@/actions/App/Http/Controllers/PeopleController';
@@ -7,8 +8,10 @@ import { PeopleTabs } from '@/components/people-tabs';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
+    DialogClose,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
@@ -32,6 +35,8 @@ type Person = {
     email: string;
     role: Role;
     invited: boolean;
+    /** An admin ended their access; history stays. */
+    deactivated: boolean;
     invite_url: string | null;
     daily_rate: number | null;
     pto_start: string | null;
@@ -73,11 +78,18 @@ export default function People({
                 {people.map((person) => (
                     <li
                         key={person.id}
-                        className="flex flex-col gap-3 bg-surface p-4 sm:flex-row sm:items-center"
+                        className="flex flex-col gap-3 bg-surface p-4 sm:flex-row sm:flex-wrap sm:items-center"
                     >
-                        <div className="min-w-0 flex-1">
-                            <p className="truncate font-semibold">
+                        <div className="min-w-0 flex-1 sm:min-w-60">
+                            <p
+                                className={`truncate font-semibold ${person.deactivated ? 'text-muted' : ''}`}
+                            >
                                 {person.name}
+                                {person.deactivated && (
+                                    <span className="ocs-badge ml-2">
+                                        deactivated
+                                    </span>
+                                )}
                                 {person.id === auth.user.id && (
                                     <span className="ml-2 text-xs font-normal text-muted">
                                         (you)
@@ -104,9 +116,10 @@ export default function People({
                         />
 
                         {person.invite_url && (
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                                 <span className="ocs-badge">invited</span>
                                 <CopyInviteLink url={person.invite_url} />
+                                <ResendInvite person={person} />
                             </div>
                         )}
 
@@ -116,6 +129,10 @@ export default function People({
                             <span className="ocs-badge sm:w-36 sm:text-center">
                                 {label(person.role)}
                             </span>
+                        )}
+
+                        {auth.can.admin && person.id !== auth.user.id && (
+                            <AccountAccess person={person} />
                         )}
                     </li>
                 ))}
@@ -258,6 +275,113 @@ function CopyInviteLink({ url }: { url: string }) {
         >
             Copy invite link
         </Button>
+    );
+}
+
+/** Emails a pending invite again, with a fresh 7-day link. */
+function ResendInvite({ person }: { person: Person }) {
+    const [busy, setBusy] = useState(false);
+
+    return (
+        <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-10"
+            disabled={busy}
+            onClick={() =>
+                router.post(
+                    PeopleController.resendInvite(person.id).url,
+                    {},
+                    {
+                        preserveScroll: true,
+                        onStart: () => setBusy(true),
+                        onFinish: () => setBusy(false),
+                        onError: (errors) =>
+                            errors.invite && toast.error(errors.invite),
+                    },
+                )
+            }
+        >
+            {busy && <Spinner />}
+            Resend
+        </Button>
+    );
+}
+
+/**
+ * Admin only: end or restore someone's access. Deactivating asks first; their leave and payroll
+ * history stay either way. The server refuses yourself and the last active admin, and says why.
+ */
+function AccountAccess({ person }: { person: Person }) {
+    const [busy, setBusy] = useState(false);
+    const options = {
+        preserveScroll: true,
+        onStart: () => setBusy(true),
+        onFinish: () => setBusy(false),
+        onError: (errors: Record<string, string>) =>
+            errors.account && toast.error(errors.account),
+    };
+
+    if (person.deactivated) {
+        return (
+            <Button
+                variant="secondary"
+                size="sm"
+                className="w-full bg-bg sm:w-auto"
+                disabled={busy}
+                onClick={() =>
+                    router.patch(
+                        PeopleController.reactivate(person.id).url,
+                        {},
+                        options,
+                    )
+                }
+            >
+                {busy && <Spinner />}
+                Reactivate
+            </Button>
+        );
+    }
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-10 w-full sm:w-auto"
+                    aria-label={`Deactivate ${person.name}`}
+                >
+                    <UserX /> Deactivate
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Deactivate {person.name}?</DialogTitle>
+                <DialogDescription>
+                    They&rsquo;re signed out and can&rsquo;t sign in again until
+                    you reactivate them. Their leave and payroll history stay.
+                </DialogDescription>
+                <DialogFooter className="gap-2">
+                    <DialogClose asChild>
+                        <Button variant="secondary">Keep access</Button>
+                    </DialogClose>
+                    <Button
+                        variant="destructive"
+                        disabled={busy}
+                        onClick={() =>
+                            router.patch(
+                                PeopleController.deactivate(person.id).url,
+                                {},
+                                options,
+                            )
+                        }
+                    >
+                        {busy && <Spinner />}
+                        Deactivate
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 

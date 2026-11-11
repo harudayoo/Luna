@@ -38,6 +38,7 @@ type Row = {
     deducted_hours: number;
     deducted_pesos: number | null;
     has_rate: boolean;
+    deactivated: boolean;
     leaves: Entry[];
 };
 
@@ -168,7 +169,14 @@ export default function TeamLeave({ cutoff, rows, totals }: Props) {
                 {rows.map((r) => (
                     <li key={r.id} className="grid gap-3 bg-surface p-4">
                         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                            <p className="font-semibold">{r.name}</p>
+                            <p className="font-semibold">
+                                {r.name}
+                                {r.deactivated && (
+                                    <span className="ocs-badge ml-2">
+                                        deactivated
+                                    </span>
+                                )}
+                            </p>
                             {!r.started ? (
                                 <span className="text-sm text-muted">
                                     Not started yet
