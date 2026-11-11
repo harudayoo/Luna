@@ -11,7 +11,10 @@ function Toaster({ ...props }: ToasterProps) {
         <Sonner
             theme={resolvedAppearance}
             className="toaster group"
-            position="bottom-right"
+            // Top centre, under the 56px top bar: the bottom belongs to the Bloom dock.
+            position="top-center"
+            offset={{ top: 72 }}
+            mobileOffset={{ top: 64 }}
             style={
                 {
                     '--normal-bg': 'var(--surface)',

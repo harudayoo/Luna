@@ -45,3 +45,71 @@ export function ocsRef(effects: readonly OcsEffect[]) {
 }
 
 export const ocs = () => window.OrchidCity;
+
+/*
+ * Luna-local effect, written the kit's way (one personality per theme, reduced motion
+ * respected); a candidate to move up into orchid-city-ui's ocs.js.
+ *
+ * bloomTravel: the Bloom dock's orchid moves to a new tile. Luna is named after the Luna
+ * orchid (an Orchid City Software tool), so the marker is a tiny five-petal bloom.
+ *   LIGHT (paper): hops across, stamps down, and its petals pop open like a pressed flower.
+ *   DARK  (code):  drifts over on a spring, turns one petal-step, and its petals breathe open.
+ * Petals are the marker's [data-petal] elements.
+ */
+export function bloomTravel(
+    marker: HTMLElement,
+    toX: number,
+    instant = false,
+): void {
+    const { animate, spring, stagger, utils } = anime;
+    const petals = marker.querySelectorAll<SVGElement>('[data-petal]');
+
+    if (instant || ocs().reduced()) {
+        utils.set(marker, { x: toX, y: 0, scale: 1 });
+        utils.set(petals, { scale: 1 });
+
+        return;
+    }
+
+    if (ocs().isDark()) {
+        animate(marker, {
+            x: toX,
+            ease: spring({ bounce: 0.3, duration: 800 }),
+        });
+        animate(marker, {
+            y: [
+                { to: -12, duration: 300, ease: 'outSine' },
+                { to: 0, duration: 380, ease: 'inOutSine' },
+            ],
+            // Five petals: a 72-degree turn ends where it started, so it never looks tilted.
+            rotate: { to: '+=72', duration: 700, ease: 'inOutQuad' },
+        });
+        animate(petals, {
+            scale: [
+                { to: 0.55, duration: 220, ease: 'outQuad' },
+                { to: 1, duration: 520, ease: 'outBack(2)' },
+            ],
+            delay: stagger(45),
+        });
+
+        return;
+    }
+
+    animate(marker, { x: toX, duration: 280, ease: 'outCubic' });
+    animate(marker, {
+        y: [
+            { to: -8, duration: 160, ease: 'outQuad' },
+            { to: 0, duration: 120, ease: 'inQuad' },
+        ],
+        scale: [
+            { to: 1, duration: 280 },
+            { to: 1.3, duration: 60, ease: 'outQuad' },
+            { to: 1, duration: 240, ease: 'outBack(3)' },
+        ],
+    });
+    utils.set(petals, { scale: 0.35 });
+    animate(petals, {
+        scale: { to: 1, duration: 320, ease: 'outBack(3)' },
+        delay: stagger(30, { start: 260 }),
+    });
+}

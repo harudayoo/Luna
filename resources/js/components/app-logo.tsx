@@ -26,14 +26,13 @@ export function AppLogoMark({ className = 'size-8' }: { className?: string }) {
     );
 }
 
-/** Mark + wordmark. `compact` (sign-in screens) shows only "Luna". */
-export default function AppLogo({ compact = false }: { compact?: boolean }) {
+/** The mark and the system's name, as on the sign-in screens. */
+export default function AppLogo() {
     return (
-        <span className="inline-flex items-center gap-2 text-sm font-bold whitespace-nowrap">
+        <span className="inline-flex items-center gap-2 whitespace-nowrap">
             <AppLogoMark />
-            <span>
-                {!compact && <span className="mr-1">Orchid City</span>}
-                <span className="text-accent">Luna</span>
+            <span className="text-lg leading-none font-bold tracking-tight text-accent">
+                Luna
             </span>
         </span>
     );

@@ -1,7 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarDays, LayoutGrid, Settings, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import AppLogo from '@/components/app-logo';
+import { BloomDock } from '@/components/bloom-dock';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
     DropdownMenu,
@@ -10,53 +10,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { UserInfo } from '@/components/user-info';
 import { UserMenuContent } from '@/components/user-menu-content';
-import { useCurrentUrl } from '@/hooks/use-current-url';
 import { dashboard } from '@/routes';
-import { index as leave } from '@/routes/leave';
-import { index as people } from '@/routes/people';
-import { edit as editProfile } from '@/routes/profile';
-import type { NavItem } from '@/types';
-
-/**
- * Main navigation. Phones show the first 4 as bottom tabs. `match` = the URL prefix it owns;
- * `gate` hides items the role can't open (the route enforces it regardless).
- */
-const NAV: (NavItem & { match: string; gate?: 'hr' | 'admin' })[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        match: '/dashboard',
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Leave',
-        href: leave(),
-        match: '/leave',
-        icon: CalendarDays,
-    },
-    {
-        title: 'People',
-        href: people(),
-        match: '/people',
-        icon: Users,
-        gate: 'hr',
-    },
-    {
-        title: 'Settings',
-        href: editProfile(),
-        match: '/settings',
-        icon: Settings,
-    },
-];
-
-const navItem =
-    'flex items-center gap-3 px-4 py-2.5 text-[13px] font-semibold text-muted hover:bg-surface-hover aria-[current=page]:bg-primary aria-[current=page]:text-on-primary';
 
 /*
- * The kit's AppShell (resources/ocs/guides/AppShell.md):
- *   < md   top bar, content, bottom tabs
- *   md-lg  top bar, 56px icon rail
- *   >= lg  top bar, 220px labeled sidebar
+ * Luna's page frame: a slim top bar (logo, page title, theme, account) and the content.
+ * Navigation is the Bloom dock at the bottom (components/bloom-dock.tsx, modules.ts), on every
+ * screen size; it replaces the kit AppShell's tabs/rail/sidebar by the user's choice.
  * The shell is solid; the background canvas lives once in app.tsx.
  */
 export function AppShell({
@@ -67,20 +26,19 @@ export function AppShell({
     children: ReactNode;
 }) {
     const { auth } = usePage().props;
-    const { isCurrentOrParentUrl } = useCurrentUrl();
-    const nav = NAV.filter((item) => !item.gate || auth.can[item.gate]);
-    const current = (item: (typeof NAV)[number]) =>
-        isCurrentOrParentUrl(item.match) ? 'page' : undefined;
 
     return (
-        <div className="grid min-h-dvh grid-rows-[56px_1fr_auto] md:grid-cols-[56px_1fr] md:grid-rows-[56px_1fr] lg:grid-cols-[220px_1fr]">
-            <header className="flex items-center justify-between gap-4 bg-surface px-4 md:col-span-2">
-                <div className="flex min-w-0 items-center gap-4">
-                    <Link href={dashboard()} prefetch>
+        <div className="min-h-dvh">
+            <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 bg-surface px-4">
+                <div className="flex min-w-0 items-center gap-3">
+                    <Link href={dashboard()} prefetch aria-label="Luna home">
                         <AppLogo />
                     </Link>
                     {title && (
                         <h1 className="truncate text-sm font-semibold text-muted">
+                            <span aria-hidden="true" className="mr-3">
+                                ·
+                            </span>
                             {title}
                         </h1>
                     )}
@@ -101,40 +59,12 @@ export function AppShell({
                 </div>
             </header>
 
-            <nav className="hidden bg-surface md:block" aria-label="Main">
-                {nav.map((item) => (
-                    <Link
-                        key={item.title}
-                        href={item.href}
-                        prefetch
-                        aria-current={current(item)}
-                        className={navItem}
-                        title={item.title}
-                    >
-                        {item.icon && <item.icon className="size-4 shrink-0" />}
-                        <span className="hidden lg:inline">{item.title}</span>
-                    </Link>
-                ))}
-            </nav>
-
-            <main className="min-w-0 p-4 md:p-6">
+            {/* Bottom padding keeps the last content clear of the dock. */}
+            <main className="min-w-0 p-4 pb-32 md:p-6 md:pb-32">
                 <div className="mx-auto max-w-[1200px]">{children}</div>
             </main>
 
-            <nav
-                className="ocs-shell-nav sticky bottom-0 z-10 md:hidden"
-                aria-label="Main"
-            >
-                {nav.slice(0, 4).map((item) => (
-                    <Link
-                        key={item.title}
-                        href={item.href}
-                        aria-current={current(item)}
-                    >
-                        {item.title}
-                    </Link>
-                ))}
-            </nav>
+            <BloomDock />
         </div>
     );
 }
