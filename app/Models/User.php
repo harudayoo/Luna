@@ -27,7 +27,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $email
  * @property Role $role
  * @property string|null $daily_rate pesos; HR sets it
- * @property Carbon|null $pto_start null = the day the account was created
+ * @property Carbon|null $pto_start null = the office start (Policy::officeStartedOn)
  * @property string $pto_opening_hours
  * @property Carbon|null $email_verified_at
  * @property string|null $password null while an invite is pending
@@ -89,10 +89,12 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $this->hasMany(Leave::class);
     }
 
-    /** When PTO tracking starts for this person. */
+    /** When PTO accrues from for this person: their own start date, else the office start. */
     public function ptoStart(): CarbonImmutable
     {
-        return CarbonImmutable::parse($this->pto_start ?? $this->created_at ?? now())->startOfDay();
+        return $this->pto_start
+            ? CarbonImmutable::parse($this->pto_start)->startOfDay()
+            : Policy::officeStartedOn();
     }
 
     /**

@@ -6,6 +6,12 @@
  */
 return [
 
+    'office' => [
+        // When OCSPH office operations began: everyone's PTO accrues from here unless HR
+        // gives them a later start date. Leave can't be logged before it.
+        'started_on' => '2026-08-18',
+    ],
+
     'pto' => [
         // Hours earned per semi-monthly cut-off (1st-15th, 16th-month end).
         'accrual_hours' => 3.33,

@@ -3,6 +3,7 @@
 namespace App\Services\Pto;
 
 use App\Models\Setting;
+use Carbon\CarbonImmutable;
 
 /**
  * The office-wide PTO rules. Defaults live in config/luna.php; HR overrides are stored as
@@ -16,6 +17,12 @@ final readonly class Policy
         public AccrualMode $mode,
         public float $monthlyCapDays,
     ) {}
+
+    /** When office operations began (setting "office.started_on", default in config/luna.php). */
+    public static function officeStartedOn(): CarbonImmutable
+    {
+        return CarbonImmutable::parse((string) Setting::get('office.started_on', config('luna.office.started_on')))->startOfDay();
+    }
 
     public static function current(): self
     {

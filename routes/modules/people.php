@@ -2,12 +2,19 @@
 
 use App\Http\Controllers\Auth\AcceptInviteController;
 use App\Http\Controllers\PeopleController;
+use App\Http\Controllers\PolicyController;
+use App\Http\Controllers\TeamLeaveController;
 use Illuminate\Support\Facades\Route;
 
-// People: HR and admin invite; only admin changes roles.
+// People (HR and admin): accounts and invites, each person's PTO values, everyone's leave and
+// pay per cut-off, and the office leave policy. Only admin changes roles.
 Route::middleware(['auth', 'verified', 'can:hr'])->group(function () {
     Route::get('people', [PeopleController::class, 'index'])->name('people.index');
     Route::post('people', [PeopleController::class, 'store'])->name('people.store');
+    Route::get('people/leave', [TeamLeaveController::class, 'index'])->name('people.leave');
+    Route::get('people/policy', [PolicyController::class, 'edit'])->name('people.policy');
+    Route::put('people/policy', [PolicyController::class, 'update'])->name('people.policy.update');
+    Route::patch('people/{user}', [PeopleController::class, 'update'])->name('people.update');
 });
 
 Route::patch('people/{user}/role', [PeopleController::class, 'updateRole'])

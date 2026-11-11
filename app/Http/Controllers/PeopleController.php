@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Role;
 use App\Models\User;
 use App\Notifications\InviteNotification;
+use App\Services\Pto\Policy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -27,10 +28,14 @@ class PeopleController extends Controller
             'role' => $user->role->value,
             'invited' => $user->isPendingInvite(),
             'invite_url' => $user->isPendingInvite() ? $user->inviteUrl() : null,
+            'daily_rate' => $user->daily_rate === null ? null : (float) $user->daily_rate,
+            'pto_start' => $user->pto_start?->toDateString(),
+            'pto_opening_hours' => (float) $user->pto_opening_hours,
         ]);
 
         return Inertia::render('people/index', [
             'people' => $people,
+            'officeStartedOn' => Policy::officeStartedOn()->toDateString(),
             'roles' => collect(Role::cases())->map(fn (Role $role) => [
                 'value' => $role->value,
                 'label' => $role->label(),
@@ -58,6 +63,23 @@ class PeopleController extends Controller
             report($e);
             Inertia::flash('toast', ['type' => 'warning', 'message' => "{$user->name} was added, but the email didn't send. Copy their invite link instead."]);
         }
+
+        return to_route('people.index');
+    }
+
+    /** HR sets a person's PTO values: daily rate (for deductions), start date, opening balance. */
+    public function update(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'daily_rate' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            'pto_start' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.Policy::officeStartedOn()->toDateString()],
+            'pto_opening_hours' => ['required', 'numeric', 'min:0', 'max:1000'],
+        ], [
+            'pto_start.after_or_equal' => 'Start dates can\'t be before the office opened ('.Policy::officeStartedOn()->format('M j, Y').').',
+        ]);
+
+        $user->update($validated);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name}'s leave details saved."]);
 
         return to_route('people.index');
     }

@@ -33,13 +33,28 @@ class PtoSettingsTest extends TestCase
         $this->assertSame(AccrualMode::Full, Policy::current()->mode);
     }
 
-    public function test_pto_start_defaults_to_the_day_the_account_was_created()
+    public function test_pto_start_defaults_to_the_office_start_of_august_18()
     {
         $this->travelTo('2026-11-11');
         $user = User::factory()->create();
 
-        $this->assertSame('2026-11-11', $user->ptoStart()->toDateString());
+        $this->assertSame('2026-08-18', $user->ptoStart()->toDateString());
         $this->assertSame(0.0, (float) $user->fresh()->pto_opening_hours);
+
+        Setting::put('office.started_on', '2026-09-01');
+        $this->assertSame('2026-09-01', $user->ptoStart()->toDateString());
+
+        $user->update(['pto_start' => '2026-10-05']);
+        $this->assertSame('2026-10-05', $user->ptoStart()->toDateString());
+    }
+
+    public function test_an_employee_from_the_office_start_has_earned_five_cut_offs_by_nov_11()
+    {
+        $this->travelTo('2026-11-11');
+
+        $this->actingAs(User::factory()->create())
+            ->get(route('dashboard'))
+            ->assertInertia(fn ($page) => $page->where('pto.balance_hours', 16.65));
     }
 
     public function test_the_migrations_reverse_cleanly()

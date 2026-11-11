@@ -96,8 +96,11 @@ function Button({
         else if (ref) ref.current = el
       }}
     >
-      {/* The kit animates .ocs-btn-label; rendering it here keeps the kit from moving React's nodes. */}
-      {asChild ? children : <span className="ocs-btn-label items-center gap-2">{children}</span>}
+      {/* The kit animates .ocs-btn-label; rendering it here keeps the kit from moving React's nodes.
+          The gap is only for icon + text: wave splits a plain-text label into one span per letter. */}
+      {asChild ? children : (
+        <span className={plainText ? "ocs-btn-label" : "ocs-btn-label items-center gap-2"}>{children}</span>
+      )}
     </Comp>
   )
 }
