@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Settings, Users } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Settings, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import AppLogo from '@/components/app-logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -12,6 +12,7 @@ import { UserInfo } from '@/components/user-info';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { dashboard } from '@/routes';
+import { index as leave } from '@/routes/leave';
 import { index as people } from '@/routes/people';
 import { edit as editProfile } from '@/routes/profile';
 import type { NavItem } from '@/types';
@@ -26,6 +27,12 @@ const NAV: (NavItem & { match: string; gate?: 'hr' | 'admin' })[] = [
         href: dashboard(),
         match: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'Leave',
+        href: leave(),
+        match: '/leave',
+        icon: CalendarDays,
     },
     {
         title: 'People',

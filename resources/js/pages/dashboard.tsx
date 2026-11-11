@@ -1,12 +1,17 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { dashboard } from '@/routes';
+import { index as leaveIndex } from '@/routes/leave';
 
-const MODULES = [
-    {
-        eyebrow: 'Leave',
-        title: 'Time off',
-        text: 'Log leave and see your PTO balance.',
-    },
+type Props = {
+    pto: {
+        balance_hours: number;
+        hours_per_day: number;
+        next_payday: string | null;
+        next_accrual: number | null;
+    };
+};
+
+const COMING = [
     {
         eyebrow: 'Calendar',
         title: 'Office calendar',
@@ -19,7 +24,14 @@ const MODULES = [
     },
 ];
 
-export default function Dashboard() {
+const short = (iso: string) =>
+    new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'UTC',
+        month: 'short',
+        day: 'numeric',
+    }).format(new Date(`${iso}T00:00:00Z`));
+
+export default function Dashboard({ pto }: Props) {
     const { auth } = usePage().props;
 
     return (
@@ -30,7 +42,25 @@ export default function Dashboard() {
                 Hello, {auth.user.name.split(' ')[0]}
             </h2>
             <div className="ocs-grid">
-                {MODULES.map((m) => (
+                <Link
+                    href={leaveIndex()}
+                    prefetch
+                    className="ocs-card ocs-card-link block"
+                >
+                    <p className="ocs-eyebrow">Leave</p>
+                    <h3>{pto.balance_hours.toFixed(2)} h of PTO</h3>
+                    <p>
+                        {(pto.balance_hours / pto.hours_per_day).toFixed(2)}{' '}
+                        days
+                        {pto.next_payday &&
+                            pto.next_accrual !== null &&
+                            ` · +${pto.next_accrual.toFixed(2)} h on ${short(pto.next_payday)}`}
+                    </p>
+                    <p className="mt-4 text-sm font-semibold text-primary">
+                        Log or view leave →
+                    </p>
+                </Link>
+                {COMING.map((m) => (
                     <section key={m.eyebrow} className="ocs-card">
                         <p className="ocs-eyebrow">{m.eyebrow}</p>
                         <h3>{m.title}</h3>

@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Auth\AcceptInviteController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\PeopleController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,7 +18,11 @@ Route::middleware(['guest', 'signed'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get('leave', [LeaveController::class, 'index'])->name('leave.index');
+    Route::post('leave', [LeaveController::class, 'store'])->name('leave.store');
+    Route::delete('leave/{leave}', [LeaveController::class, 'destroy'])->name('leave.destroy');
 
     Route::middleware('can:hr')->group(function () {
         Route::get('people', [PeopleController::class, 'index'])->name('people.index');
