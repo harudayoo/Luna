@@ -183,4 +183,28 @@ class PayrollReleaseTest extends TestCase
                 ->where('rows.1.released_on', '2026-11-15')
                 ->where('rows.2.released_on', null));
     }
+
+    public function test_a_past_release_date_can_be_recorded_but_not_a_future_one()
+    {
+        $this->save($this->ana);
+        $this->save($this->ben);
+        $slip = $this->slip($this->ana);
+
+        $this->actingAs($this->hr)
+            ->patch(route('people.payroll.release', $slip), ['released' => true, 'released_on' => '2026-11-16'])
+            ->assertSessionHasErrors('released_on');
+        $this->assertNull($slip->refresh()->released_on);
+
+        $this->actingAs($this->hr)
+            ->post(route('people.payroll.release.all'), ['cutoff' => '2026-11-01', 'released_on' => '2026-11-16'])
+            ->assertSessionHasErrors('released_on');
+        $this->assertNull($slip->refresh()->released_on);
+
+        // Mark all on an earlier day: pay handed out before it was recorded in Luna.
+        $this->actingAs($this->hr)
+            ->post(route('people.payroll.release.all'), ['cutoff' => '2026-11-01', 'released_on' => '2026-11-14'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('2026-11-14', $this->slip($this->ana)->released_on->toDateString());
+        $this->assertSame('2026-11-14', $this->slip($this->ben)->released_on->toDateString());
+    }
 }

@@ -7,6 +7,7 @@ import {
     History,
     Printer,
 } from 'lucide-react';
+import { MarkReceivedDialog } from '@/components/mark-received-dialog';
 import { PeopleTabs } from '@/components/people-tabs';
 import { Button } from '@/components/ui/button';
 import {
@@ -154,19 +155,18 @@ export default function Payroll({
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
                         {made > released && (
-                            <Button
-                                size="sm"
-                                className="min-h-10"
-                                onClick={() =>
-                                    router.post(
-                                        releaseAllRoute().url,
-                                        { cutoff: cutoff.start },
-                                        { preserveScroll: true },
-                                    )
+                            <MarkReceivedDialog
+                                url={releaseAllRoute()}
+                                data={{ cutoff: cutoff.start }}
+                                title="Mark all received"
+                                description={`Every payslip of this ${unit} not marked yet gets this date. Ones already received keep theirs.`}
+                                payday={cutoff.end}
+                                trigger={
+                                    <Button size="sm" className="min-h-10">
+                                        <CheckCheck /> Mark all received
+                                    </Button>
                                 }
-                            >
-                                <CheckCheck /> Mark all received
-                            </Button>
+                            />
                         )}
                         {made > 0 && (
                             <Button
@@ -268,20 +268,25 @@ export default function Payroll({
                                         Undo
                                     </Button>
                                 ) : (
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        className="min-h-10 bg-bg"
-                                        onClick={() =>
-                                            release(
-                                                r.payslip_id as number,
-                                                true,
-                                            )
+                                    <MarkReceivedDialog
+                                        url={releaseRoute(
+                                            r.payslip_id as number,
+                                        )}
+                                        data={{ released: true }}
+                                        title={`${r.name}'s pay received`}
+                                        description="The day they got their pay. The payslip is locked once it's marked."
+                                        payday={cutoff.end}
+                                        trigger={
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                className="min-h-10 bg-bg"
+                                                aria-label={`Mark ${r.name}'s pay received`}
+                                            >
+                                                <CheckCheck /> Received
+                                            </Button>
                                         }
-                                        aria-label={`Mark ${r.name}'s pay received`}
-                                    >
-                                        <CheckCheck /> Received
-                                    </Button>
+                                    />
                                 ))}
                             <Button
                                 variant="ghost"

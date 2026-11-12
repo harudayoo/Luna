@@ -21,7 +21,8 @@ class PayrollReleaseController extends Controller
     {
         $data = $request->validate([
             'released' => ['required', 'boolean'],
-            'released_on' => ['nullable', 'date_format:Y-m-d'],
+            // HR may record an earlier day (pay handed out before it was marked in Luna), never a future one.
+            'released_on' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
         ]);
         $name = $payslip->user->name;
 
@@ -39,17 +40,20 @@ class PayrollReleaseController extends Controller
         return back();
     }
 
-    /** Mark every payslip of the pay period received today; ones already released keep their date. */
+    /** Mark every payslip of the pay period received (today, or an earlier day); ones already released keep their date. */
     public function store(Request $request): RedirectResponse
     {
         [$start] = $this->cutoff($request);
+        $on = $request->validate([
+            'released_on' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
+        ])['released_on'] ?? CarbonImmutable::today()->toDateString();
 
         $count = Payslip::query()
             ->where('period_start', $start->toDateString())
             ->whereNull('released_on')
             ->get()
             ->each(fn (Payslip $p) => $p->update([
-                'released_on' => CarbonImmutable::today()->toDateString(),
+                'released_on' => $on,
                 'released_by' => $request->user()->id,
             ]))
             ->count();

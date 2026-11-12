@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { CheckCheck, Printer } from 'lucide-react';
 import { BackButton } from '@/components/back-button';
+import { MarkReceivedDialog } from '@/components/mark-received-dialog';
 import { Button } from '@/components/ui/button';
 import { payroll as payrollRoute } from '@/routes/people';
 import {
@@ -138,15 +139,23 @@ export default function PersonPayslips({ person, payslips }: Props) {
                                         Undo
                                     </Button>
                                 ) : (
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        className="min-h-10 bg-bg"
-                                        onClick={() => release(p.id, true)}
-                                        aria-label={`Mark the ${short(p.start)} pay received`}
-                                    >
-                                        <CheckCheck /> Received
-                                    </Button>
+                                    <MarkReceivedDialog
+                                        url={releaseRoute(p.id)}
+                                        data={{ released: true }}
+                                        title={`Pay received · ${short(p.start)} – ${short(p.end)}`}
+                                        description={`The day ${person.name} got this pay. The payslip is locked once it's marked.`}
+                                        payday={p.end}
+                                        trigger={
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                className="min-h-10 bg-bg"
+                                                aria-label={`Mark the ${short(p.start)} pay received`}
+                                            >
+                                                <CheckCheck /> Received
+                                            </Button>
+                                        }
+                                    />
                                 )}
                             </div>
                         </li>
