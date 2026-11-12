@@ -1,0 +1,47 @@
+# Luna on the OCSPH office server: http://ocsph-wkst-005:8001
+#   cd ~/server/luna && docker compose up -d --build
+# Settings and secrets live in .env next to this file (never committed). Compose reads it for the
+# ${...} values below, and the app container gets all of it as environment variables.
+
+services:
+  app:
+    build: .
+    image: luna-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # On every start: wait for MySQL, migrate, storage:link and the config/route/view caches.
+      AUTORUN_ENABLED: "true"
+      PHP_OPCACHE_ENABLE: "1"
+    ports:
+      - "${LUNA_PORT:-8001}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - default
+      - proxy
+
+  # Not published to the LAN: only the app reaches it, on the compose network.
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  db-data:
+
+networks:
+  proxy:
+    external: true
