@@ -175,8 +175,9 @@ class LeaveTest extends TestCase
                 ->component('leave/index')
                 ->where('current.start', '2026-11-01')
                 ->where('current.end', '2026-11-15')
-                ->where('current.deducted_hours', 12.67)
-                ->where('current.deducted_pesos', 3167.5)
+                // Leave in the cut-off forfeits its accrual: all 16 h are unpaid.
+                ->where('current.deducted_hours', 16)
+                ->where('current.deducted_pesos', 4000)
                 ->where('balance_hours', 0)
                 ->has('leaves', 5)
                 ->where('leaves.0.date', '2026-11-04')

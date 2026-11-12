@@ -11,8 +11,8 @@ use Carbon\CarbonImmutable;
  * One addition the planner didn't have: public holidays aren't work hours, and leave dated on
  * one isn't charged. With no holidays the figures are the planner's.
  *
- * Each cut-off: carry + accrued - taken. A negative balance is unpaid (deducted on the next
- * cut-off's payslip, one cut-off in arrears) and the next cut-off starts from zero. Balances are
+ * Each cut-off: carry + accrued - taken. A negative balance is unpaid (deducted on that cut-off's
+ * payslip) and the next cut-off starts from zero. Balances are
  * carried unrounded, so 10/3 h a cut-off reaches 10.00 rather than 9.99; each CutOff reports
  * them to 2 decimals.
  */
@@ -66,7 +66,7 @@ final class Ledger
 
             $out[] = new CutOff(
                 $period, $end, self::r2($carry), self::r2($accrued), $taken, self::r2($balance),
-                $balance < 0 ? self::r2(-$balance) : 0.0, $inside,
+                $balance < 0 ? self::r2(-$balance) : 0.0, $inside, $balance < 0 ? -$balance : 0.0,
             );
 
             $carry = $balance > 0 ? $balance : 0.0;
@@ -95,6 +95,10 @@ final class Ledger
     {
         $full = $policy->accrualHours;
         $accrued = $full;
+
+        if ($policy->mode === AccrualMode::Forfeit && $taken > 0) {
+            $accrued = 0.0;
+        }
 
         if ($policy->mode === AccrualMode::All && $workHours > 0) {
             $accrued = max(0, $full * (1 - min($taken, $workHours) / $workHours));

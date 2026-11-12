@@ -32,6 +32,8 @@ const HINTS: Record<string, string> = {
     full: 'Everyone earns the full amount every cut-off, even with leave in it.',
     unpaid: 'Days covered by PTO still earn PTO; unpaid hours earn nothing, so that cut-off’s accrual is prorated.',
     all: 'Any leave hour earns nothing; accrual is prorated by hours actually worked in the cut-off.',
+    forfeit:
+        'Any leave in a cut-off, even part of a day, loses that whole cut-off’s hours. Leave on a holiday doesn’t count.',
 };
 
 /** The office leave policy: one set of rules that applies to everyone. */

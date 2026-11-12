@@ -16,7 +16,8 @@ use Tests\TestCase;
  * The accountant's formula, from the Sep and Oct 2026 payroll summaries and the Aug-Dec PTO computation:
  * - an hour costs monthly x 12 / 260 days / 8 h (monthly / 173.33);
  * - PTO earns exactly 10/3 h per cut-off, from the cut-off someone joins in (Aug 16-31 for Aug 18);
- * - a payslip deducts the unpaid hours of the cut-off before it (Sep 16-30 leave is paid on Oct 15).
+ * - any leave in a cut-off forfeits that cut-off's 10/3 h (accountant, 2026-11-12: PTO on the 7th loses 1-15);
+ * - a payslip deducts the unpaid hours of its own cut-off.
  */
 class AccountantFormulaTest extends TestCase
 {
@@ -73,23 +74,47 @@ class AccountantFormulaTest extends TestCase
         $this->assertSame('2769.23', $user->fresh()->daily_rate);
     }
 
-    public function test_september_leave_is_deducted_on_the_october_1_to_15_payslip()
+    public function test_leave_in_a_cut_off_forfeits_that_cut_offs_accrual()
+    {
+        // Dave: 40,000 a month, whole days on Sep 4 (Sep 1-15) and Sep 17 (Sep 16-30).
+        $rows = Ledger::build(Policy::current(), CarbonImmutable::parse('2026-08-18'), 0, [
+            ['date' => '2026-09-04', 'days' => 1], ['date' => '2026-09-17', 'days' => 1],
+        ], CarbonImmutable::parse('2026-10-31'));
+
+        $this->assertSame([3.33, 0.0, 0.0, 3.33], array_map(fn ($c) => $c->accrued, array_slice($rows, 0, 4)));
+        $this->assertSame([0.0, 4.67, 8.0, 0.0], array_map(fn ($c) => $c->deductedHours, array_slice($rows, 0, 4)));
+
+        // Pesos come from the exact hours (4.6667, not 4.67), rounded once at the end.
+        $dave = $this->employee(40000);
+        $this->assertSame(1076.92, PayRate::forHours($dave, $rows[1]->deductedHoursExact, Policy::current()));
+        $this->assertSame(1846.15, PayRate::forHours($dave, $rows[2]->deductedHoursExact, Policy::current()));
+    }
+
+    public function test_leave_on_a_holiday_does_not_forfeit_the_accrual()
+    {
+        $rows = Ledger::build(Policy::current(), CarbonImmutable::parse('2026-08-18'), 0, [
+            ['date' => '2026-09-04', 'days' => 1],
+        ], CarbonImmutable::parse('2026-09-30'), ['2026-09-04']);
+
+        $this->assertSame(3.33, $rows[1]->accrued);
+    }
+
+    public function test_leave_is_deducted_on_the_payslip_of_its_own_cut_off()
     {
         $user = $this->employee(60000);
         Leave::factory()->for($user)->create(['date' => '2026-09-25']);
         Leave::factory()->for($user)->create(['date' => '2026-09-28']);
         $hr = User::factory()->hr()->create();
 
-        $this->actingAs($hr)
-            ->get(route('people.payroll.edit', [$user, '2026-10-01']))
-            ->assertInertia(fn ($page) => $page
-                ->where('payslip.unpaid_hours', 6)
-                ->where('payslip.absences', 2076.92)
-                ->where('unpaid_period.start', '2026-09-16')
-                ->where('unpaid_period.end', '2026-09-30'));
-
+        // 6.67 h carried in, nothing earned in Sep 16-30 (it has leave), 16 h taken: 9.33 h unpaid.
         $this->actingAs($hr)
             ->get(route('people.payroll.edit', [$user, '2026-09-16']))
+            ->assertInertia(fn ($page) => $page
+                ->where('payslip.unpaid_hours', 9.33)
+                ->where('payslip.absences', 3230.77));
+
+        $this->actingAs($hr)
+            ->get(route('people.payroll.edit', [$user, '2026-10-01']))
             ->assertInertia(fn ($page) => $page->where('payslip.absences', 0));
     }
 

@@ -120,7 +120,7 @@ class LeaveController extends Controller
             'taken_hours' => $c->takenHours,
             'balance' => $c->balance,
             'deducted_hours' => $c->deductedHours,
-            'deducted_pesos' => $c->deductedHours == 0 ? null : PayRate::forHours($user, $c->deductedHours, $policy),
+            'deducted_pesos' => $c->deductedHours == 0 ? null : PayRate::forHours($user, $c->deductedHoursExact, $policy),
         ];
     }
 }

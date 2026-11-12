@@ -20,8 +20,9 @@ return [
         // Hours in a working day: a full day of leave takes this many hours.
         'hours_per_day' => 8,
 
-        // full | unpaid | all; see App\Services\Pto\AccrualMode.
-        'accrual_mode' => 'full',
+        // full | unpaid | all | forfeit; see App\Services\Pto\AccrualMode. The office rule (accountant,
+        // 2026-11-12) is forfeit: any leave in a cut-off loses that cut-off's accrual.
+        'accrual_mode' => 'forfeit',
 
         // Most days off per person per calendar month (a half day counts 0.5).
         'monthly_cap_days' => 10,

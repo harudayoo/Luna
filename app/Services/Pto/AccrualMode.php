@@ -16,12 +16,19 @@ enum AccrualMode: string
     /** Any leave hour earns nothing; accrual is prorated by hours actually worked. */
     case All = 'all';
 
+    /**
+     * The office rule (accountant, 2026-11-12): any leave in a cut-off, even part of a day, forfeits
+     * that whole cut-off's accrual. Leave on a holiday isn't charged, so it doesn't count.
+     */
+    case Forfeit = 'forfeit';
+
     public function label(): string
     {
         return match ($this) {
             self::Full => 'Full accrual, even on leave',
             self::Unpaid => 'No accrual on unpaid hours',
             self::All => 'No accrual on any leave',
+            self::Forfeit => 'No accrual in a cut-off with leave',
         };
     }
 }

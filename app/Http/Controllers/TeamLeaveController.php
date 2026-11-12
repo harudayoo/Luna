@@ -45,7 +45,7 @@ class TeamLeaveController extends Controller
                 'taken_hours' => $c?->takenHours ?? 0,
                 'balance' => $c?->balance ?? 0,
                 'deducted_hours' => $c?->deductedHours ?? 0,
-                'deducted_pesos' => $c && $c->deductedHours > 0 ? PayRate::forHours($user, $c->deductedHours, $policy) : null,
+                'deducted_pesos' => $c && $c->deductedHours > 0 ? PayRate::forHours($user, $c->deductedHoursExact, $policy) : null,
                 'has_rate' => $user->daily_rate !== null,
                 'deactivated' => $user->isDeactivated(),
                 'leaves' => $user->leaves()

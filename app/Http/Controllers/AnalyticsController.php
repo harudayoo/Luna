@@ -62,7 +62,7 @@ class AnalyticsController extends Controller
             'balance' => $c->balance,
             'taken_hours' => $c->takenHours,
             'deducted_hours' => $c->deductedHours,
-            'deducted_pesos' => $this->pesos($c->deductedHours, $user, $policy),
+            'deducted_pesos' => $this->pesos($c->deductedHoursExact, $user, $policy),
         ]);
 
         return [
@@ -106,7 +106,7 @@ class AnalyticsController extends Controller
                         'days' => round($byUser->get($u->id)?->sum('days') ?? 0, 2),
                         'deducted_hours' => round($cutoffs->sum(fn (CutOff $c) => $c->deductedHours), 2),
                         'deducted_pesos' => $u->daily_rate === null ? null
-                            : round($cutoffs->sum(fn (CutOff $c) => $this->pesos($c->deductedHours, $u, $policy)), 2),
+                            : round($cutoffs->sum(fn (CutOff $c) => $this->pesos($c->deductedHoursExact, $u, $policy)), 2),
                         'has_rate' => $u->daily_rate !== null,
                     ],
                 ];
@@ -121,7 +121,7 @@ class AnalyticsController extends Controller
                 'start' => $start,
                 'end' => $rows->first()['cutoff']->end->toDateString(),
                 'deducted_hours' => round($rows->sum(fn ($x) => $x['cutoff']->deductedHours), 2),
-                'deducted_pesos' => round($rows->sum(fn ($x) => $this->pesos($x['cutoff']->deductedHours, $x['user'], $policy) ?? 0), 2),
+                'deducted_pesos' => round($rows->sum(fn ($x) => $this->pesos($x['cutoff']->deductedHoursExact, $x['user'], $policy) ?? 0), 2),
                 'people' => $rows->count(),
             ])->values();
 

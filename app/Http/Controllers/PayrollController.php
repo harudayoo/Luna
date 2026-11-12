@@ -81,8 +81,8 @@ class PayrollController extends Controller
     {
         [$start, $end] = $this->period($cutoff);
         $saved = $user->payslips()->where('period_start', $start->toDateString())->first();
-        [$unpaidStart, $unpaidEnd] = $this->arrearsPeriod($start);
-        $unpaid = $this->unpaidHours($user, $start);
+        $ledger = $this->ledgerCutOff($user, $start);
+        $unpaid = $ledger?->deductedHours ?? 0.0;
         $daily = (float) $user->daily_rate;
 
         if ($saved) {
@@ -94,7 +94,7 @@ class PayrollController extends Controller
             foreach (Payslip::RECURRING as $k) {
                 $inputs[$k] = $previous ? (float) $previous->{$k} : 0.0;
             }
-            $inputs['absences'] = PayRate::forHours($user, $unpaid, Policy::current()) ?? 0.0;
+            $inputs['absences'] = PayRate::forHours($user, $ledger?->deductedHoursExact ?? 0.0, Policy::current()) ?? 0.0;
             $issued = CarbonImmutable::today()->toDateString();
         }
 
@@ -107,8 +107,6 @@ class PayrollController extends Controller
                 'daily_rate' => $daily,
             ],
             'period' => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
-            // Absences are one cut-off in arrears: this payslip deducts the cut-off before it.
-            'unpaid_period' => ['start' => $unpaidStart->toDateString(), 'end' => $unpaidEnd->toDateString()],
             'payslip' => $inputs + PayslipMath::totals((float) $user->monthly_salary, $daily, $inputs) + [
                 'unpaid_hours' => $unpaid,
                 'issued_on' => $issued,
@@ -150,7 +148,7 @@ class PayrollController extends Controller
                 'position' => $user->position,
                 'monthly_salary' => $monthly,
                 'daily_rate' => $daily,
-                'unpaid_hours' => $this->unpaidHours($user, $start),
+                'unpaid_hours' => $this->ledgerCutOff($user, $start)?->deductedHours ?? 0.0,
                 'created_by' => $request->user()->id,
             ],
         );
@@ -171,24 +169,11 @@ class PayrollController extends Controller
         return Ledger::cutOffFor($date);
     }
 
-    /**
-     * The cut-off whose absences the payslip for $start deducts: the one before it (the
-     * accountant's practice: Sep 16-30 leave is paid on the Oct 15 payday).
-     *
-     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
-     */
-    private function arrearsPeriod(CarbonImmutable $start): array
+    /** The PTO ledger's cut-off starting on $start: its own payslip deducts its unpaid hours. */
+    private function ledgerCutOff(User $user, CarbonImmutable $start): ?CutOff
     {
-        return Ledger::cutOffFor($start->subDay());
-    }
-
-    /** The PTO ledger's unpaid hours that the payslip for the cut-off starting on $start deducts. */
-    private function unpaidHours(User $user, CarbonImmutable $start): float
-    {
-        [$from] = $this->arrearsPeriod($start);
         $through = CarbonImmutable::today()->max($start->endOfYear());
-        $c = collect($user->ptoLedger(Policy::current(), $through))->first(fn (CutOff $c) => $c->start->equalTo($from));
 
-        return $c?->deductedHours ?? 0.0;
+        return collect($user->ptoLedger(Policy::current(), $through))->first(fn (CutOff $c) => $c->start->equalTo($start));
     }
 }

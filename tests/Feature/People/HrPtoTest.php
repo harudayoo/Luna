@@ -33,11 +33,11 @@ class HrPtoTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('people/policy')
-                ->where('policy.accrual_mode', 'full')
+                ->where('policy.accrual_mode', 'forfeit')
                 ->where('policy.accrual_hours', 3.3333)
                 ->where('policy.monthly_cap_days', 10)
                 ->where('policy.office_started_on', '2026-08-18')
-                ->has('modes', 3));
+                ->has('modes', 4));
 
         $this->actingAs(User::factory()->create())
             ->get(route('people.policy'))
@@ -75,7 +75,7 @@ class HrPtoTest extends TestCase
             ])
             ->assertSessionHasErrors(['accrual_mode', 'accrual_hours', 'monthly_cap_days', 'office_started_on', 'work_days_per_year']);
 
-        $this->assertSame(AccrualMode::Full, Policy::current()->mode);
+        $this->assertSame(AccrualMode::Forfeit, Policy::current()->mode);
     }
 
     public function test_hr_sets_a_persons_rate_start_and_opening_balance()
@@ -134,10 +134,10 @@ class HrPtoTest extends TestCase
                 ->has('rows', 2)
                 ->where('rows.1.name', 'Juan')
                 ->where('rows.1.taken_hours', 16)
-                ->where('rows.1.deducted_hours', 12.67)
-                ->where('rows.1.deducted_pesos', 3167.5)
+                ->where('rows.1.deducted_hours', 16)
+                ->where('rows.1.deducted_pesos', 4000)
                 ->has('rows.1.leaves', 2)
-                ->where('totals.deducted_pesos', 3167.5));
+                ->where('totals.deducted_pesos', 4000));
     }
 
     public function test_hr_can_look_at_another_cut_off()

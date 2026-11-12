@@ -12,8 +12,8 @@ use Tests\TestCase;
 /**
  * Payslips: one per person per cut-off, made by HR and printable by HR and the employee.
  * "Today" is Thu 2026-11-12. Ana earns 60,000 a month (346.15 an hour at x 12 / 260 / 8); Nov 3 and 4
- * are leave with October's 6.67 h carried in, so Nov 1-15 has 6.00 unpaid hours (full accrual). Absences
- * are one cut-off in arrears: the Nov 16-30 payslip deducts them, 2,076.92.
+ * are leave with October's 6.67 h carried in; the leave forfeits Nov 1-15's accrual, so it has 9.33 unpaid
+ * hours, deducted on its own payslip: 3,230.77.
  */
 class PayslipTest extends TestCase
 {
@@ -68,17 +68,16 @@ class PayslipTest extends TestCase
     public function test_the_editor_is_prefilled_from_the_ledger()
     {
         $this->actingAs($this->hr)
-            ->get(route('people.payroll.edit', [$this->ana, '2026-11-16']))
+            ->get(route('people.payroll.edit', [$this->ana, '2026-11-01']))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('people/payslip')
                 ->where('person.name', 'Ana Cruz')
-                ->where('period.start', '2026-11-16')
-                ->where('period.end', '2026-11-30')
-                ->where('unpaid_period.start', '2026-11-01')
+                ->where('period.start', '2026-11-01')
+                ->where('period.end', '2026-11-15')
                 ->where('payslip.basic_pay', 30000)
-                ->where('payslip.unpaid_hours', 6)
-                ->where('payslip.absences', 2076.92)
+                ->where('payslip.unpaid_hours', 9.33)
+                ->where('payslip.absences', 3230.77)
                 ->where('payslip.sss', 0)
                 ->where('saved', false));
     }
@@ -110,8 +109,8 @@ class PayslipTest extends TestCase
                 ->where('payslip.philhealth', 750)
                 ->where('payslip.pagibig', 200)
                 ->where('payslip.withholding_tax', 1000)
-                // Not reused: absences come from the ledger, here Nov 1-15's unpaid hours.
-                ->where('payslip.absences', 2076.92));
+                // Not reused: absences come from the ledger, and Nov 16-30 has none.
+                ->where('payslip.absences', 0));
     }
 
     public function test_bad_input_and_a_missing_salary_are_refused()

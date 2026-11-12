@@ -22,6 +22,8 @@ final readonly class CutOff
         public float $balance,
         public float $deductedHours,
         public array $leaves,
+        /** The unpaid hours unrounded (16 - 6.6667 = 9.3333): pesos come from this, rounded once at the end. */
+        public float $deductedHoursExact = 0.0,
     ) {}
 
     /** Payroll for it has run, so employees can't change its leave any more. */

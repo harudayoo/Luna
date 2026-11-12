@@ -14,11 +14,11 @@ class PtoSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_the_office_policy_defaults_to_full_accrual_of_a_third_of_ten_hours()
+    public function test_the_office_policy_defaults_to_a_third_of_ten_hours_forfeited_by_leave()
     {
         $policy = Policy::current();
 
-        $this->assertSame(AccrualMode::Full, $policy->mode);
+        $this->assertSame(AccrualMode::Forfeit, $policy->mode);
         $this->assertSame(10 / 3, $policy->accrualHours);
         $this->assertSame(8.0, $policy->hoursPerDay);
         $this->assertSame(10.0, $policy->monthlyCapDays);
@@ -30,7 +30,7 @@ class PtoSettingsTest extends TestCase
         $this->assertSame(AccrualMode::All, Policy::current()->mode);
 
         Setting::put('pto.accrual_mode', 'nonsense');
-        $this->assertSame(AccrualMode::Full, Policy::current()->mode);
+        $this->assertSame(AccrualMode::Forfeit, Policy::current()->mode);
     }
 
     public function test_pto_start_defaults_to_the_office_start_of_august_18()
