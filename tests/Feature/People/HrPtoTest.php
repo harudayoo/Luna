@@ -34,7 +34,7 @@ class HrPtoTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('people/policy')
                 ->where('policy.accrual_mode', 'full')
-                ->where('policy.accrual_hours', 3.33)
+                ->where('policy.accrual_hours', 3.3333)
                 ->where('policy.monthly_cap_days', 10)
                 ->where('policy.office_started_on', '2026-08-18')
                 ->has('modes', 3));
@@ -52,6 +52,7 @@ class HrPtoTest extends TestCase
                 'accrual_hours' => 3.5,
                 'monthly_cap_days' => 8,
                 'office_started_on' => '2026-08-18',
+                'work_days_per_year' => 260,
             ])
             ->assertRedirect(route('people.policy'))
             ->assertSessionHasNoErrors();
@@ -70,8 +71,9 @@ class HrPtoTest extends TestCase
                 'accrual_hours' => -1,
                 'monthly_cap_days' => 0,
                 'office_started_on' => 'soon',
+                'work_days_per_year' => 12,
             ])
-            ->assertSessionHasErrors(['accrual_mode', 'accrual_hours', 'monthly_cap_days', 'office_started_on']);
+            ->assertSessionHasErrors(['accrual_mode', 'accrual_hours', 'monthly_cap_days', 'office_started_on', 'work_days_per_year']);
 
         $this->assertSame(AccrualMode::Full, Policy::current()->mode);
     }

@@ -14,12 +14,12 @@ class PtoSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_the_office_policy_defaults_to_full_accrual_of_3_33_hours()
+    public function test_the_office_policy_defaults_to_full_accrual_of_a_third_of_ten_hours()
     {
         $policy = Policy::current();
 
         $this->assertSame(AccrualMode::Full, $policy->mode);
-        $this->assertSame(3.33, $policy->accrualHours);
+        $this->assertSame(10 / 3, $policy->accrualHours);
         $this->assertSame(8.0, $policy->hoursPerDay);
         $this->assertSame(10.0, $policy->monthlyCapDays);
     }
@@ -54,7 +54,7 @@ class PtoSettingsTest extends TestCase
 
         $this->actingAs(User::factory()->create())
             ->get(route('dashboard'))
-            ->assertInertia(fn ($page) => $page->where('pto.balance_hours', 16.65));
+            ->assertInertia(fn ($page) => $page->where('pto.balance_hours', 16.67));
     }
 
     public function test_the_migrations_reverse_cleanly()

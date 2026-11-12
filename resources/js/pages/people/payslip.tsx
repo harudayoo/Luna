@@ -33,6 +33,8 @@ type Props = {
         daily_rate: number;
     };
     period: { start: string; end: string };
+    /** The cut-off whose unpaid PTO this payslip deducts: the one before it. */
+    unpaid_period: { start: string; end: string };
     payslip: Inputs & {
         basic_pay: number;
         unpaid_hours: number;
@@ -64,12 +66,14 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 export default function PayslipEditor({
     person,
     period,
+    unpaid_period,
     payslip,
     saved,
     payslip_id,
     released_on,
     premiums,
 }: Props) {
+    const unpaidRange = `${fmt(unpaid_period.start, { month: 'short', day: 'numeric' })}–${fmt(unpaid_period.end, { day: 'numeric' })}`;
     const [v, setV] = useState<Inputs>({
         holiday_regular_days: payslip.holiday_regular_days,
         holiday_special_days: payslip.holiday_special_days,
@@ -213,8 +217,8 @@ export default function PayslipEditor({
                                         label="Absences / Unpaid time-off (₱)"
                                         hint={
                                             payslip.unpaid_hours > 0
-                                                ? `Luna's PTO ledger: ${payslip.unpaid_hours.toFixed(2)} h unpaid`
-                                                : 'No unpaid PTO in this cut-off'
+                                                ? `${payslip.unpaid_hours.toFixed(2)} h unpaid PTO from ${unpaidRange}. Add lates here too.`
+                                                : `No unpaid PTO from ${unpaidRange}. Add lates here.`
                                         }
                                         value={v.absences}
                                         onChange={set('absences')}

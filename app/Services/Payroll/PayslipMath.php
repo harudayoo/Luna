@@ -14,15 +14,14 @@ namespace App\Services\Payroll;
  */
 final class PayslipMath
 {
-    public const WORK_DAYS_PER_MONTH = 22;
-
     public const REGULAR_HOLIDAY_PREMIUM = 1.0;
 
     public const SPECIAL_HOLIDAY_PREMIUM = 0.3;
 
-    public static function dailyRate(float $monthly): float
+    /** The accountant's daily rate: monthly x 12 / work days a year (260: 21.67 days a month). */
+    public static function dailyRate(float $monthly, float $workDaysPerYear): float
     {
-        return round($monthly / self::WORK_DAYS_PER_MONTH, 2);
+        return round($monthly * 12 / $workDaysPerYear, 2);
     }
 
     /**

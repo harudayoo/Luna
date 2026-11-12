@@ -23,9 +23,10 @@ class PolicyController extends Controller
         return Inertia::render('people/policy', [
             'policy' => [
                 'accrual_mode' => $policy->mode->value,
-                'accrual_hours' => $policy->accrualHours,
+                'accrual_hours' => round($policy->accrualHours, 4),
                 'hours_per_day' => $policy->hoursPerDay,
                 'monthly_cap_days' => $policy->monthlyCapDays,
+                'work_days_per_year' => $policy->workDaysPerYear,
                 'office_started_on' => Policy::officeStartedOn()->toDateString(),
             ],
             'modes' => collect(AccrualMode::cases())->map(fn (AccrualMode $m) => [
@@ -42,12 +43,14 @@ class PolicyController extends Controller
             'accrual_hours' => ['required', 'numeric', 'min:0', 'max:40'],
             'monthly_cap_days' => ['required', 'numeric', 'min:0.5', 'max:31'],
             'office_started_on' => ['required', 'date_format:Y-m-d'],
+            'work_days_per_year' => ['required', 'numeric', 'min:200', 'max:366'],
         ]);
 
         Setting::put('pto.accrual_mode', $validated['accrual_mode']);
         Setting::put('pto.accrual_hours', $validated['accrual_hours']);
         Setting::put('pto.monthly_cap_days', $validated['monthly_cap_days']);
         Setting::put('office.started_on', $validated['office_started_on']);
+        Setting::put('pay.work_days_per_year', $validated['work_days_per_year']);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Leave policy saved. Balances use it now.']);
 

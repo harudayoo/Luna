@@ -6,6 +6,7 @@ use App\Http\Requests\StoreLeaveRequest;
 use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
+use App\Services\Payroll\PayRate;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Ledger;
 use App\Services\Pto\Policy;
@@ -119,9 +120,7 @@ class LeaveController extends Controller
             'taken_hours' => $c->takenHours,
             'balance' => $c->balance,
             'deducted_hours' => $c->deductedHours,
-            'deducted_pesos' => $user->daily_rate === null || $c->deductedHours == 0
-                ? null
-                : round($c->deductedHours / $policy->hoursPerDay * (float) $user->daily_rate, 2),
+            'deducted_pesos' => $c->deductedHours == 0 ? null : PayRate::forHours($user, $c->deductedHours, $policy),
         ];
     }
 }

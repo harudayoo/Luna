@@ -11,8 +11,10 @@ use Carbon\CarbonImmutable;
  * One addition the planner didn't have: public holidays aren't work hours, and leave dated on
  * one isn't charged. With no holidays the figures are the planner's.
  *
- * Each cut-off: carry + accrued - taken. A negative balance is unpaid (deducted from that
- * payroll) and the next cut-off starts from zero.
+ * Each cut-off: carry + accrued - taken. A negative balance is unpaid (deducted on the next
+ * cut-off's payslip, one cut-off in arrears) and the next cut-off starts from zero. Balances are
+ * carried unrounded, so 10/3 h a cut-off reaches 10.00 rather than 9.99; each CutOff reports
+ * them to 2 decimals.
  */
 final class Ledger
 {
@@ -44,7 +46,7 @@ final class Ledger
         $horizon = self::horizon($period, $today, $sorted);
 
         $out = [];
-        $carry = self::r2($openingHours);
+        $carry = $openingHours;
         $i = 0;
         $n = count($sorted);
         while ($i < $n && $sorted[$i]['date'] < $period->toDateString()) {
@@ -60,9 +62,12 @@ final class Ledger
             }
 
             $taken = self::r2(array_sum(array_map(fn ($l) => $l['days'] * $policy->hoursPerDay, $inside)));
-            [$accrued, $balance, $deducted] = self::settle($policy, $carry, $taken, self::workHours($policy, $period, $end, $off));
+            [$accrued, $balance] = self::settle($policy, $carry, $taken, self::workHours($policy, $period, $end, $off));
 
-            $out[] = new CutOff($period, $end, $carry, $accrued, $taken, $balance, $deducted, $inside);
+            $out[] = new CutOff(
+                $period, $end, self::r2($carry), self::r2($accrued), $taken, self::r2($balance),
+                $balance < 0 ? self::r2(-$balance) : 0.0, $inside,
+            );
 
             $carry = $balance > 0 ? $balance : 0.0;
             $period = $end->addDay();
@@ -85,7 +90,7 @@ final class Ledger
             : [$date->setDay(16), $date->endOfMonth()->startOfDay()];
     }
 
-    /** Hours due in a cut-off, the planner's settle(): returns [accrued, balance, deducted]. */
+    /** Hours due in a cut-off, the planner's settle(): returns [accrued, balance], unrounded. */
     private static function settle(Policy $policy, float $carry, float $taken, float $workHours): array
     {
         $full = $policy->accrualHours;
@@ -103,10 +108,7 @@ final class Ledger
             $accrued = max(0, $full - $k * $unpaid);
         }
 
-        $accrued = self::r2($accrued);
-        $balance = self::r2($carry + $accrued - $taken);
-
-        return [$accrued, $balance, $balance < 0 ? self::r2(-$balance) : 0.0];
+        return [$accrued, $carry + $accrued - $taken];
     }
 
     /**

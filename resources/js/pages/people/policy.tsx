@@ -23,6 +23,7 @@ type Props = {
         hours_per_day: number;
         monthly_cap_days: number;
         office_started_on: string;
+        work_days_per_year: number;
     };
     modes: { value: string; label: string }[];
 };
@@ -36,6 +37,7 @@ const HINTS: Record<string, string> = {
 /** The office leave policy: one set of rules that applies to everyone. */
 export default function Policy({ policy, modes }: Props) {
     const [mode, setMode] = useState(policy.accrual_mode);
+    const [workDays, setWorkDays] = useState(String(policy.work_days_per_year));
 
     return (
         <>
@@ -95,14 +97,17 @@ export default function Policy({ policy, modes }: Props) {
                                     name="accrual_hours"
                                     type="number"
                                     inputMode="decimal"
-                                    step="0.01"
+                                    step="any"
                                     min="0"
                                     defaultValue={policy.accrual_hours}
                                     required
                                 />
+                                <p className="text-xs text-muted">
+                                    3.3333 is 10 hours a month.
+                                </p>
                                 <InputError message={errors.accrual_hours} />
                             </div>
-                            <div className="grid gap-2">
+                            <div className="grid content-start gap-2">
                                 <Label htmlFor="monthly_cap_days">
                                     Most days off per month
                                 </Label>
@@ -136,6 +141,30 @@ export default function Policy({ policy, modes }: Props) {
                                 their own start date.
                             </p>
                             <InputError message={errors.office_started_on} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="work_days_per_year">
+                                Working days a year (pay rate)
+                            </Label>
+                            <Input
+                                id="work_days_per_year"
+                                name="work_days_per_year"
+                                type="number"
+                                inputMode="decimal"
+                                step="any"
+                                min="200"
+                                max="366"
+                                value={workDays}
+                                onChange={(e) => setWorkDays(e.target.value)}
+                                required
+                            />
+                            <p className="text-xs text-muted">
+                                {Number(workDays) > 0
+                                    ? `${(Number(workDays) / 12).toFixed(2)} days a month. Daily rate = monthly × 12 ÷ ${workDays}; an unpaid hour is the daily rate ÷ ${policy.hours_per_day}.`
+                                    : 'Days a month = this ÷ 12.'}
+                            </p>
+                            <InputError message={errors.work_days_per_year} />
                         </div>
 
                         <p className="text-xs text-muted">

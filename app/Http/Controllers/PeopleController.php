@@ -76,7 +76,7 @@ class PeopleController extends Controller
     {
         $validated = $request->validate([
             'position' => ['nullable', 'string', 'max:80'],
-            // Pay is monthly; the daily rate used for PTO deductions is derived from it (÷ 22).
+            // Pay is monthly; the daily rate used for PTO deductions is derived from it (x 12 / 260).
             'monthly_salary' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
             'daily_rate' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'pto_start' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.Policy::officeStartedOn()->toDateString()],
@@ -86,7 +86,7 @@ class PeopleController extends Controller
         ]);
 
         if ($request->filled('monthly_salary')) {
-            $validated['daily_rate'] = PayslipMath::dailyRate((float) $validated['monthly_salary']);
+            $validated['daily_rate'] = PayslipMath::dailyRate((float) $validated['monthly_salary'], Policy::current()->workDaysPerYear);
         }
         $user->update($validated);
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name}'s leave details saved."]);

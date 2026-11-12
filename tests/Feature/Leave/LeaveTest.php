@@ -189,6 +189,6 @@ class LeaveTest extends TestCase
     {
         $this->actingAs($this->me)
             ->get(route('dashboard'))
-            ->assertInertia(fn ($page) => $page->where('pto.balance_hours', 6.66));
+            ->assertInertia(fn ($page) => $page->where('pto.balance_hours', 6.67));
     }
 }

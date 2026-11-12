@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
+use App\Services\Payroll\PayRate;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
@@ -175,7 +176,7 @@ class AnalyticsController extends Controller
 
     private function pesos(float $hours, User $user, Policy $policy): ?float
     {
-        return $user->daily_rate === null ? null : round($hours / $policy->hoursPerDay * (float) $user->daily_rate, 2);
+        return PayRate::forHours($user, $hours, $policy);
     }
 
     /** @return list<int> from the office start year to this year (or the last year with leave) */

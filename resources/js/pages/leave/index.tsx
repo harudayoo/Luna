@@ -123,7 +123,7 @@ export default function MyLeave(props: Props) {
                                 <p className="mt-1">
                                     Unpaid
                                     {current.deducted_pesos !== null &&
-                                        `: ${peso(current.deducted_pesos)} off this payroll`}
+                                        `: ${peso(current.deducted_pesos)} off next cut-off’s pay`}
                                 </p>
                             </>
                         ) : (
