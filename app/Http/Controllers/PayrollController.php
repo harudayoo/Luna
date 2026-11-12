@@ -6,9 +6,9 @@ use App\Http\Requests\PayslipRequest;
 use App\Models\Payslip;
 use App\Models\User;
 use App\Services\Payroll\PayRate;
+use App\Services\Payroll\PaySchedule;
 use App\Services\Payroll\PayslipMath;
 use App\Services\Pto\CutOff;
-use App\Services\Pto\Ledger;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -18,8 +18,9 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Payroll (HR): one payslip per person per cut-off. The editor starts from what Luna knows (half the
- * monthly salary, the PTO ledger's unpaid time off, last payslip's deductions); HR fills in the rest.
+ * Payroll (HR): one payslip per person per pay period, a month or a cut-off (PaySchedule). The editor starts
+ * from what Luna knows (the salary for the period, the PTO ledger's unpaid time off in it, last payslip's
+ * deductions); HR fills in the rest.
  */
 class PayrollController extends Controller
 {
@@ -27,9 +28,11 @@ class PayrollController extends Controller
     {
         $request->validate(['cutoff' => ['nullable', 'date_format:Y-m-d']]);
         $today = CarbonImmutable::today();
-        [$start, $end] = Ledger::cutOffFor(CarbonImmutable::parse($request->input('cutoff', $today->toDateString())));
+        [$start, $end] = PaySchedule::periodFor(CarbonImmutable::parse($request->input('cutoff', $today->toDateString())));
 
-        $slips = Payslip::query()->where('period_start', $start->toDateString())->get()->keyBy('user_id');
+        // Only payslips of this exact period: a cut-off payslip made before a switch to monthly isn't the month's.
+        $slips = Payslip::query()->where('period_start', $start->toDateString())
+            ->where('period_end', $end->toDateString())->get()->keyBy('user_id');
         $rows = User::query()->orderBy('id')->get()
             ->filter(fn (User $u) => ! $u->isDeactivated() || $slips->has($u->id))
             ->map(fn (User $u) => [
@@ -46,10 +49,11 @@ class PayrollController extends Controller
             'cutoff' => [
                 'start' => $start->toDateString(),
                 'end' => $end->toDateString(),
-                'prev' => Ledger::cutOffFor($start->subDay())[0]->toDateString(),
+                'prev' => PaySchedule::periodFor($start->subDay())[0]->toDateString(),
                 'next' => $end->addDay()->toDateString(),
                 'is_current' => $today->betweenIncluded($start, $end),
             ],
+            'frequency' => PaySchedule::frequencyOn($start)->value,
             'rows' => $rows,
             'released' => $slips->filter(fn (Payslip $p) => $p->isReleased())->count(),
             'total_net' => round($slips->sum(fn (Payslip $p) => (float) $p->net_pay), 2),
@@ -81,8 +85,8 @@ class PayrollController extends Controller
     {
         [$start, $end] = $this->period($cutoff);
         $saved = $user->payslips()->where('period_start', $start->toDateString())->first();
-        $ledger = $this->ledgerCutOff($user, $start);
-        $unpaid = $ledger?->deductedHours ?? 0.0;
+        [$unpaid, $unpaidExact] = $this->unpaidHours($user, $start, $end);
+        $frequency = PaySchedule::frequencyOn($start);
         $daily = (float) $user->daily_rate;
 
         if ($saved) {
@@ -94,7 +98,7 @@ class PayrollController extends Controller
             foreach (Payslip::RECURRING as $k) {
                 $inputs[$k] = $previous ? (float) $previous->{$k} : 0.0;
             }
-            $inputs['absences'] = PayRate::forHours($user, $ledger?->deductedHoursExact ?? 0.0, Policy::current()) ?? 0.0;
+            $inputs['absences'] = PayRate::forHours($user, $unpaidExact, Policy::current()) ?? 0.0;
             $issued = CarbonImmutable::today()->toDateString();
         }
 
@@ -107,7 +111,8 @@ class PayrollController extends Controller
                 'daily_rate' => $daily,
             ],
             'period' => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
-            'payslip' => $inputs + PayslipMath::totals((float) $user->monthly_salary, $daily, $inputs) + [
+            'frequency' => $frequency->value,
+            'payslip' => $inputs + PayslipMath::totals((float) $user->monthly_salary, $daily, $inputs, $frequency->share()) + [
                 'unpaid_hours' => $unpaid,
                 'issued_on' => $issued,
             ],
@@ -132,7 +137,7 @@ class PayrollController extends Controller
 
         if ($user->payslips()->where('period_start', $start->toDateString())->whereNotNull('released_on')->exists()) {
             throw ValidationException::withMessages([
-                'released' => "{$user->name}'s pay for this cut-off is marked as received. Undo the release first to change the payslip.",
+                'released' => "{$user->name}'s pay for this period is marked as received. Undo the release first to change the payslip.",
             ]);
         }
 
@@ -142,13 +147,13 @@ class PayrollController extends Controller
 
         Payslip::query()->updateOrCreate(
             ['user_id' => $user->id, 'period_start' => $start->toDateString()],
-            $inputs + PayslipMath::totals($monthly, $daily, $inputs) + [
+            $inputs + PayslipMath::totals($monthly, $daily, $inputs, PaySchedule::frequencyOn($start)->share()) + [
                 'period_end' => $end->toDateString(),
                 'issued_on' => $request->input('issued_on'),
                 'position' => $user->position,
                 'monthly_salary' => $monthly,
                 'daily_rate' => $daily,
-                'unpaid_hours' => $this->ledgerCutOff($user, $start)?->deductedHours ?? 0.0,
+                'unpaid_hours' => $this->unpaidHours($user, $start, $end)[0],
                 'created_by' => $request->user()->id,
             ],
         );
@@ -162,18 +167,27 @@ class PayrollController extends Controller
     private function period(string $cutoff): array
     {
         $date = CarbonImmutable::createFromFormat('!Y-m-d', $cutoff) ?: null;
-        if ($date === null || ! in_array($date->day, [1, 16], true)) {
-            throw ValidationException::withMessages(['cutoff' => 'Pick a cut-off: it starts on the 1st or the 16th.']);
+        $period = $date === null ? null : PaySchedule::periodFor($date);
+        if ($period === null || ! $period[0]->equalTo($date)) {
+            throw ValidationException::withMessages(['cutoff' => 'Pick a pay period: it starts on the 1st (or the 16th, when paid per cut-off).']);
         }
 
-        return Ledger::cutOffFor($date);
+        return $period;
     }
 
-    /** The PTO ledger's cut-off starting on $start: its own payslip deducts its unpaid hours. */
-    private function ledgerCutOff(User $user, CarbonImmutable $start): ?CutOff
+    /**
+     * The PTO ledger's unpaid hours in a pay period: its one cut-off, or both cut-offs of a month.
+     * Returns [rounded to 2 decimals, exact]; pesos come from the exact hours, rounded once.
+     *
+     * @return array{0: float, 1: float}
+     */
+    private function unpaidHours(User $user, CarbonImmutable $start, CarbonImmutable $end): array
     {
         $through = CarbonImmutable::today()->max($start->endOfYear());
+        $exact = (float) collect($user->ptoLedger(Policy::current(), $through))
+            ->filter(fn (CutOff $c) => $c->start->betweenIncluded($start, $end))
+            ->sum(fn (CutOff $c) => $c->deductedHoursExact);
 
-        return collect($user->ptoLedger(Policy::current(), $through))->first(fn (CutOff $c) => $c->start->equalTo($start));
+        return [round($exact, 2), $exact];
     }
 }

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payslip;
-use App\Services\Pto\Ledger;
+use App\Services\Payroll\PaySchedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,7 +39,7 @@ class PayrollReleaseController extends Controller
         return back();
     }
 
-    /** Mark every payslip of the cut-off received today; ones already released keep their date. */
+    /** Mark every payslip of the pay period received today; ones already released keep their date. */
     public function store(Request $request): RedirectResponse
     {
         [$start] = $this->cutoff($request);
@@ -61,7 +61,7 @@ class PayrollReleaseController extends Controller
         return back();
     }
 
-    /** The Payroll Release Form: every payslip of the cut-off, a line each to sign. */
+    /** The Payroll Release Form: every payslip of the pay period, a line each to sign. */
     public function print(Request $request): Response
     {
         [$start, $end] = $this->cutoff($request);
@@ -105,6 +105,6 @@ class PayrollReleaseController extends Controller
     {
         $request->validate(['cutoff' => ['required', 'date_format:Y-m-d']]);
 
-        return Ledger::cutOffFor(CarbonImmutable::parse($request->input('cutoff')));
+        return PaySchedule::periodFor(CarbonImmutable::parse($request->input('cutoff')));
     }
 }

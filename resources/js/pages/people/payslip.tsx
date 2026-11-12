@@ -33,6 +33,8 @@ type Props = {
         daily_rate: number;
     };
     period: { start: string; end: string };
+    /** monthly: basic is the whole salary; semi_monthly: half (one cut-off). */
+    frequency: 'monthly' | 'semi_monthly';
     payslip: Inputs & {
         basic_pay: number;
         unpaid_hours: number;
@@ -64,6 +66,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 export default function PayslipEditor({
     person,
     period,
+    frequency,
     payslip,
     saved,
     payslip_id,
@@ -174,7 +177,9 @@ export default function PayslipEditor({
                                     <span>
                                         Basic pay{' '}
                                         <span className="text-muted">
-                                            (½ of the monthly salary)
+                                            {frequency === 'monthly'
+                                                ? '(the monthly salary)'
+                                                : '(½ of the monthly salary)'}
                                         </span>
                                     </span>
                                     <span className="font-semibold tabular-nums">
@@ -213,8 +218,8 @@ export default function PayslipEditor({
                                         label="Absences / Unpaid time-off (₱)"
                                         hint={
                                             payslip.unpaid_hours > 0
-                                                ? `${payslip.unpaid_hours.toFixed(2)} h unpaid PTO in this cut-off. Add lates here too.`
-                                                : 'No unpaid PTO in this cut-off. Add lates here.'
+                                                ? `${payslip.unpaid_hours.toFixed(2)} h unpaid PTO in this ${frequency === 'monthly' ? 'month (both cut-offs)' : 'cut-off'}. Add lates here too.`
+                                                : `No unpaid PTO in this ${frequency === 'monthly' ? 'month' : 'cut-off'}. Add lates here.`
                                         }
                                         value={v.absences}
                                         onChange={set('absences')}

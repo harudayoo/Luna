@@ -28,11 +28,12 @@ final class PayslipMath
      * @param  array<string, float|int|string|null>  $in  the Payslip::INPUTS values
      * @return array<string, float> basic_pay, holiday_pay, gross_pay, total_deductions, net_pay
      */
-    public static function totals(float $monthly, float $daily, array $in): array
+    public static function totals(float $monthly, float $daily, array $in, float $share = 0.5): array
     {
         $n = fn (string $k) => (float) ($in[$k] ?? 0);
 
-        $basic = round($monthly / 2, 2);
+        // Per cut-off pays half the monthly salary; monthly pays all of it (PayFrequency::share).
+        $basic = round($monthly * $share, 2);
         $holiday = round($daily * ($n('holiday_regular_days') * self::REGULAR_HOLIDAY_PREMIUM
             + $n('holiday_special_days') * self::SPECIAL_HOLIDAY_PREMIUM), 2);
         $gross = round($basic + $holiday + $n('overtime_allowance') - $n('absences'), 2);

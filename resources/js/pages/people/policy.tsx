@@ -105,7 +105,7 @@ export default function Policy({ policy, modes }: Props) {
                                     required
                                 />
                                 <p className="text-xs text-muted">
-                                    3.3333 is 10 hours a month.
+                                    3.3333 a cut-off is 6.67 hours a month.
                                 </p>
                                 <InputError message={errors.accrual_hours} />
                             </div>

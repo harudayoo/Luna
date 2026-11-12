@@ -42,6 +42,8 @@ type Props = {
         next: string;
         is_current: boolean;
     };
+    /** Pay release: one payslip a month, or one per cut-off (People → Formulas). */
+    frequency: 'monthly' | 'semi_monthly';
     rows: Row[];
     released: number;
     total_net: number;
@@ -58,8 +60,15 @@ const peso = (n: number) =>
         currency: 'PHP',
     }).format(n);
 
-/** Payroll (HR): everyone's payslip for one cut-off, to prepare and print. */
-export default function Payroll({ cutoff, rows, released, total_net }: Props) {
+/** Payroll (HR): everyone's payslip for one pay period (a month or a cut-off), to prepare and print. */
+export default function Payroll({
+    cutoff,
+    frequency,
+    rows,
+    released,
+    total_net,
+}: Props) {
+    const unit = frequency === 'monthly' ? 'month' : 'cut-off';
     const made = rows.filter((r) => r.payslip_id !== null).length;
     const release = (payslipId: number, isReleased: boolean) =>
         router.patch(
@@ -75,20 +84,24 @@ export default function Payroll({ cutoff, rows, released, total_net }: Props) {
             <h2 className="mb-4 text-2xl font-semibold">Payroll</h2>
             <PeopleTabs />
 
-            {/* Cut-off switcher, as on Leave & pay. */}
+            {/* Pay period switcher, as on Leave & pay. */}
             <div className="mb-6 flex items-center gap-2">
                 <Button variant="ghost" size="icon" asChild>
                     <Link
                         href={payrollRoute({ query: { cutoff: cutoff.prev } })}
                         preserveScroll
-                        aria-label="Previous cut-off"
+                        aria-label={`Previous ${unit}`}
                     >
                         <ChevronLeft />
                     </Link>
                 </Button>
                 <div className="min-w-0 flex-1 text-center">
                     <p className="ocs-eyebrow mb-0">
-                        {cutoff.is_current ? 'This cut-off' : 'Cut-off'}
+                        {cutoff.is_current
+                            ? `This ${unit}`
+                            : unit === 'month'
+                              ? 'Month'
+                              : 'Cut-off'}
                     </p>
                     <p className="font-semibold">
                         {short(cutoff.start)} –{' '}
@@ -103,7 +116,7 @@ export default function Payroll({ cutoff, rows, released, total_net }: Props) {
                     <Link
                         href={payrollRoute({ query: { cutoff: cutoff.next } })}
                         preserveScroll
-                        aria-label="Next cut-off"
+                        aria-label={`Next ${unit}`}
                     >
                         <ChevronRight />
                     </Link>
@@ -121,7 +134,7 @@ export default function Payroll({ cutoff, rows, released, total_net }: Props) {
                     </p>
                 </section>
                 <section className="ocs-card">
-                    <p className="ocs-eyebrow">Net pay this cut-off</p>
+                    <p className="ocs-eyebrow">Net pay this {unit}</p>
                     <p className="text-3xl font-semibold text-ink">
                         {peso(total_net)}
                     </p>

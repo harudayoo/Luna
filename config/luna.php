@@ -13,8 +13,9 @@ return [
     ],
 
     'pto' => [
-        // Hours earned per semi-monthly cut-off (1st-15th, 16th-month end): 10 hours a month, so
-        // exactly 10/3 a cut-off (the accountant's 3.33, 6.67, 10.00 ...). Kept unrounded.
+        // Hours earned per semi-monthly cut-off (1st-15th, 16th-month end): exactly 10/3 a
+        // cut-off, so 6.67 h a month and 80 h (10 days) a year (the accountant's 3.33, 6.67, 10.00 ...
+        // over successive cut-offs). Kept unrounded.
         'accrual_hours' => 10 / 3,
 
         // Hours in a working day: a full day of leave takes this many hours.
@@ -32,6 +33,10 @@ return [
         // The accountant's rate basis: 5 days x 52 weeks. Daily rate = monthly x 12 / this
         // (21.67 days a month), hourly = daily / hours_per_day. Monthly 60,000 is 346.15 an hour.
         'work_days_per_year' => 260,
+
+        // monthly | semi_monthly (App\Services\Payroll\PayFrequency). The office has been paid monthly
+        // since August 2026; HR switches to per cut-off from a month they pick (People → Formulas).
+        'frequency' => 'monthly',
     ],
 
 ];

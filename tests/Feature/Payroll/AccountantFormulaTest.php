@@ -26,6 +26,8 @@ class AccountantFormulaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // These payslips are per cut-off (half the salary each); the office default is monthly (PayFrequencyTest).
+        config(['luna.pay.frequency' => 'semi_monthly']);
         $this->travelTo('2026-11-12 09:00:00');
     }
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AcceptInviteController;
+use App\Http\Controllers\FormulasController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PayrollReleaseController;
@@ -24,6 +25,8 @@ Route::middleware(['auth', 'verified', 'can:hr'])->group(function () {
     Route::get('people/{user}/payslips', [PayrollController::class, 'person'])->name('people.payslips');
     Route::get('people/payroll/{user}/{cutoff}', [PayrollController::class, 'edit'])->name('people.payroll.edit');
     Route::put('people/payroll/{user}/{cutoff}', [PayrollController::class, 'update'])->name('people.payroll.update');
+    Route::get('people/formulas', [FormulasController::class, 'show'])->name('people.formulas');
+    Route::put('people/formulas/pay-frequency', [FormulasController::class, 'update'])->name('people.formulas.frequency');
     Route::get('people/policy', [PolicyController::class, 'edit'])->name('people.policy');
     Route::put('people/policy', [PolicyController::class, 'update'])->name('people.policy.update');
     Route::get('people/holidays', [HolidayController::class, 'index'])->name('people.holidays');
