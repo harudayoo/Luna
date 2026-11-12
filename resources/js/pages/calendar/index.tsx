@@ -11,6 +11,7 @@ type Entry = {
     user_id: number;
     name: string;
     days: number;
+    part: 'am' | 'pm' | null;
     mine: boolean;
     /** Only for your own leave, or when you're HR. */
     note: string | null;
@@ -225,7 +226,8 @@ function DayCell({
                                 className="truncate bg-primary px-1 text-xs text-on-primary"
                             >
                                 {firstName(e.name)}
-                                {e.days === 0.5 && ' ½'}
+                                {e.days === 0.5 &&
+                                    ` ½${e.part ? ` ${e.part.toUpperCase()}` : ''}`}
                             </span>
                         ))}
                         {entries.length > 2 && (
@@ -287,7 +289,9 @@ function DayPanel({
                                 )}
                                 {e.days === 0.5 && (
                                     <span className="ocs-badge ml-2">
-                                        half day
+                                        {e.part
+                                            ? `${e.part.toUpperCase()} · ½ day`
+                                            : 'half day'}
                                     </span>
                                 )}
                             </p>

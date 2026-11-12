@@ -57,6 +57,7 @@ class TeamLeaveController extends Controller
                         'id' => $l->id,
                         'date' => $l->date->toDateString(),
                         'days' => (float) $l->days,
+                        'part' => $l->part,
                         'note' => $l->note,
                         'holiday' => $holidays[$l->date->toDateString()] ?? null,
                     ]),
@@ -95,6 +96,7 @@ class TeamLeaveController extends Controller
                 $user->leaves()->create([
                     'date' => $date->toDateString(),
                     'days' => $request->daysEach(),
+                    'part' => $request->part(),
                     'note' => $request->input('note'),
                 ]);
             }

@@ -22,6 +22,7 @@ type Entry = {
     id: number;
     date: string;
     days: number;
+    part: 'am' | 'pm' | null;
     note: string | null;
     /** A holiday falls on it: kept, but not charged. */
     holiday: string | null;
@@ -217,6 +218,8 @@ export default function TeamLeave({ cutoff, rows, totals }: Props) {
                                             {l.days === 0.5 && (
                                                 <span className="text-xs text-muted">
                                                     ½
+                                                    {l.part &&
+                                                        ` ${l.part.toUpperCase()}`}
                                                 </span>
                                             )}
                                             {l.holiday && (

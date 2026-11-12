@@ -56,6 +56,7 @@ class CalendarController extends Controller
                     'user_id' => $l->user_id,
                     'name' => $l->user->name,
                     'days' => (float) $l->days,
+                    'part' => $l->part,
                     'mine' => $l->user_id === $user->id,
                     'note' => $seeNotes || $l->user_id === $user->id ? $l->note : null,
                 ]),

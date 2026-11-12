@@ -33,6 +33,8 @@ type LeaveEntry = {
     days: number;
     note: string | null;
     locked: boolean;
+    /** "am" / "pm" for a half day (older half days have none). */
+    part: 'am' | 'pm' | null;
     /** The holiday's name if one falls on this date: kept, but not charged. */
     holiday: string | null;
 };
@@ -233,7 +235,9 @@ function LeaveList({
                                     {day(l.date)}
                                     {l.days === 0.5 && (
                                         <span className="ocs-badge ml-2">
-                                            half day
+                                            {l.part
+                                                ? `${l.part.toUpperCase()} · ½ day`
+                                                : 'half day'}
                                         </span>
                                     )}
                                     {l.holiday && (

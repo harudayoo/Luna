@@ -47,6 +47,7 @@ class LeaveController extends Controller
                 'id' => $l->id,
                 'date' => $l->date->toDateString(),
                 'days' => (float) $l->days,
+                'part' => $l->part,
                 'note' => $l->note,
                 'locked' => $this->isLocked($l, $today),
                 'holiday' => $holidays[$l->date->toDateString()] ?? null,
@@ -68,6 +69,7 @@ class LeaveController extends Controller
                 $request->user()->leaves()->create([
                     'date' => $date->toDateString(),
                     'days' => $request->daysEach(),
+                    'part' => $request->part(),
                     'note' => $request->input('note'),
                 ]);
             }

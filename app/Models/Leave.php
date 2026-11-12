@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $user_id
  * @property Carbon $date
  * @property string $days decimal, "1.0" or "0.5"
+ * @property string|null $part "am" or "pm" for a half day; null for a full day (or an older half day)
  * @property string|null $note
  */
 class Leave extends Model
@@ -23,7 +24,7 @@ class Leave extends Model
     /** @use HasFactory<LeaveFactory> */
     use HasFactory;
 
-    protected $fillable = ['date', 'days', 'note'];
+    protected $fillable = ['date', 'days', 'part', 'note'];
 
     protected function casts(): array
     {

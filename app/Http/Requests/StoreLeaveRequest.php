@@ -28,6 +28,9 @@ class StoreLeaveRequest extends FormRequest
         return [
             'from' => ['required', 'date_format:Y-m-d'],
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+            // full | am | pm. A morning or an afternoon is half a day, also across a range.
+            'part' => ['nullable', 'in:full,am,pm'],
+            // Older clients: a half day without saying which half.
             'half_day' => ['boolean'],
             'note' => ['nullable', 'string', 'max:80'],
         ];
@@ -59,7 +62,13 @@ class StoreLeaveRequest extends FormRequest
 
     public function daysEach(): float
     {
-        return $this->boolean('half_day') ? 0.5 : 1.0;
+        return $this->part() !== null || $this->boolean('half_day') ? 0.5 : 1.0;
+    }
+
+    /** "am" or "pm" for a half day, else null. */
+    public function part(): ?string
+    {
+        return in_array($this->input('part'), ['am', 'pm'], true) ? $this->input('part') : null;
     }
 
     private function checkDates(Validator $v): void
@@ -73,11 +82,6 @@ class StoreLeaveRequest extends FormRequest
         $first = explode(' ', $user->name)[0];
         $fail = fn (string $message) => $v->errors()->add('from', $message);
 
-        if ($this->boolean('half_day') && ! $from->equalTo($to)) {
-            $v->errors()->add('half_day', 'A half day is a single date. Log a range as full days.');
-
-            return;
-        }
         if ($from->diffInDays($to) > self::MAX_RANGE_DAYS) {
             $fail('That range is over two months. Log it in smaller parts.');
 
