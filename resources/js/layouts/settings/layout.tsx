@@ -1,6 +1,8 @@
 import { Link } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
+import { BackButton } from '@/components/back-button';
 import Heading from '@/components/heading';
+import { dashboard } from '@/routes';
 import { Button } from '@/components/ui/button';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn, toUrl } from '@/lib/utils';
@@ -26,6 +28,8 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
 
     return (
         <div className="px-4 py-6">
+            {/* Settings is reached from the account menu, not the dock: a way home. */}
+            <BackButton href={dashboard()} label="Home" className="mb-4" />
             <Heading
                 title="Settings"
                 description="Manage your profile and account settings"

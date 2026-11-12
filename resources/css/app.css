@@ -4,6 +4,19 @@
 @import '../ocs/tokens.css';
 @import '../ocs/ocs.css' layer(components);
 
+/*
+ * Bungee (SIL OFL 1.1, resources/fonts/Bungee-OFL.txt) for the Luna wordmark, chosen by the user
+ * 2026-11-12: square, loud signage capitals that match the kit's square corners. Bundled by Vite rather
+ * than loaded from Google, so it works offline on the office LAN.
+ */
+@font-face {
+    font-family: 'Bungee';
+    src: url('../fonts/Bungee-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
@@ -54,6 +67,8 @@
 
     --font-sans: var(--font-sans);
     --font-mono: var(--font-mono);
+    /* The "Luna" wordmark only (font-brand): everything else stays on the kit's system fonts. */
+    --font-brand: 'Bungee', var(--font-sans);
 
     /* Square edges; 2px only for tiny badges and inputs. rounded-full (avatars) is untouched. */
     --radius-xs: 0px;

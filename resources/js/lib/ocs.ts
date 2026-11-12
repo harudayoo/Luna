@@ -113,3 +113,138 @@ export function bloomTravel(
         delay: stagger(30, { start: 260 }),
     });
 }
+
+/*
+ * brandPanelLand: the sign-in brand panel arrives, once (Luna-local; reduced motion = it's simply there;
+ * nothing loops). Rows are the panel's [data-row] wallpaper lines, the badge is [data-badge].
+ *   LIGHT (paper): the wallpaper rows slide in from alternate sides like sheets fed through a press,
+ *                  then the badge is stamped down on top.
+ *   DARK  (code):  the rows fade up row by row like lines of output, and the badge rises on a spring.
+ */
+export function brandPanelLand(panel: HTMLElement): void {
+    const { animate, spring, stagger } = anime;
+    const rows = panel.querySelectorAll<HTMLElement>('[data-row]');
+    const badge = panel.querySelector<HTMLElement>('[data-badge]');
+
+    if (ocs().reduced() || !badge) {
+        return;
+    }
+
+    if (ocs().isDark()) {
+        animate(rows, {
+            opacity: { from: 0, to: 1, duration: 360, ease: 'outQuad' },
+            y: { from: 10, to: 0, duration: 360, ease: 'outQuad' },
+            delay: stagger(45),
+        });
+        animate(badge, {
+            y: {
+                from: 22,
+                to: 0,
+                ease: spring({ bounce: 0.45, duration: 900 }),
+            },
+            opacity: { from: 0, to: 1, duration: 380, ease: 'outQuad' },
+            delay: 260,
+        });
+
+        return;
+    }
+
+    // Even rows come in from the left, odd rows from the right.
+    [0, 1].forEach((side) => {
+        animate(
+            [...rows].filter((_, i) => i % 2 === side),
+            {
+                x: { from: side ? 60 : -60, to: 0 },
+                duration: 520,
+                ease: 'outCubic',
+                delay: stagger(60, { start: side * 30 }),
+            },
+        );
+    });
+    animate(badge, {
+        y: { from: -30, to: 0, duration: 300, ease: 'inQuad' },
+        opacity: { from: 0, to: 1, duration: 100 },
+        scale: [
+            { from: 1.1, to: 1.1, duration: 300 },
+            { to: 1, duration: 260, ease: 'outBack(3)' },
+        ],
+        delay: 280,
+    });
+}
+
+/*
+ * backHop: the Back button's hover, Luna-local like bloomTravel (one personality per theme, reduced
+ * motion respected, nothing on touch: phones only get the kit's press).
+ *   LIGHT (paper): the arrow takes a quick step back with two pencil motion lines behind it, and
+ *                  the letters lean back the way you're going, like a cartoon about to dash off.
+ *   DARK  (code):  the arrow springs back trailing a glowing ghost of itself, and the letters hop
+ *                  in a wave that runs right to left (the kit's wave, reversed).
+ * Parts: [data-back-arrow], [data-back-ghost], [data-back-line], [data-back-char].
+ */
+export function backHop(el: HTMLElement): () => void {
+    const { animate, stagger, utils } = anime;
+    const arrow = el.querySelector<HTMLElement>('[data-back-arrow]');
+    const ghost = el.querySelector<HTMLElement>('[data-back-ghost]');
+    const lines = el.querySelectorAll<HTMLElement>('[data-back-line]');
+    const chars = el.querySelectorAll<HTMLElement>('[data-back-char]');
+
+    const enter = (e: PointerEvent) => {
+        if (ocs().reduced() || e.pointerType === 'touch' || !arrow) {
+            return;
+        }
+
+        if (ocs().isDark()) {
+            animate(arrow, {
+                x: [
+                    { to: -7, duration: 140, ease: 'outQuad' },
+                    { to: 0, duration: 520, ease: 'outElastic(1, .5)' },
+                ],
+            });
+            if (ghost) {
+                utils.set(ghost, { x: 0, opacity: 0.6 });
+                animate(ghost, {
+                    x: 12,
+                    opacity: 0,
+                    duration: 520,
+                    ease: 'outCubic',
+                });
+            }
+            animate(chars, {
+                y: [
+                    { to: -4, duration: 140, ease: 'outQuad' },
+                    { to: 0, duration: 260, ease: 'outBounce' },
+                ],
+                delay: stagger(28, { from: 'last' }),
+            });
+
+            return;
+        }
+
+        animate(arrow, {
+            x: [
+                { to: -6, duration: 150, ease: 'outQuad' },
+                { to: 0, duration: 300, ease: 'outBack(3)' },
+            ],
+        });
+        utils.set(lines, { scaleX: 0, opacity: 1 });
+        animate(lines, {
+            scaleX: [
+                { to: 1, duration: 140, ease: 'outQuad' },
+                { to: 0, duration: 260, ease: 'inQuad' },
+            ],
+            delay: stagger(50),
+        });
+        animate(chars, {
+            skewX: [
+                { to: 10, duration: 120 },
+                { to: 0, duration: 280 },
+            ],
+            delay: stagger(14),
+            ease: 'outQuad',
+        });
+    };
+
+    el.addEventListener('pointerenter', enter);
+
+    return () => el.removeEventListener('pointerenter', enter);
+}
