@@ -17,6 +17,27 @@
     font-display: swap;
 }
 
+/*
+ * Printed documents (payslip, Payroll Release Form) have their own look, not the app's light or dark
+ * theme (user, 2026-11-12, "corporate band"): white paper, ink text, and the OCS logo's plum. These are
+ * print colours, kept here so the components use names, not hex. Same on screen in either theme.
+ */
+.ocs-doc {
+    --doc-paper: #ffffff;
+    --doc-ink: #1d1d1f;
+    --doc-muted: #5f5866;
+    --doc-band: #3d0f49;
+    --doc-brand: #6a1b7a;
+    --doc-tint: #f4eef6;
+    --doc-rule: #d9d4dc;
+    --doc-faint: #eeeaf0;
+    background: var(--doc-paper);
+    color: var(--doc-ink);
+    font-family: var(--font-sans);
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+}
+
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 

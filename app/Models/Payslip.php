@@ -16,6 +16,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon $period_start
  * @property Carbon $period_end
  * @property Carbon $issued_on
+ * @property Carbon|null $released_on
+ * @property int|null $released_by
  * @property string|null $position
  * @property string $monthly_salary
  * @property string $daily_rate
@@ -78,12 +80,22 @@ class Payslip extends Model
         return self::ymd();
     }
 
+    protected function releasedOn(): Attribute
+    {
+        return self::ymd();
+    }
+
     private static function ymd(): Attribute
     {
         return Attribute::make(
             get: fn (?string $value) => $value === null ? null : Carbon::parse($value)->startOfDay(),
-            set: fn (mixed $value) => Carbon::parse($value)->toDateString(),
+            set: fn (mixed $value) => $value === null ? null : Carbon::parse($value)->toDateString(),
         );
+    }
+
+    public function isReleased(): bool
+    {
+        return $this->released_on !== null;
     }
 
     /** @return BelongsTo<User, $this> */

@@ -1,5 +1,6 @@
-import { Form, Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { Form, Head, Link, router } from '@inertiajs/react';
+import { Printer } from 'lucide-react';
+import { BackButton } from '@/components/back-button';
 import { useState } from 'react';
 import PayrollController from '@/actions/App/Http/Controllers/PayrollController';
 import InputError from '@/components/input-error';
@@ -8,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { index as peopleIndex, payroll as payrollRoute } from '@/routes/people';
+import { release as releaseRoute } from '@/routes/people/payroll';
 import { print as printRoute } from '@/routes/payslips';
 
 type Inputs = {
@@ -38,6 +40,8 @@ type Props = {
     };
     saved: boolean;
     payslip_id: number | null;
+    /** Set once HR marks the pay received; the payslip is locked until that's undone. */
+    released_on: string | null;
     premiums: { regular: number; special: number };
 };
 
@@ -63,6 +67,7 @@ export default function PayslipEditor({
     payslip,
     saved,
     payslip_id,
+    released_on,
     premiums,
 }: Props) {
     const [v, setV] = useState<Inputs>({
@@ -96,11 +101,11 @@ export default function PayslipEditor({
     return (
         <>
             <Head title={`Payslip · ${person.name}`} />
-            <Button variant="ghost" size="sm" className="mb-2 min-h-10" asChild>
-                <Link href={payrollRoute({ query: { cutoff: period.start } })}>
-                    <ArrowLeft /> Payroll
-                </Link>
-            </Button>
+            <BackButton
+                href={payrollRoute({ query: { cutoff: period.start } })}
+                label="Payroll"
+                className="mb-4"
+            />
             <p className="ocs-eyebrow">Payslip · {range}</p>
             <h2 className="mb-1 text-2xl font-semibold">{person.name}</h2>
             <p className="mb-6 text-sm text-muted">
@@ -120,6 +125,39 @@ export default function PayslipEditor({
                     </Link>
                     .
                 </p>
+            )}
+
+            {released_on && payslip_id && (
+                <div className="ocs-card mb-6 flex flex-col gap-3 text-sm sm:flex-row sm:items-center">
+                    <p className="flex-1">
+                        <span className="font-semibold text-success">
+                            Received{' '}
+                            {new Intl.DateTimeFormat('en-PH', {
+                                timeZone: 'UTC',
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric',
+                            }).format(new Date(`${released_on}T00:00:00Z`))}
+                            .
+                        </span>{' '}
+                        This payslip is locked so it matches the release form.
+                        Undo the release to change it.
+                    </p>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        className="min-h-10 bg-bg"
+                        onClick={() =>
+                            router.patch(
+                                releaseRoute(payslip_id).url,
+                                { released: false },
+                                { preserveScroll: true },
+                            )
+                        }
+                    >
+                        Undo release
+                    </Button>
+                </div>
             )}
 
             <Form
@@ -263,12 +301,18 @@ export default function PayslipEditor({
                                 <InputError message={errors.issued_on} />
                             </div>
                             <InputError
-                                message={errors.monthly_salary ?? errors.cutoff}
+                                message={
+                                    errors.monthly_salary ??
+                                    errors.cutoff ??
+                                    errors.released
+                                }
                             />
                             <Button
                                 type="submit"
                                 disabled={
-                                    processing || person.monthly_salary === null
+                                    processing ||
+                                    person.monthly_salary === null ||
+                                    released_on !== null
                                 }
                             >
                                 {processing && <Spinner />}
@@ -287,8 +331,8 @@ export default function PayslipEditor({
                             )}
                             <p className="text-xs text-muted">
                                 {saved
-                                    ? `${person.name} can see and print this payslip.`
-                                    : `Saving makes it visible to ${person.name}.`}
+                                    ? 'Saved. It prints on its own, or with the release form.'
+                                    : 'Only HR and admin can see payslips.'}
                             </p>
                         </aside>
                     </>

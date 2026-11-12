@@ -9,8 +9,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Payslips as documents: your own list, and the printable payslip (yours, or anyone's for HR).
- * The payslip prints on the crosswise half of the chosen paper.
+ * Payslips as documents (HR and admin only): their own list, and anyone's printable payslip, on a
+ * whole sheet of the chosen paper. The release form prints them at half size, two to a sheet.
  */
 class PayslipController extends Controller
 {
@@ -39,38 +39,43 @@ class PayslipController extends Controller
                 'end' => $p->period_end->toDateString(),
                 'issued_on' => $p->issued_on->toDateString(),
                 'net_pay' => (float) $p->net_pay,
+                'released_on' => $p->released_on?->toDateString(),
             ]),
         ]);
     }
 
     public function print(Request $request, Payslip $payslip): Response
     {
-        /** @var User $user */
-        $user = $request->user();
-        abort_unless($user->can('hr') || $payslip->user_id === $user->id, 403);
+        // HR and admin only (routes/modules/payslips.php).
         $paper = $request->validate(['paper' => ['nullable', 'in:'.implode(',', array_keys(self::PAPERS))]])['paper'] ?? 'letter';
-
-        $money = fn (string $k) => (float) $payslip->{$k};
 
         return Inertia::render('print/payslip', [
             'paper' => $paper,
             'papers' => collect(self::PAPERS)->map(fn ($p, $key) => $p + ['value' => $key])->values(),
             'company' => self::COMPANY,
-            'back' => $user->can('hr') ? route('people.payroll', ['cutoff' => $payslip->period_start->toDateString()]) : route('payslips.index'),
-            'payslip' => [
-                'id' => $payslip->id,
-                'name' => $payslip->user->name,
-                'position' => $payslip->position,
-                'start' => $payslip->period_start->toDateString(),
-                'end' => $payslip->period_end->toDateString(),
-                'issued_on' => $payslip->issued_on->toDateString(),
-                'holiday_regular_days' => $money('holiday_regular_days'),
-                'holiday_special_days' => $money('holiday_special_days'),
-                'unpaid_hours' => $money('unpaid_hours'),
-            ] + collect([
-                'monthly_salary', 'daily_rate', 'basic_pay', 'holiday_pay', 'absences', 'overtime_allowance', 'gross_pay',
-                'sss', 'philhealth', 'pagibig', 'withholding_tax', 'cash_advance', 'total_deductions', 'net_pay',
-            ])->mapWithKeys(fn ($k) => [$k => $money($k)])->all(),
+            'back' => route('people.payroll', ['cutoff' => $payslip->period_start->toDateString()]),
+            'payslip' => self::document($payslip),
         ]);
+    }
+
+    /** Everything the printed payslip shows (PayslipData on the page). */
+    public static function document(Payslip $payslip): array
+    {
+        $money = fn (string $k) => (float) $payslip->{$k};
+
+        return [
+            'id' => $payslip->id,
+            'name' => $payslip->user->name,
+            'position' => $payslip->position,
+            'start' => $payslip->period_start->toDateString(),
+            'end' => $payslip->period_end->toDateString(),
+            'issued_on' => $payslip->issued_on->toDateString(),
+            'holiday_regular_days' => $money('holiday_regular_days'),
+            'holiday_special_days' => $money('holiday_special_days'),
+            'unpaid_hours' => $money('unpaid_hours'),
+        ] + collect([
+            'monthly_salary', 'daily_rate', 'basic_pay', 'holiday_pay', 'absences', 'overtime_allowance', 'gross_pay',
+            'sss', 'philhealth', 'pagibig', 'withholding_tax', 'cash_advance', 'total_deductions', 'net_pay',
+        ])->mapWithKeys(fn ($k) => [$k => $money($k)])->all();
     }
 }

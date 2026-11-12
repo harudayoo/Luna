@@ -1,9 +1,26 @@
-import { Head, Link } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Printer } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import {
+    CheckCheck,
+    ChevronLeft,
+    ChevronRight,
+    FileSignature,
+    History,
+    Printer,
+} from 'lucide-react';
 import { PeopleTabs } from '@/components/people-tabs';
 import { Button } from '@/components/ui/button';
-import { payroll as payrollRoute } from '@/routes/people';
-import { edit as editRoute } from '@/routes/people/payroll';
+import {
+    payroll as payrollRoute,
+    payslips as payslipsRoute,
+} from '@/routes/people';
+import {
+    edit as editRoute,
+    release as releaseRoute,
+} from '@/routes/people/payroll';
+import {
+    all as releaseAllRoute,
+    print as releasePrintRoute,
+} from '@/routes/people/payroll/release';
 import { print as printRoute } from '@/routes/payslips';
 
 type Row = {
@@ -13,6 +30,8 @@ type Row = {
     has_salary: boolean;
     payslip_id: number | null;
     net_pay: number | null;
+    /** The day HR recorded the pay as received; null until then. */
+    released_on: string | null;
 };
 
 type Props = {
@@ -24,6 +43,7 @@ type Props = {
         is_current: boolean;
     };
     rows: Row[];
+    released: number;
     total_net: number;
 };
 
@@ -39,8 +59,14 @@ const peso = (n: number) =>
     }).format(n);
 
 /** Payroll (HR): everyone's payslip for one cut-off, to prepare and print. */
-export default function Payroll({ cutoff, rows, total_net }: Props) {
+export default function Payroll({ cutoff, rows, released, total_net }: Props) {
     const made = rows.filter((r) => r.payslip_id !== null).length;
+    const release = (payslipId: number, isReleased: boolean) =>
+        router.patch(
+            releaseRoute(payslipId).url,
+            { released: isReleased },
+            { preserveScroll: true },
+        );
 
     return (
         <>
@@ -101,6 +127,52 @@ export default function Payroll({ cutoff, rows, total_net }: Props) {
                     </p>
                     <p className="mt-1">Across the payslips made so far</p>
                 </section>
+                <section className="ocs-card">
+                    <p className="ocs-eyebrow">Pay release</p>
+                    <p className="text-3xl font-semibold text-ink">
+                        {released}{' '}
+                        <span className="text-base text-muted">
+                            of {made} received
+                        </span>
+                    </p>
+                    <p className="mt-1">
+                        Mark each person once they have their pay, and have them
+                        sign the release form.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {made > released && (
+                            <Button
+                                size="sm"
+                                className="min-h-10"
+                                onClick={() =>
+                                    router.post(
+                                        releaseAllRoute().url,
+                                        { cutoff: cutoff.start },
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                <CheckCheck /> Mark all received
+                            </Button>
+                        )}
+                        {made > 0 && (
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                className="min-h-10 bg-bg"
+                                asChild
+                            >
+                                <Link
+                                    href={releasePrintRoute({
+                                        query: { cutoff: cutoff.start },
+                                    })}
+                                >
+                                    <FileSignature /> Release form
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
+                </section>
             </div>
 
             <ul className="grid gap-2">
@@ -110,7 +182,13 @@ export default function Payroll({ cutoff, rows, total_net }: Props) {
                         className="flex flex-col gap-3 bg-surface p-4 sm:flex-row sm:items-center"
                     >
                         <div className="min-w-0 flex-1">
-                            <p className="truncate font-semibold">{r.name}</p>
+                            {/* The name opens their payslip history (past cut-offs too). */}
+                            <Link
+                                href={payslipsRoute(r.id)}
+                                className="block truncate font-semibold hover:text-primary"
+                            >
+                                {r.name}
+                            </Link>
                             <p className="text-sm text-muted">
                                 {r.position ?? 'No position set'}
                                 {' · '}
@@ -120,8 +198,17 @@ export default function Payroll({ cutoff, rows, total_net }: Props) {
                                       ? 'No payslip yet'
                                       : 'No monthly salary set'}
                             </p>
+                            {r.payslip_id !== null && (
+                                <p
+                                    className={`text-sm font-semibold ${r.released_on ? 'text-success' : 'text-muted'}`}
+                                >
+                                    {r.released_on
+                                        ? `Received ${short(r.released_on)}`
+                                        : 'Not released yet'}
+                                </p>
+                            )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             <Button
                                 variant={r.payslip_id ? 'secondary' : 'default'}
                                 size="sm"
@@ -129,7 +216,11 @@ export default function Payroll({ cutoff, rows, total_net }: Props) {
                                 asChild
                             >
                                 <Link href={editRoute([r.id, cutoff.start])}>
-                                    {r.payslip_id ? 'Edit' : 'Prepare payslip'}
+                                    {r.released_on
+                                        ? 'View'
+                                        : r.payslip_id
+                                          ? 'Edit'
+                                          : 'Prepare payslip'}
                                 </Link>
                             </Button>
                             {r.payslip_id && (
@@ -147,6 +238,51 @@ export default function Payroll({ cutoff, rows, total_net }: Props) {
                                     </Link>
                                 </Button>
                             )}
+                            {r.payslip_id !== null &&
+                                (r.released_on ? (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="min-h-10"
+                                        onClick={() =>
+                                            release(
+                                                r.payslip_id as number,
+                                                false,
+                                            )
+                                        }
+                                        aria-label={`Undo ${r.name}'s release`}
+                                    >
+                                        Undo
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        className="min-h-10 bg-bg"
+                                        onClick={() =>
+                                            release(
+                                                r.payslip_id as number,
+                                                true,
+                                            )
+                                        }
+                                        aria-label={`Mark ${r.name}'s pay received`}
+                                    >
+                                        <CheckCheck /> Received
+                                    </Button>
+                                ))}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="min-h-10"
+                                asChild
+                            >
+                                <Link
+                                    href={payslipsRoute(r.id)}
+                                    aria-label={`All of ${r.name}'s payslips`}
+                                >
+                                    <History /> History
+                                </Link>
+                            </Button>
                         </div>
                     </li>
                 ))}

@@ -10,6 +10,7 @@ type Props = {
         end: string;
         issued_on: string;
         net_pay: number;
+        released_on: string | null;
     }[];
 };
 
@@ -61,6 +62,11 @@ export default function Payslips({ payslips }: Props) {
                                         month: 'short',
                                         day: 'numeric',
                                     })}
+                                    {p.released_on &&
+                                        ` · received ${fmt(p.released_on, {
+                                            month: 'short',
+                                            day: 'numeric',
+                                        })}`}
                                 </p>
                             </div>
                             <Button

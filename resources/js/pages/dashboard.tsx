@@ -79,18 +79,21 @@ export default function Dashboard({ pto, out_today }: Props) {
                         See the numbers →
                     </p>
                 </Link>
-                <Link
-                    href={payslipsIndex()}
-                    prefetch
-                    className="ocs-card ocs-card-link block"
-                >
-                    <p className="ocs-eyebrow">Pay</p>
-                    <h3>My payslips</h3>
-                    <p>Every payslip HR has issued you, ready to print.</p>
-                    <p className="mt-4 text-sm font-semibold text-primary">
-                        Open payslips →
-                    </p>
-                </Link>
+                {/* Payslips are HR and admin only. */}
+                {auth.can.hr && (
+                    <Link
+                        href={payslipsIndex()}
+                        prefetch
+                        className="ocs-card ocs-card-link block"
+                    >
+                        <p className="ocs-eyebrow">Pay</p>
+                        <h3>My payslips</h3>
+                        <p>Every payslip issued to you, ready to print.</p>
+                        <p className="mt-4 text-sm font-semibold text-primary">
+                            Open payslips →
+                        </p>
+                    </Link>
+                )}
             </div>
         </>
     );

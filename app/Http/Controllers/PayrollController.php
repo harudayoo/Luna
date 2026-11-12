@@ -38,6 +38,7 @@ class PayrollController extends Controller
                 'has_salary' => $u->monthly_salary !== null,
                 'payslip_id' => $slips->get($u->id)?->id,
                 'net_pay' => $slips->has($u->id) ? (float) $slips->get($u->id)->net_pay : null,
+                'released_on' => $slips->get($u->id)?->released_on?->toDateString(),
             ])->values();
 
         return Inertia::render('people/payroll', [
@@ -49,7 +50,29 @@ class PayrollController extends Controller
                 'is_current' => $today->betweenIncluded($start, $end),
             ],
             'rows' => $rows,
+            'released' => $slips->filter(fn (Payslip $p) => $p->isReleased())->count(),
             'total_net' => round($slips->sum(fn (Payslip $p) => (float) $p->net_pay), 2),
+        ]);
+    }
+
+    /** One person's payslips, newest first, past ones included: to check, re-release or re-print. */
+    public function person(User $user): Response
+    {
+        return Inertia::render('people/payslips', [
+            'person' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'position' => $user->position,
+                'has_salary' => $user->monthly_salary !== null,
+            ],
+            'payslips' => $user->payslips()->orderByDesc('period_start')->get()->map(fn (Payslip $p) => [
+                'id' => $p->id,
+                'start' => $p->period_start->toDateString(),
+                'end' => $p->period_end->toDateString(),
+                'issued_on' => $p->issued_on->toDateString(),
+                'net_pay' => (float) $p->net_pay,
+                'released_on' => $p->released_on?->toDateString(),
+            ]),
         ]);
     }
 
@@ -88,6 +111,7 @@ class PayrollController extends Controller
             ],
             'saved' => $saved !== null,
             'payslip_id' => $saved?->id,
+            'released_on' => $saved?->released_on?->toDateString(),
             'premiums' => [
                 'regular' => PayslipMath::REGULAR_HOLIDAY_PREMIUM,
                 'special' => PayslipMath::SPECIAL_HOLIDAY_PREMIUM,
@@ -101,6 +125,12 @@ class PayrollController extends Controller
         if ($user->monthly_salary === null) {
             throw ValidationException::withMessages([
                 'monthly_salary' => "Set {$user->name}'s monthly salary first (People → Leave details).",
+            ]);
+        }
+
+        if ($user->payslips()->where('period_start', $start->toDateString())->whereNotNull('released_on')->exists()) {
+            throw ValidationException::withMessages([
+                'released' => "{$user->name}'s pay for this cut-off is marked as received. Undo the release first to change the payslip.",
             ]);
         }
 
@@ -121,7 +151,7 @@ class PayrollController extends Controller
             ],
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name}'s payslip saved. They can see it now."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name}'s payslip saved."]);
 
         return to_route('people.payroll.edit', [$user, $start->toDateString()]);
     }
