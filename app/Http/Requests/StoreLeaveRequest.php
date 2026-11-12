@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Holiday;
+use App\Models\Leave;
 use App\Models\User;
 use App\Services\Pto\Ledger;
 use App\Services\Pto\Policy;
@@ -28,8 +29,11 @@ class StoreLeaveRequest extends FormRequest
         return [
             'from' => ['required', 'date_format:Y-m-d'],
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
-            // full | am | pm. A morning or an afternoon is half a day, also across a range.
-            'part' => ['nullable', 'in:full,am,pm'],
+            // full | am | pm | hours. A morning or an afternoon is half a day; "hours" is start_time to
+            // end_time (Leave::OFFICE_HOURS). Each also works across a range.
+            'part' => ['nullable', 'in:full,am,pm,hours'],
+            'start_time' => ['required_if:part,hours', 'nullable', 'date_format:H:i'],
+            'end_time' => ['required_if:part,hours', 'nullable', 'date_format:H:i'],
             // Older clients: a half day without saying which half.
             'half_day' => ['boolean'],
             'note' => ['nullable', 'string', 'max:80'],
@@ -38,7 +42,10 @@ class StoreLeaveRequest extends FormRequest
 
     public function after(): array
     {
-        return [fn (Validator $v) => $v->errors()->isEmpty() && $this->checkDates($v)];
+        return [
+            fn (Validator $v) => $v->errors()->isEmpty() && $this->byTheHour() && $this->checkTimes($v),
+            fn (Validator $v) => $v->errors()->isEmpty() && $this->checkDates($v),
+        ];
     }
 
     /** @return list<CarbonImmutable> the weekdays to log */
@@ -60,9 +67,76 @@ class StoreLeaveRequest extends FormRequest
         return false;
     }
 
+    /** The share of a working day each date is charged: its working hours ÷ the policy's hours per day. */
     public function daysEach(): float
     {
-        return $this->part() !== null || $this->boolean('half_day') ? 0.5 : 1.0;
+        return round($this->hoursEach() / Policy::current()->hoursPerDay, 4);
+    }
+
+    /**
+     * Working hours charged per date: the chosen times; a morning (3 h) or an afternoon (5 h), from
+     * Leave::HALVES; an older client's unnamed half day (half the policy day); or a full day.
+     */
+    public function hoursEach(): float
+    {
+        $perDay = Policy::current()->hoursPerDay;
+
+        return match (true) {
+            $this->byTheHour() => Leave::workingHours($this->input('start_time'), $this->input('end_time')),
+            $this->part() !== null => Leave::workingHours(...Leave::HALVES[$this->part()]),
+            $this->boolean('half_day') => $perDay / 2,
+            default => $perDay,
+        };
+    }
+
+    /** Leave for some hours of the day (start_time to end_time) rather than a full or half day. */
+    public function byTheHour(): bool
+    {
+        return $this->input('part') === 'hours';
+    }
+
+    /** @return array{start_time: string|null, end_time: string|null} what to store */
+    public function times(): array
+    {
+        return $this->byTheHour()
+            ? ['start_time' => $this->input('start_time'), 'end_time' => $this->input('end_time')]
+            : ['start_time' => null, 'end_time' => null];
+    }
+
+    /** Some hours of the day rather than whole days: by the hour, a morning or an afternoon. */
+    public function partOfTheDay(): bool
+    {
+        return $this->byTheHour() || $this->part() !== null;
+    }
+
+    /** "2.5 h" for one day, "2.5 h a day on 3 days" for a range: for the confirmation toast. */
+    public function hoursLabel(int $dayCount): string
+    {
+        $hours = (float) $this->hoursEach();
+
+        return $dayCount === 1 ? "{$hours} h" : "{$hours} h a day on {$dayCount} days";
+    }
+
+    /** On the half hour, inside office hours, and covering some working time (not just lunch). */
+    private function checkTimes(Validator $v): void
+    {
+        $start = $this->input('start_time');
+        $end = $this->input('end_time');
+        $open = Leave::OFFICE_HOURS[0][0];
+        $close = Leave::OFFICE_HOURS[array_key_last(Leave::OFFICE_HOURS)][1];
+        $onStep = fn (string $t) => (int) substr($t, 3, 2) % Leave::TIME_STEP === 0;
+        $label = fn (string $t) => CarbonImmutable::createFromFormat('H:i', $t)->format('g:i A');
+
+        if (! $onStep($start) || $start < $open) {
+            $v->errors()->add('start_time', "Start on the hour or half hour, from {$label($open)}.");
+        }
+        if (! $onStep($end) || $end > $close) {
+            $v->errors()->add('end_time', "End on the hour or half hour, by {$label($close)}.");
+        } elseif ($end <= $start) {
+            $v->errors()->add('end_time', 'End after the start time.');
+        } elseif (Leave::workingHours($start, $end) <= 0) {
+            $v->errors()->add('end_time', "That's the lunch hour: pick some working time.");
+        }
     }
 
     /** "am" or "pm" for a half day, else null. */

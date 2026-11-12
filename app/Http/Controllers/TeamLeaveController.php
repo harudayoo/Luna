@@ -58,6 +58,8 @@ class TeamLeaveController extends Controller
                         'date' => $l->date->toDateString(),
                         'days' => (float) $l->days,
                         'part' => $l->part,
+                        'start_time' => $l->start_time,
+                        'end_time' => $l->end_time,
                         'note' => $l->note,
                         'holiday' => $holidays[$l->date->toDateString()] ?? null,
                     ]),
@@ -97,18 +99,22 @@ class TeamLeaveController extends Controller
                     'date' => $date->toDateString(),
                     'days' => $request->daysEach(),
                     'part' => $request->part(),
+                    ...$request->times(),
                     'note' => $request->input('note'),
                 ]);
             }
         });
 
         $days = count($dates) * $request->daysEach();
-        Inertia::flash('toast', ['type' => 'success', 'message' => sprintf(
-            '%s %s logged for %s.',
-            $days === 0.5 ? 'Half a' : (float) $days,
-            $days > 1 ? 'days' : 'day',
-            explode(' ', $user->name)[0],
-        )]);
+        $first = explode(' ', $user->name)[0];
+        Inertia::flash('toast', ['type' => 'success', 'message' => $request->partOfTheDay()
+            ? $request->hoursLabel(count($dates))." logged for {$first}."
+            : sprintf(
+                '%s %s logged for %s.',
+                $days === 0.5 ? 'Half a' : (float) $days,
+                $days > 1 ? 'days' : 'day',
+                $first,
+            )]);
 
         return to_route('people.leave', ['cutoff' => Ledger::cutOffFor($dates[0])[0]->toDateString()]);
     }

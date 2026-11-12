@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { leaveLength } from '@/components/log-leave-dialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,8 @@ type Entry = {
     name: string;
     days: number;
     part: 'am' | 'pm' | null;
+    start_time: string | null;
+    end_time: string | null;
     mine: boolean;
     /** Only for your own leave, or when you're HR. */
     note: string | null;
@@ -226,8 +229,8 @@ function DayCell({
                                 className="truncate bg-primary px-1 text-xs text-on-primary"
                             >
                                 {firstName(e.name)}
-                                {e.days === 0.5 &&
-                                    ` ½${e.part ? ` ${e.part.toUpperCase()}` : ''}`}
+                                {leaveLength(e, true) &&
+                                    ` ${leaveLength(e, true)}`}
                             </span>
                         ))}
                         {entries.length > 2 && (
@@ -287,11 +290,9 @@ function DayPanel({
                                         (you)
                                     </span>
                                 )}
-                                {e.days === 0.5 && (
+                                {leaveLength(e) && (
                                     <span className="ocs-badge ml-2">
-                                        {e.part
-                                            ? `${e.part.toUpperCase()} · ½ day`
-                                            : 'half day'}
+                                        {leaveLength(e)}
                                     </span>
                                 )}
                             </p>

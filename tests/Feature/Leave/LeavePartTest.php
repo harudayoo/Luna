@@ -8,7 +8,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Half days are a morning (AM) or an afternoon (PM), and can cover a range. "Today" is Wed 2026-11-11.
+ * Half days are a morning (AM, 9-12 = 3 h) or an afternoon (PM, 1-6 = 5 h), charged their real hours of an
+ * 8-hour day (user, 2026-11-12), and can cover a range. "Today" is Wed 2026-11-11.
  */
 class LeavePartTest extends TestCase
 {
@@ -35,7 +36,7 @@ class LeavePartTest extends TestCase
             ->post(route('leave.store'), ['from' => '2026-11-12', 'part' => 'am'])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame([['2026-11-12', 0.5, 'am']], $this->logged());
+        $this->assertSame([['2026-11-12', 0.375, 'am']], $this->logged());
     }
 
     public function test_afternoons_across_a_range()
@@ -45,7 +46,7 @@ class LeavePartTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame(
-            [['2026-11-12', 0.5, 'pm'], ['2026-11-13', 0.5, 'pm'], ['2026-11-16', 0.5, 'pm']],
+            [['2026-11-12', 0.625, 'pm'], ['2026-11-13', 0.625, 'pm'], ['2026-11-16', 0.625, 'pm']],
             $this->logged(),
         );
     }
@@ -62,15 +63,20 @@ class LeavePartTest extends TestCase
             ->assertSessionHasErrors('part');
     }
 
-    public function test_the_cap_counts_halves_as_half()
+    public function test_the_cap_counts_halves_by_their_hours()
     {
         foreach (['01', '02', '03', '04', '07', '09', '10', '11', '14'] as $d) {
             Leave::factory()->for($this->me)->create(['date' => "2026-12-$d"]);
         }
 
-        // 9 days + two afternoons = 10: allowed.
+        // 9 days + two afternoons (2 x 5 h = 1.25 days) = 10.25: over the cap of 10.
         $this->actingAs($this->me)
             ->post(route('leave.store'), ['from' => '2026-12-15', 'to' => '2026-12-16', 'part' => 'pm'])
+            ->assertSessionHasErrors('from');
+
+        // 9 days + two mornings (2 x 3 h = 0.75 day) = 9.75: allowed.
+        $this->actingAs($this->me)
+            ->post(route('leave.store'), ['from' => '2026-12-15', 'to' => '2026-12-16', 'part' => 'am'])
             ->assertSessionHasNoErrors();
     }
 
@@ -82,7 +88,7 @@ class LeavePartTest extends TestCase
             ->post(route('people.leave.store', $ana), ['from' => '2026-10-20', 'part' => 'am'])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame([['2026-10-20', 0.5, 'am']], $this->logged());
+        $this->assertSame([['2026-10-20', 0.375, 'am']], $this->logged());
     }
 
     public function test_the_part_is_shown_everywhere()

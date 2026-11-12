@@ -48,6 +48,8 @@ class LeaveController extends Controller
                 'date' => $l->date->toDateString(),
                 'days' => (float) $l->days,
                 'part' => $l->part,
+                'start_time' => $l->start_time,
+                'end_time' => $l->end_time,
                 'note' => $l->note,
                 'locked' => $this->isLocked($l, $today),
                 'holiday' => $holidays[$l->date->toDateString()] ?? null,
@@ -70,6 +72,7 @@ class LeaveController extends Controller
                     'date' => $date->toDateString(),
                     'days' => $request->daysEach(),
                     'part' => $request->part(),
+                    ...$request->times(),
                     'note' => $request->input('note'),
                 ]);
             }
@@ -77,7 +80,7 @@ class LeaveController extends Controller
 
         $days = count($dates) * $request->daysEach();
         Inertia::flash('toast', ['type' => 'success', 'message' => match (true) {
-            $days === 0.5 => 'Half day logged.',
+            $request->partOfTheDay() => $request->hoursLabel(count($dates)).' logged.',
             $days === 1.0 => 'Leave logged for '.$dates[0]->format('M j').'.',
             default => (float) $days.' days logged.',
         }]);

@@ -12,11 +12,18 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import type { RouteFormDefinition } from '@/wayfinder';
 
 /**
- * Logging leave: a day, a half day or a range, with an optional note. Used for your own leave
+ * Logging leave: a day, a half day, some hours of a day, or a range of them, with an optional note. Used for your own leave
  * (My leave) and by HR for someone else's (Leave & pay); the server applies the rules.
  */
 export function LogLeaveDialog({
@@ -40,6 +47,8 @@ export function LogLeaveDialog({
     const [from, setFrom] = useState(defaultFrom);
     const [to, setTo] = useState('');
     const [part, setPart] = useState<Part>('full');
+    const [start, setStart] = useState('13:00');
+    const [end, setEnd] = useState('15:00');
     const id = (field: string) => `${idPrefix}-${field}`;
     const presets = timeframes();
     const pick = (p: Timeframe) => {
@@ -137,7 +146,7 @@ export function LogLeaveDialog({
                                 <legend className="mb-2 text-sm font-medium">
                                     How long each day
                                 </legend>
-                                <div className="grid grid-cols-3 gap-1 bg-surface-hover p-1">
+                                <div className="grid grid-cols-2 gap-1 bg-surface-hover p-1 sm:grid-cols-4">
                                     {PARTS.map((p) => (
                                         <label
                                             key={p.value}
@@ -162,6 +171,51 @@ export function LogLeaveDialog({
                                 </div>
                             </fieldset>
                             <InputError message={errors.part} />
+
+                            {/* Some hours of the day: on the half hour, office hours only; lunch isn't charged. */}
+                            {part === 'hours' && (
+                                <div className="grid gap-2">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <TimeField
+                                            id={id('start')}
+                                            name="start_time"
+                                            label="From"
+                                            value={start}
+                                            onChange={(t) => {
+                                                setStart(t);
+                                                if (end <= t) {
+                                                    setEnd(
+                                                        TIMES[
+                                                            TIMES.indexOf(t) + 1
+                                                        ],
+                                                    );
+                                                }
+                                            }}
+                                            options={TIMES.slice(0, -1)}
+                                        />
+                                        <TimeField
+                                            id={id('end')}
+                                            name="end_time"
+                                            label="To"
+                                            value={end}
+                                            onChange={setEnd}
+                                            options={TIMES.filter(
+                                                (t) => t > start,
+                                            )}
+                                        />
+                                    </div>
+                                    <p className="text-sm text-muted">
+                                        {workingHours(start, end) > 0
+                                            ? `${workingHours(start, end)} h of PTO each day (lunch 12–1 isn't counted).`
+                                            : "That's the lunch hour: pick some working time."}
+                                    </p>
+                                    <InputError
+                                        message={
+                                            errors.start_time ?? errors.end_time
+                                        }
+                                    />
+                                </div>
+                            )}
 
                             <div className="grid gap-2">
                                 <Label htmlFor={id('note')}>
@@ -188,13 +242,124 @@ export function LogLeaveDialog({
     );
 }
 
-type Part = 'full' | 'am' | 'pm';
+type Part = 'full' | 'am' | 'pm' | 'hours';
 
 const PARTS: { value: Part; label: string; hint: string }[] = [
     { value: 'full', label: 'Full day', hint: '1 day' },
-    { value: 'am', label: 'Morning', hint: 'AM · ½ day' },
-    { value: 'pm', label: 'Afternoon', hint: 'PM · ½ day' },
+    { value: 'am', label: 'Morning', hint: '9–12 · 3 h' },
+    { value: 'pm', label: 'Afternoon', hint: '1–6 · 5 h' },
+    { value: 'hours', label: 'Hours', hint: 'pick the times' },
 ];
+
+/** Office hours (Leave::OFFICE_HOURS on the server): 9:00–18:00 with lunch 12–1. */
+const OFFICE: [string, string][] = [
+    ['09:00', '12:00'],
+    ['13:00', '18:00'],
+];
+
+/** Every half hour from opening to closing, "HH:MM". */
+const TIMES = Array.from({ length: 19 }, (_, i) => {
+    const m = 9 * 60 + i * 30;
+
+    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${m % 60 === 0 ? '00' : '30'}`;
+});
+
+const minutes = (t: string) =>
+    Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+
+/** Working hours between two times: office hours only, lunch left out (as Leave::workingHours). */
+export function workingHours(start: string, end: string): number {
+    return (
+        OFFICE.reduce(
+            (sum, [open, close]) =>
+                sum +
+                Math.max(
+                    0,
+                    Math.min(minutes(end), minutes(close)) -
+                        Math.max(minutes(start), minutes(open)),
+                ),
+            0,
+        ) / 60
+    );
+}
+
+/** "1:30 PM" from "13:30". */
+export function clock(t: string): string {
+    const h = Number(t.slice(0, 2));
+
+    return `${h % 12 || 12}:${t.slice(3, 5)} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+type LeaveLength = {
+    days: number;
+    part: 'am' | 'pm' | null;
+    start_time?: string | null;
+    end_time?: string | null;
+};
+
+/**
+ * How much of the day a leave covers, for badges: "1:00–3:30 PM · 2.5 h", "AM · 3 h", "PM · 5 h",
+ * "half day", or null for a full day. `short` gives the chip form: "1:00–3:30 PM", "AM", "PM", "½".
+ * A morning or afternoon shows the hours it was charged (days × 8): 3 h / 5 h since 2026-11-12,
+ * 4 h for ones logged before.
+ */
+export function leaveLength(l: LeaveLength, short = false): string | null {
+    if (l.start_time && l.end_time) {
+        const [a, b] = [clock(l.start_time), clock(l.end_time)];
+        const range =
+            a.slice(-2) === b.slice(-2)
+                ? `${a.slice(0, -3)}–${b}`
+                : `${a}–${b}`;
+
+        return short
+            ? range
+            : `${range} · ${workingHours(l.start_time, l.end_time)} h`;
+    }
+    if (l.part) {
+        const name = l.part.toUpperCase();
+
+        return short ? name : `${name} · ${Math.round(l.days * 8 * 10) / 10} h`;
+    }
+    if (l.days === 0.5) {
+        return short ? '½' : 'half day';
+    }
+
+    return null;
+}
+
+function TimeField({
+    id,
+    name,
+    label,
+    value,
+    onChange,
+    options,
+}: {
+    id: string;
+    name: string;
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    options: string[];
+}) {
+    return (
+        <div className="grid gap-2">
+            <Label htmlFor={id}>{label}</Label>
+            <Select name={name} value={value} onValueChange={onChange}>
+                <SelectTrigger id={id} className="min-h-10 w-full">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    {options.map((t) => (
+                        <SelectItem key={t} value={t}>
+                            {clock(t)}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
+    );
+}
 
 type Timeframe = { label: string; from: string; to: string };
 

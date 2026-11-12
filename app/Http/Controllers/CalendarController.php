@@ -57,6 +57,8 @@ class CalendarController extends Controller
                     'name' => $l->user->name,
                     'days' => (float) $l->days,
                     'part' => $l->part,
+                    'start_time' => $l->start_time,
+                    'end_time' => $l->end_time,
                     'mine' => $l->user_id === $user->id,
                     'note' => $seeNotes || $l->user_id === $user->id ? $l->note : null,
                 ]),

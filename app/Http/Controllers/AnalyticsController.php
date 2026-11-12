@@ -67,7 +67,8 @@ class AnalyticsController extends Controller
         return [
             'balance_hours' => $current?->startBalance ?? 0,
             'hours_per_day' => $policy->hoursPerDay,
-            'taken_days' => (float) $this->leavesIn($year, $holidays)->where('user_id', $user->id)->sum('days'),
+            // Leave by the hour makes fractions of a day; day totals are shown to 2 decimals.
+            'taken_days' => round($this->leavesIn($year, $holidays)->where('user_id', $user->id)->sum('days'), 2),
             'unpaid_hours' => round($cutoffs->sum('deducted_hours'), 2),
             'unpaid_pesos' => $user->daily_rate === null ? null : round($cutoffs->sum('deducted_pesos'), 2),
             'cutoffs' => $cutoffs->values(),
@@ -82,11 +83,11 @@ class AnalyticsController extends Controller
 
         $months = collect(range(1, 12))->map(fn (int $m) => [
             'month' => sprintf('%d-%02d', $year, $m),
-            'days' => (float) $leaves->filter(fn (Leave $l) => $l->date->month === $m)->sum('days'),
+            'days' => round($leaves->filter(fn (Leave $l) => $l->date->month === $m)->sum('days'), 2),
         ]);
         $weekdays = collect(self::WEEKDAYS)->map(fn (string $day, int $i) => [
             'day' => $day,
-            'days' => (float) $leaves->filter(fn (Leave $l) => $l->date->dayOfWeekIso === $i + 1)->sum('days'),
+            'days' => round($leaves->filter(fn (Leave $l) => $l->date->dayOfWeekIso === $i + 1)->sum('days'), 2),
         ]);
 
         // Everyone active, plus anyone deactivated who has leave this year.
@@ -101,7 +102,7 @@ class AnalyticsController extends Controller
                     'row' => [
                         'id' => $u->id,
                         'name' => $u->name,
-                        'days' => (float) ($byUser->get($u->id)?->sum('days') ?? 0),
+                        'days' => round($byUser->get($u->id)?->sum('days') ?? 0, 2),
                         'deducted_hours' => round($cutoffs->sum(fn (CutOff $c) => $c->deductedHours), 2),
                         'deducted_pesos' => $u->daily_rate === null ? null
                             : round($cutoffs->sum(fn (CutOff $c) => $this->pesos($c->deductedHours, $u, $policy)), 2),
@@ -151,8 +152,8 @@ class AnalyticsController extends Controller
             ->map(fn (Collection $ls) => [
                 'id' => $ls->first()->user_id,
                 'name' => $ls->first()->user->name,
-                'dates' => $ls->map(fn (Leave $l) => ['date' => $l->date->toDateString(), 'days' => (float) $l->days])->values(),
-                'days' => (float) $ls->sum('days'),
+                'dates' => $ls->map(fn (Leave $l) => ['date' => $l->date->toDateString(), 'days' => round((float) $l->days, 2)])->values(),
+                'days' => round($ls->sum('days'), 2),
             ])
             ->values();
     }

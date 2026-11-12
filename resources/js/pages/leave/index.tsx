@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { Lock, X } from 'lucide-react';
 import { useState } from 'react';
 import LeaveController from '@/actions/App/Http/Controllers/LeaveController';
-import { LogLeaveDialog } from '@/components/log-leave-dialog';
+import { leaveLength, LogLeaveDialog } from '@/components/log-leave-dialog';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -35,6 +35,8 @@ type LeaveEntry = {
     locked: boolean;
     /** "am" / "pm" for a half day (older half days have none). */
     part: 'am' | 'pm' | null;
+    start_time: string | null;
+    end_time: string | null;
     /** The holiday's name if one falls on this date: kept, but not charged. */
     holiday: string | null;
 };
@@ -141,7 +143,8 @@ export default function MyLeave(props: Props) {
                 <section className="ocs-card">
                     <p className="ocs-eyebrow">{month.label}</p>
                     <p className="text-3xl font-semibold text-ink">
-                        {month.used}{' '}
+                        {/* Leave by the hour makes fractions of a day: 2 decimals at most. */}
+                        {Math.round(month.used * 100) / 100}{' '}
                         <span className="text-base text-muted">
                             of {month.cap} days
                         </span>
@@ -233,11 +236,9 @@ function LeaveList({
                             <div className="min-w-0 flex-1">
                                 <p className="font-semibold">
                                     {day(l.date)}
-                                    {l.days === 0.5 && (
+                                    {leaveLength(l) && (
                                         <span className="ocs-badge ml-2">
-                                            {l.part
-                                                ? `${l.part.toUpperCase()} · ½ day`
-                                                : 'half day'}
+                                            {leaveLength(l)}
                                         </span>
                                     )}
                                     {l.holiday && (

@@ -373,7 +373,8 @@ function UpcomingAbsences({ upcoming }: { upcoming: Office['upcoming'] }) {
                                 {p.dates
                                     .map(
                                         (d) =>
-                                            `${day(d.date)}${d.days === 0.5 ? ' (½)' : ''}`,
+                                            // Part of a day (a morning, an afternoon or some hours): its hours.
+                                            `${day(d.date)}${d.days < 1 ? ` (${Math.round(d.days * 8 * 10) / 10} h)` : ''}`,
                                     )
                                     .join(' · ')}
                             </p>

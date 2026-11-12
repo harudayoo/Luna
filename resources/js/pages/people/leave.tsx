@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import LeaveController from '@/actions/App/Http/Controllers/LeaveController';
 import TeamLeaveController from '@/actions/App/Http/Controllers/TeamLeaveController';
-import { LogLeaveDialog } from '@/components/log-leave-dialog';
+import { leaveLength, LogLeaveDialog } from '@/components/log-leave-dialog';
 import { PeopleTabs } from '@/components/people-tabs';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +23,8 @@ type Entry = {
     date: string;
     days: number;
     part: 'am' | 'pm' | null;
+    start_time: string | null;
+    end_time: string | null;
     note: string | null;
     /** A holiday falls on it: kept, but not charged. */
     holiday: string | null;
@@ -215,11 +217,9 @@ export default function TeamLeave({ cutoff, rows, totals }: Props) {
                                             }
                                         >
                                             {day(l.date)}
-                                            {l.days === 0.5 && (
+                                            {leaveLength(l, true) && (
                                                 <span className="text-xs text-muted">
-                                                    ½
-                                                    {l.part &&
-                                                        ` ${l.part.toUpperCase()}`}
+                                                    {leaveLength(l, true)}
                                                 </span>
                                             )}
                                             {l.holiday && (
