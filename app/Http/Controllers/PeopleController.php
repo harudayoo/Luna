@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Role;
 use App\Models\User;
 use App\Notifications\InviteNotification;
+use App\Services\Payroll\PayslipMath;
 use App\Services\Pto\Policy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,6 +30,8 @@ class PeopleController extends Controller
             'invited' => $user->isPendingInvite(),
             'deactivated' => $user->isDeactivated(),
             'invite_url' => $user->isPendingInvite() ? $user->inviteUrl() : null,
+            'position' => $user->position,
+            'monthly_salary' => $user->monthly_salary === null ? null : (float) $user->monthly_salary,
             'daily_rate' => $user->daily_rate === null ? null : (float) $user->daily_rate,
             'pto_start' => $user->pto_start?->toDateString(),
             'pto_opening_hours' => (float) $user->pto_opening_hours,
@@ -72,6 +75,9 @@ class PeopleController extends Controller
     public function update(Request $request, User $user): RedirectResponse
     {
         $validated = $request->validate([
+            'position' => ['nullable', 'string', 'max:80'],
+            // Pay is monthly; the daily rate used for PTO deductions is derived from it (÷ 22).
+            'monthly_salary' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
             'daily_rate' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'pto_start' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.Policy::officeStartedOn()->toDateString()],
             'pto_opening_hours' => ['required', 'numeric', 'min:0', 'max:1000'],
@@ -79,6 +85,9 @@ class PeopleController extends Controller
             'pto_start.after_or_equal' => 'Start dates can\'t be before the office opened ('.Policy::officeStartedOn()->format('M j, Y').').',
         ]);
 
+        if ($request->filled('monthly_salary')) {
+            $validated['daily_rate'] = PayslipMath::dailyRate((float) $validated['monthly_salary']);
+        }
         $user->update($validated);
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name}'s leave details saved."]);
 

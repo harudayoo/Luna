@@ -26,7 +26,9 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $name
  * @property string $email
  * @property Role $role
- * @property string|null $daily_rate pesos; HR sets it
+ * @property string|null $position printed on payslips
+ * @property string|null $monthly_salary pesos; the daily rate is derived from it (÷ 22)
+ * @property string|null $daily_rate pesos; HR sets it (from the monthly salary)
  * @property Carbon|null $pto_start null = the office start (Policy::officeStartedOn)
  * @property string $pto_opening_hours
  * @property Carbon|null $deactivated_at set by an admin: no sign-in, history kept
@@ -39,7 +41,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'daily_rate', 'pto_start', 'pto_opening_hours'])]
+#[Fillable(['name', 'email', 'password', 'position', 'monthly_salary', 'daily_rate', 'pto_start', 'pto_opening_hours'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
@@ -63,6 +65,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     {
         return [
             'role' => Role::class,
+            'monthly_salary' => 'decimal:2',
             'daily_rate' => 'decimal:2',
             'pto_start' => 'date',
             'pto_opening_hours' => 'decimal:2',
@@ -89,6 +92,12 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function inviteUrl(): string
     {
         return URL::temporarySignedRoute('invite.show', now()->addDays(self::INVITE_DAYS), ['user' => $this->id]);
+    }
+
+    /** @return HasMany<Payslip, $this> */
+    public function payslips(): HasMany
+    {
+        return $this->hasMany(Payslip::class);
     }
 
     /** @return HasMany<Leave, $this> */

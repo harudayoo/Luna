@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AcceptInviteController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PeopleController;
 use App\Http\Controllers\PolicyController;
 use App\Http\Controllers\TeamLeaveController;
@@ -14,6 +15,9 @@ Route::middleware(['auth', 'verified', 'can:hr'])->group(function () {
     Route::post('people', [PeopleController::class, 'store'])->name('people.store');
     Route::get('people/leave', [TeamLeaveController::class, 'index'])->name('people.leave');
     Route::post('people/{user}/leave', [TeamLeaveController::class, 'store'])->name('people.leave.store');
+    Route::get('people/payroll', [PayrollController::class, 'index'])->name('people.payroll');
+    Route::get('people/payroll/{user}/{cutoff}', [PayrollController::class, 'edit'])->name('people.payroll.edit');
+    Route::put('people/payroll/{user}/{cutoff}', [PayrollController::class, 'update'])->name('people.payroll.update');
     Route::get('people/policy', [PolicyController::class, 'edit'])->name('people.policy');
     Route::put('people/policy', [PolicyController::class, 'update'])->name('people.policy.update');
     Route::get('people/holidays', [HolidayController::class, 'index'])->name('people.holidays');

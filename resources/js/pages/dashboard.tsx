@@ -1,6 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { dashboard } from '@/routes';
 import { index as analyticsIndex } from '@/routes/analytics';
+import { index as payslipsIndex } from '@/routes/payslips';
 import { index as calendarIndex } from '@/routes/calendar';
 import { index as leaveIndex } from '@/routes/leave';
 
@@ -76,6 +77,18 @@ export default function Dashboard({ pto, out_today }: Props) {
                     <p>Your PTO by cut-off, and what came off your pay.</p>
                     <p className="mt-4 text-sm font-semibold text-primary">
                         See the numbers →
+                    </p>
+                </Link>
+                <Link
+                    href={payslipsIndex()}
+                    prefetch
+                    className="ocs-card ocs-card-link block"
+                >
+                    <p className="ocs-eyebrow">Pay</p>
+                    <h3>My payslips</h3>
+                    <p>Every payslip HR has issued you, ready to print.</p>
+                    <p className="mt-4 text-sm font-semibold text-primary">
+                        Open payslips →
                     </p>
                 </Link>
             </div>

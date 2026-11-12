@@ -3,6 +3,7 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import {
     holidays as peopleHolidays,
     index as peopleIndex,
+    payroll as peoplePayroll,
     leave as peopleLeave,
     policy as peoplePolicy,
 } from '@/routes/people';
@@ -10,6 +11,7 @@ import {
 const TABS = [
     { title: 'People', href: peopleIndex(), path: '/people' },
     { title: 'Leave & pay', href: peopleLeave(), path: '/people/leave' },
+    { title: 'Payroll', href: peoplePayroll(), path: '/people/payroll' },
     { title: 'Policy', href: peoplePolicy(), path: '/people/policy' },
     { title: 'Holidays', href: peopleHolidays(), path: '/people/holidays' },
 ];

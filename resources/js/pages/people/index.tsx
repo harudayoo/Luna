@@ -38,6 +38,8 @@ type Person = {
     /** An admin ended their access; history stays. */
     deactivated: boolean;
     invite_url: string | null;
+    position: string | null;
+    monthly_salary: number | null;
     daily_rate: number | null;
     pto_start: string | null;
     pto_opening_hours: number;
@@ -100,9 +102,12 @@ export default function People({
                                 {person.email}
                             </p>
                             <p className="mt-1 text-xs text-muted">
-                                {person.daily_rate !== null
-                                    ? `${peso(person.daily_rate)}/day`
-                                    : 'No daily rate'}
+                                {person.position && `${person.position} · `}
+                                {person.monthly_salary !== null
+                                    ? `${peso(person.monthly_salary)}/month`
+                                    : person.daily_rate !== null
+                                      ? `${peso(person.daily_rate)}/day`
+                                      : 'No daily rate'}
                                 {' · from '}
                                 {shortDate(person.pto_start ?? officeStartedOn)}
                                 {person.pto_opening_hours > 0 &&
@@ -192,20 +197,45 @@ function LeaveDetails({
                     {({ processing, errors }) => (
                         <>
                             <div className="grid gap-2">
-                                <Label htmlFor={`rate-${person.id}`}>
-                                    Daily rate (₱)
+                                <Label htmlFor={`position-${person.id}`}>
+                                    Position
                                 </Label>
                                 <Input
-                                    id={`rate-${person.id}`}
-                                    name="daily_rate"
+                                    id={`position-${person.id}`}
+                                    name="position"
+                                    maxLength={80}
+                                    autoComplete="organization-title"
+                                    defaultValue={person.position ?? ''}
+                                    placeholder="e.g. Software Developer"
+                                />
+                                <InputError message={errors.position} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor={`salary-${person.id}`}>
+                                    Monthly salary (₱)
+                                </Label>
+                                <Input
+                                    id={`salary-${person.id}`}
+                                    name="monthly_salary"
                                     type="number"
                                     inputMode="decimal"
                                     step="0.01"
                                     min="0"
-                                    defaultValue={person.daily_rate ?? ''}
-                                    placeholder="e.g. 1800"
+                                    defaultValue={
+                                        person.monthly_salary ??
+                                        (person.daily_rate !== null
+                                            ? Math.round(person.daily_rate * 22)
+                                            : '')
+                                    }
+                                    placeholder="e.g. 60000"
                                 />
-                                <InputError message={errors.daily_rate} />
+                                <p className="text-xs text-muted">
+                                    The daily rate for unpaid leave is this ÷ 22
+                                    {person.daily_rate !== null &&
+                                        ` (now ${peso(person.daily_rate)})`}
+                                    .
+                                </p>
+                                <InputError message={errors.monthly_salary} />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor={`start-${person.id}`}>
