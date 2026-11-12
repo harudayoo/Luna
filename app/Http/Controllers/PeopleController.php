@@ -60,6 +60,12 @@ class PeopleController extends Controller
         $user->role = Role::from($validated['role']);
         $user->save();
 
+        if (! $this->emailIsSetUp()) {
+            Inertia::flash('toast', ['type' => 'info', 'message' => "{$user->name} was added. Copy their invite link and send it to them."]);
+
+            return to_route('people.index');
+        }
+
         try {
             $user->notify(new InviteNotification($request->user()));
             Inertia::flash('toast', ['type' => 'success', 'message' => "Invite sent to {$user->email}."]);
@@ -141,11 +147,26 @@ class PeopleController extends Controller
         return to_route('people.index');
     }
 
+    /**
+     * The office server can run without email (MAIL_MAILER=log: an internal LAN tool). Then invites only
+     * write to the log, so Luna says to copy the link instead of claiming it was sent.
+     */
+    private function emailIsSetUp(): bool
+    {
+        return config('mail.default') !== 'log';
+    }
+
     /** Emails a pending invite again (a fresh 7-day link). */
     public function resendInvite(Request $request, User $user): RedirectResponse
     {
         if (! $user->isPendingInvite()) {
             throw ValidationException::withMessages(['invite' => "{$user->name} already accepted their invite."]);
+        }
+
+        if (! $this->emailIsSetUp()) {
+            Inertia::flash('toast', ['type' => 'info', 'message' => "No email is set up. Copy {$user->name}'s invite link and send it to them."]);
+
+            return to_route('people.index');
         }
 
         try {

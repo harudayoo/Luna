@@ -70,6 +70,33 @@ class PeopleTest extends TestCase
         Notification::assertSentTo($ana, InviteNotification::class);
     }
 
+    public function test_without_email_set_up_the_invite_says_to_copy_the_link()
+    {
+        // The office server runs with MAIL_MAILER=log: nothing reaches an inbox, so don't claim it was sent.
+        config(['mail.default' => 'log']);
+        Notification::fake();
+        $hr = User::factory()->hr()->create();
+
+        $this->actingAs($hr)
+            ->post(route('people.store'), ['name' => 'Ana Cruz', 'email' => 'ana@example.com', 'role' => 'employee'])
+            ->assertRedirect(route('people.index'))
+            ->assertInertiaFlash('toast', [
+                'type' => 'info',
+                'message' => 'Ana Cruz was added. Copy their invite link and send it to them.',
+            ]);
+
+        $ana = User::where('email', 'ana@example.com')->firstOrFail();
+        Notification::assertNothingSent();
+
+        $this->actingAs($hr)
+            ->post(route('people.invite', $ana))
+            ->assertInertiaFlash('toast', [
+                'type' => 'info',
+                'message' => 'No email is set up. Copy Ana Cruz\'s invite link and send it to them.',
+            ]);
+        Notification::assertNothingSent();
+    }
+
     public function test_hr_cannot_invite_hr_or_admin()
     {
         $hr = User::factory()->hr()->create();

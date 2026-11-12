@@ -288,23 +288,51 @@ function LeaveDetails({
     );
 }
 
+/** Copies the set-password link; if the browser won't copy, shows it to copy by hand. */
 function CopyInviteLink({ url }: { url: string }) {
     const [, copy] = useClipboard();
+    const [manual, setManual] = useState(false);
 
     return (
-        <Button
-            variant="code"
-            size="sm"
-            onClick={() =>
-                void copy(url).then((ok) =>
-                    ok
-                        ? toast.success('Invite link copied.')
-                        : toast.error("Couldn't copy the link."),
-                )
-            }
-        >
-            Copy invite link
-        </Button>
+        <>
+            <Button
+                variant="code"
+                size="sm"
+                onClick={() =>
+                    void copy(url).then((ok) =>
+                        ok
+                            ? toast.success(
+                                  'Invite link copied. Paste it to them in chat.',
+                              )
+                            : setManual(true),
+                    )
+                }
+            >
+                Copy invite link
+            </Button>
+            <Dialog open={manual} onOpenChange={setManual}>
+                <DialogContent>
+                    <DialogTitle>Copy the invite link</DialogTitle>
+                    <DialogDescription>
+                        This browser won’t copy it automatically. The link is
+                        selected: press Ctrl+C (or long-press on a phone), then
+                        send it to them.
+                    </DialogDescription>
+                    <Input
+                        readOnly
+                        value={url}
+                        autoFocus
+                        onFocus={(e) => e.currentTarget.select()}
+                        aria-label="Invite link"
+                    />
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="secondary">Done</Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
