@@ -80,7 +80,7 @@ class HolidayTest extends TestCase
             ->post(route('people.holidays.store'), ['date' => '2026-11-20', 'name' => 'Eid test', 'kind' => 'special', 'cancel_leave' => true])
             ->assertSessionHasNoErrors();
 
-        $this->assertModelMissing($leave);
+        $this->assertNull(Leave::find($leave->id)); // set aside, not deleted (HolidayCancelledLeaveTest)
         $this->assertModelExists($other);
     }
 

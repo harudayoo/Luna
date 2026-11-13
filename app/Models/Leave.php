@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\LeaveFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,11 +22,18 @@ use Illuminate\Support\Carbon;
  * @property string|null $start_time "HH:MM" for leave by the hour, else null
  * @property string|null $end_time "HH:MM" for leave by the hour, else null
  * @property string|null $note
+ * @property int|null $cancelled_by_holiday_id set while HR has cancelled it for a holiday; hidden until restored
  */
 class Leave extends Model
 {
     /** @use HasFactory<LeaveFactory> */
     use HasFactory;
+
+    /** Leave cancelled for a holiday is set aside: no query sees it until the holiday is removed or moved. */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('active', fn (Builder $q) => $q->whereNull('cancelled_by_holiday_id'));
+    }
 
     /** Office hours (user, 2026-11-12): 9:00-18:00 with lunch 12-1, so 8 working hours. Leave by the hour fits in these. */
     public const OFFICE_HOURS = [['09:00', '12:00'], ['13:00', '18:00']];

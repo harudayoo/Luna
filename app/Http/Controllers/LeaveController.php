@@ -13,7 +13,6 @@ use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -67,17 +66,7 @@ class LeaveController extends Controller
     {
         $dates = $request->dates();
 
-        DB::transaction(function () use ($request, $dates) {
-            foreach ($dates as $date) {
-                $request->user()->leaves()->create([
-                    'date' => $date->toDateString(),
-                    'days' => $request->daysEach(),
-                    'part' => $request->part(),
-                    ...$request->times(),
-                    'note' => $request->input('note'),
-                ]);
-            }
-        });
+        $request->save();
 
         $days = count($dates) * $request->daysEach();
         Inertia::flash('toast', ['type' => 'success', 'message' => match (true) {

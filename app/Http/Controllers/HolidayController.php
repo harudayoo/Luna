@@ -14,7 +14,8 @@ use Inertia\Response;
 
 /**
  * Holidays (HR): the office's public holidays, one year at a time. They aren't work hours and
- * can't be logged as leave. Leave already on a new holiday is kept uncharged unless HR cancels it.
+ * can't be logged as leave. Leave already on a new holiday is kept uncharged unless HR cancels it;
+ * cancelled leave comes back if the holiday is removed or moved.
  */
 class HolidayController extends Controller
 {
@@ -69,6 +70,10 @@ class HolidayController extends Controller
     public function update(HolidayRequest $request, Holiday $holiday): RedirectResponse
     {
         $affected = DB::transaction(function () use ($request, $holiday) {
+            $holiday->fill($request->safe()->only(['date', 'name', 'kind']));
+            if ($holiday->isDirty('date')) {
+                $this->restoreLeave($holiday);
+            }
             $holiday->update($request->safe()->only(['date', 'name', 'kind']));
 
             return $this->settleLeave($holiday, $request->boolean('cancel_leave'));
@@ -79,18 +84,38 @@ class HolidayController extends Controller
 
     public function destroy(Holiday $holiday): RedirectResponse
     {
-        $holiday->delete();
-        Inertia::flash('toast', ['type' => 'success', 'message' => $holiday->name.' removed. Leave on that date is charged again.']);
+        $restored = DB::transaction(function () use ($holiday) {
+            $restored = $this->restoreLeave($holiday);
+            $holiday->delete();
+
+            return $restored;
+        });
+        $message = $holiday->name.' removed. Leave on that date is charged again.';
+        if ($restored > 0) {
+            $message .= ' '.($restored === 1 ? '1 person’s cancelled leave is' : "$restored people’s cancelled leave is").' back.';
+        }
+        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
 
         return to_route('people.holidays', ['year' => $holiday->date->year]);
     }
 
-    /** Leave on the holiday's date: cancelled if asked, else kept (uncharged). Returns how many. */
+    /**
+     * Leave on the holiday's date: cancelled if asked, else kept (uncharged). Returns how many. Cancelled
+     * leave is set aside, not deleted, so it comes back if the holiday is removed or moved (restoreLeave).
+     */
     private function settleLeave(Holiday $holiday, bool $cancel): int
     {
         $query = Leave::query()->where('date', $holiday->date->toDateString());
 
-        return $cancel ? $query->delete() : $query->count();
+        return $cancel ? $query->update(['cancelled_by_holiday_id' => $holiday->id]) : $query->count();
+    }
+
+    /** Brings back the leave this holiday cancelled. Returns how many. */
+    private function restoreLeave(Holiday $holiday): int
+    {
+        return Leave::withoutGlobalScope('active')
+            ->where('cancelled_by_holiday_id', $holiday->id)
+            ->update(['cancelled_by_holiday_id' => null]);
     }
 
     private function done(Holiday $holiday, string $verb, int $leave, bool $cancelled): RedirectResponse

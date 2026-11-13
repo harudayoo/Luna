@@ -9,12 +9,14 @@ use App\Services\Pto\Ledger;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Validator;
 
 /**
  * Logging leave: one day, a half day, or a range (each working day in it). The rules:
  * weekdays only, not on a public holiday, not before the person's PTO start, not in a cut-off that has ended
- * (payroll ran; HR fixes those), no date twice, and at most the monthly cap per month.
+ * (payroll ran; HR fixes those), no date twice, and at most the monthly cap per month. A holiday inside a
+ * range is saved set aside (see save()), so it comes back as leave if the holiday is removed.
  */
 class StoreLeaveRequest extends FormRequest
 {
@@ -23,6 +25,9 @@ class StoreLeaveRequest extends FormRequest
 
     /** @var list<CarbonImmutable> */
     private array $dates = [];
+
+    /** @var array<string, int> holiday id by Y-m-d, for the weekday holidays inside the range */
+    private array $heldBack = [];
 
     public function rules(): array
     {
@@ -52,6 +57,36 @@ class StoreLeaveRequest extends FormRequest
     public function dates(): array
     {
         return $this->dates;
+    }
+
+    /**
+     * Saves the leave. Weekday holidays inside the range are saved too but set aside for that holiday
+     * (Leave::cancelled_by_holiday_id), so the day comes back if HR removes or moves the holiday.
+     */
+    public function save(): void
+    {
+        $user = $this->owner();
+        $row = fn (string $date) => [
+            'date' => $date,
+            'days' => $this->daysEach(),
+            'part' => $this->part(),
+            ...$this->times(),
+            'note' => $this->input('note'),
+        ];
+        $already = Leave::withoutGlobalScope('active')->where('user_id', $user->id)
+            ->whereIn('date', array_keys($this->heldBack))->pluck('date')
+            ->map(fn ($d) => substr((string) $d, 0, 10))->all();
+
+        DB::transaction(function () use ($user, $row, $already) {
+            foreach ($this->dates as $date) {
+                $user->leaves()->create($row($date->toDateString()));
+            }
+            foreach ($this->heldBack as $date => $holidayId) {
+                if ($date >= $user->ptoStart()->toDateString() && ! in_array($date, $already, true)) {
+                    $user->leaves()->make($row($date))->forceFill(['cancelled_by_holiday_id' => $holidayId])->save();
+                }
+            }
+        });
     }
 
     /** Whose leave this is: the signed-in person here; StoreLeaveForRequest logs it for someone else. */
@@ -163,8 +198,15 @@ class StoreLeaveRequest extends FormRequest
         }
 
         $holidays = Holiday::names($from->toDateString(), $to->toDateString());
+        $holidayIds = Holiday::query()->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+            ->pluck('id', 'date')->mapWithKeys(fn ($id, $date) => [substr((string) $date, 0, 10) => $id])->all();
         for ($d = $from; $d->lessThanOrEqualTo($to); $d = $d->addDay()) {
-            if (! $d->isWeekend() && ! isset($holidays[$d->toDateString()])) {
+            if ($d->isWeekend()) {
+                continue;
+            }
+            if (isset($holidayIds[$d->toDateString()])) {
+                $this->heldBack[$d->toDateString()] = $holidayIds[$d->toDateString()];
+            } else {
                 $this->dates[] = $d;
             }
         }
