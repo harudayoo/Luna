@@ -48,6 +48,9 @@ class Payslip extends Model
     /** Carried over from the previous payslip as the starting point. */
     public const RECURRING = ['sss', 'philhealth', 'pagibig', 'withholding_tax', 'cash_advance', 'overtime_allowance'];
 
+    /** Taken once a month: per cut-off, only on the month-end payslip (PayrollController::edit). */
+    public const MONTHLY_DEDUCTIONS = ['sss', 'philhealth', 'pagibig', 'withholding_tax', 'cash_advance'];
+
     protected $guarded = ['id'];
 
     protected function casts(): array

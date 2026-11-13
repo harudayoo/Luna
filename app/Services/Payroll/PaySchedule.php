@@ -45,6 +45,14 @@ final class PaySchedule
         return $frequency;
     }
 
+    /** The frequency a pay period was made with: a whole month is monthly, anything shorter a cut-off. */
+    public static function frequencyOf(CarbonImmutable $start, CarbonImmutable $end): PayFrequency
+    {
+        return $start->day === 1 && $end->isSameDay($start->endOfMonth())
+            ? PayFrequency::Monthly
+            : PayFrequency::SemiMonthly;
+    }
+
     /**
      * The pay period containing a date: its month, or its cut-off.
      *

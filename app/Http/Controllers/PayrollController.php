@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\PayslipRequest;
 use App\Models\Payslip;
 use App\Models\User;
+use App\Services\Payroll\PayFrequency;
 use App\Services\Payroll\PayRate;
 use App\Services\Payroll\PaySchedule;
 use App\Services\Payroll\PayslipMath;
@@ -83,10 +84,10 @@ class PayrollController extends Controller
 
     public function edit(User $user, string $cutoff): Response
     {
-        [$start, $end] = $this->period($cutoff);
+        [$start, $end] = $this->period($user, $cutoff);
         $saved = $user->payslips()->where('period_start', $start->toDateString())->first();
         [$unpaid, $unpaidExact] = $this->unpaidHours($user, $start, $end);
-        $frequency = PaySchedule::frequencyOn($start);
+        $frequency = PaySchedule::frequencyOf($start, $end);
         $daily = (float) $user->daily_rate;
 
         if ($saved) {
@@ -97,6 +98,15 @@ class PayrollController extends Controller
             $inputs = array_fill_keys(Payslip::INPUTS, 0.0);
             foreach (Payslip::RECURRING as $k) {
                 $inputs[$k] = $previous ? (float) $previous->{$k} : 0.0;
+            }
+            // Per cut-off, the monthly deductions come off once a month, on the month-end cut-off: the
+            // 1st-15th starts them at 0, and the 16th takes them from the last payslip that ended a month.
+            if ($frequency === PayFrequency::SemiMonthly) {
+                $monthEnd = $start->day === 1 ? null : ($user->payslips()->where('period_start', '<', $start->toDateString())
+                    ->orderByDesc('period_start')->get()->first(fn (Payslip $p) => $p->period_end->isLastOfMonth()) ?? $previous);
+                foreach (Payslip::MONTHLY_DEDUCTIONS as $k) {
+                    $inputs[$k] = $monthEnd ? (float) $monthEnd->{$k} : 0.0;
+                }
             }
             $inputs['absences'] = PayRate::forHours($user, $unpaidExact, Policy::current()) ?? 0.0;
             $issued = CarbonImmutable::today()->toDateString();
@@ -128,7 +138,7 @@ class PayrollController extends Controller
 
     public function update(PayslipRequest $request, User $user, string $cutoff): RedirectResponse
     {
-        [$start, $end] = $this->period($cutoff);
+        [$start, $end] = $this->period($user, $cutoff);
         if ($user->monthly_salary === null) {
             throw ValidationException::withMessages([
                 'monthly_salary' => "Set {$user->name}'s monthly salary first (People → Leave details).",
@@ -147,7 +157,7 @@ class PayrollController extends Controller
 
         Payslip::query()->updateOrCreate(
             ['user_id' => $user->id, 'period_start' => $start->toDateString()],
-            $inputs + PayslipMath::totals($monthly, $daily, $inputs, PaySchedule::frequencyOn($start)->share()) + [
+            $inputs + PayslipMath::totals($monthly, $daily, $inputs, PaySchedule::frequencyOf($start, $end)->share()) + [
                 'period_end' => $end->toDateString(),
                 'issued_on' => $request->input('issued_on'),
                 'position' => $user->position,
@@ -163,10 +173,19 @@ class PayrollController extends Controller
         return to_route('people.payroll.edit', [$user, $start->toDateString()]);
     }
 
-    /** @return array{0: CarbonImmutable, 1: CarbonImmutable} */
-    private function period(string $cutoff): array
+    /**
+     * The pay period starting on $cutoff. A saved payslip keeps the period it was made in, even after the
+     * pay schedule changed (an Aug 16-31 cut-off stays one once August counts as monthly).
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    private function period(User $user, string $cutoff): array
     {
         $date = CarbonImmutable::createFromFormat('!Y-m-d', $cutoff) ?: null;
+        $saved = $date === null ? null : $user->payslips()->where('period_start', $date->toDateString())->first();
+        if ($saved) {
+            return [$date, CarbonImmutable::createFromFormat('!Y-m-d', $saved->period_end->toDateString())];
+        }
         $period = $date === null ? null : PaySchedule::periodFor($date);
         if ($period === null || ! $period[0]->equalTo($date)) {
             throw ValidationException::withMessages(['cutoff' => 'Pick a pay period: it starts on the 1st (or the 16th, when paid per cut-off).']);
