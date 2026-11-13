@@ -118,6 +118,12 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $this->hasMany(LateLog::class);
     }
 
+    /** WIP channels they pinned on Home, in the order they pinned them. @return HasMany<WipTile, $this> */
+    public function wipTiles(): HasMany
+    {
+        return $this->hasMany(WipTile::class)->orderBy('id');
+    }
+
     /** When PTO accrues from for this person: their own start date, else the office start. */
     public function ptoStart(): CarbonImmutable
     {

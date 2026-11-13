@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
+use App\Models\WipTile;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
@@ -36,6 +37,9 @@ class DashboardController extends Controller
             // Time (the headline card) and the WIP channels: WIP is the office's main channel.
             'today' => TimeController::today($user),
             'wip' => config('luna.wip'),
+            // The channels this person pinned under the office's tiles.
+            'my_wip' => $user->wipTiles()->get()->map(fn (WipTile $t) => $t->toTile()),
+            'wip_max' => WipTile::MAX,
         ]);
     }
 }

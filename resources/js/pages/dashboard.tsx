@@ -3,6 +3,7 @@ import type { Today } from '@/components/time-today';
 import { TimeToday } from '@/components/time-today';
 import type { WipChannel } from '@/components/wip-channels';
 import { WipChannels } from '@/components/wip-channels';
+import type { WipTile } from '@/components/wip-tile-dialog';
 import { dashboard } from '@/routes';
 import { index as analyticsIndex } from '@/routes/analytics';
 import { index as payslipsIndex } from '@/routes/payslips';
@@ -19,6 +20,8 @@ type Props = {
     out_today: number;
     today: Today;
     wip: WipChannel[];
+    my_wip: WipTile[];
+    wip_max: number;
 };
 
 const short = (iso: string) =>
@@ -28,7 +31,14 @@ const short = (iso: string) =>
         day: 'numeric',
     }).format(new Date(`${iso}T00:00:00Z`));
 
-export default function Dashboard({ pto, out_today, today, wip }: Props) {
+export default function Dashboard({
+    pto,
+    out_today,
+    today,
+    wip,
+    my_wip,
+    wip_max,
+}: Props) {
     const { auth } = usePage().props;
     const attendance = wip.find((c) => c.key === 'attendance')?.url ?? '';
 
@@ -43,7 +53,7 @@ export default function Dashboard({ pto, out_today, today, wip }: Props) {
             <div className="mb-8">
                 <TimeToday today={today} wipUrl={attendance} />
             </div>
-            <WipChannels channels={wip} />
+            <WipChannels channels={wip} mine={my_wip} max={wip_max} />
             <div className="ocs-grid">
                 <Link
                     href={leaveIndex()}
