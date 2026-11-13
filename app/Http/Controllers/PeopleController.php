@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Enums\Role;
 use App\Models\User;
 use App\Notifications\InviteNotification;
-use App\Services\Payroll\PayslipMath;
+use App\Services\Payroll\PayRate;
+use App\Services\Payroll\WorkDays;
 use App\Services\Pto\Policy;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -22,6 +24,7 @@ class PeopleController extends Controller
 {
     public function index(Request $request): Response
     {
+        $today = CarbonImmutable::today();
         $people = User::query()->orderBy('id')->get()->map(fn (User $user) => [
             'id' => $user->id,
             'name' => $user->name,
@@ -33,6 +36,9 @@ class PeopleController extends Controller
             'position' => $user->position,
             'monthly_salary' => $user->monthly_salary === null ? null : (float) $user->monthly_salary,
             'daily_rate' => $user->daily_rate === null ? null : (float) $user->daily_rate,
+            'fixed_daily_rate' => $user->fixed_daily_rate === null ? null : (float) $user->fixed_daily_rate,
+            // What a day costs this month, whichever basis applies.
+            'month_rate' => PayRate::dailyFor($user, $today),
             'pto_start' => $user->pto_start?->toDateString(),
             'pto_opening_hours' => (float) $user->pto_opening_hours,
         ]);
@@ -40,6 +46,7 @@ class PeopleController extends Controller
         return Inertia::render('people/index', [
             'people' => $people,
             'officeStartedOn' => Policy::officeStartedOn()->toDateString(),
+            'workDays' => ['month' => $today->format('F Y'), 'days' => WorkDays::inMonth($today)],
             'roles' => collect(Role::cases())->map(fn (Role $role) => [
                 'value' => $role->value,
                 'label' => $role->label(),
@@ -82,18 +89,16 @@ class PeopleController extends Controller
     {
         $validated = $request->validate([
             'position' => ['nullable', 'string', 'max:80'],
-            // Pay is monthly; the daily rate used for PTO deductions is derived from it (x 12 / 260).
+            // Pay is monthly; a month's daily rate is this ÷ its working days (PayRate), unless HR pins one.
             'monthly_salary' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
             'daily_rate' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            'fixed_daily_rate' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'pto_start' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.Policy::officeStartedOn()->toDateString()],
             'pto_opening_hours' => ['required', 'numeric', 'min:0', 'max:1000'],
         ], [
             'pto_start.after_or_equal' => 'Start dates can\'t be before the office opened ('.Policy::officeStartedOn()->format('M j, Y').').',
         ]);
 
-        if ($request->filled('monthly_salary')) {
-            $validated['daily_rate'] = PayslipMath::dailyRate((float) $validated['monthly_salary'], Policy::current()->workDaysPerYear);
-        }
         $user->update($validated);
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name}'s leave details saved."]);
 

@@ -18,12 +18,6 @@ final class PayslipMath
 
     public const SPECIAL_HOLIDAY_PREMIUM = 0.3;
 
-    /** The accountant's daily rate: monthly x 12 / work days a year (260: 21.67 days a month). */
-    public static function dailyRate(float $monthly, float $workDaysPerYear): float
-    {
-        return round($monthly * 12 / $workDaysPerYear, 2);
-    }
-
     /**
      * @param  array<string, float|int|string|null>  $in  the Payslip::INPUTS values
      * @return array<string, float> basic_pay, holiday_pay, gross_pay, total_deductions, net_pay

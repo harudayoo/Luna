@@ -90,7 +90,8 @@ class PayrollController extends Controller
         [$unpaid, $unpaidExact] = $this->unpaidHours($user, $start, $end);
         [$lateHours, $latePesos] = LateLog::tardiness($user, $start, $end);
         $frequency = PaySchedule::frequencyOf($start, $end);
-        $daily = (float) $user->daily_rate;
+        // This month's daily rate (a pay period never spans two months): holiday pay and the payslip use it.
+        $daily = PayRate::dailyFor($user, $start) ?? 0.0;
 
         if ($saved) {
             $inputs = collect(Payslip::INPUTS)->mapWithKeys(fn ($k) => [$k => (float) $saved->{$k}])->all();
@@ -110,7 +111,7 @@ class PayrollController extends Controller
                     $inputs[$k] = $monthEnd ? (float) $monthEnd->{$k} : 0.0;
                 }
             }
-            $inputs['absences'] = PayRate::forHours($user, $unpaidExact, Policy::current()) ?? 0.0;
+            $inputs['absences'] = PayRate::forHours($user, $unpaidExact, Policy::current(), $start) ?? 0.0;
             // Declared lates (Time), at the same hourly rate, on their own line.
             $inputs['tardiness'] = $latePesos ?? 0.0;
             $issued = CarbonImmutable::today()->toDateString();
@@ -159,7 +160,7 @@ class PayrollController extends Controller
 
         $inputs = $request->safe()->only(Payslip::INPUTS) + ['tardiness' => 0.0];
         $monthly = (float) $user->monthly_salary;
-        $daily = (float) $user->daily_rate;
+        $daily = PayRate::dailyFor($user, $start) ?? 0.0;
 
         Payslip::query()->updateOrCreate(
             ['user_id' => $user->id, 'period_start' => $start->toDateString()],

@@ -1,20 +1,20 @@
-import { Form, Head } from '@inertiajs/react';
-import { useState } from 'react';
-import PolicyController from '@/actions/App/Http/Controllers/PolicyController';
-import InputError from '@/components/input-error';
-import { PeopleTabs } from '@/components/people-tabs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Form, Head } from "@inertiajs/react";
+import { useState } from "react";
+import PolicyController from "@/actions/App/Http/Controllers/PolicyController";
+import InputError from "@/components/input-error";
+import { PeopleTabs } from "@/components/people-tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
-import { policy as policyRoute } from '@/routes/people';
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { policy as policyRoute } from "@/routes/people";
 
 type Props = {
     policy: {
@@ -23,23 +23,21 @@ type Props = {
         hours_per_day: number;
         monthly_cap_days: number;
         office_started_on: string;
-        work_days_per_year: number;
     };
     modes: { value: string; label: string }[];
 };
 
 const HINTS: Record<string, string> = {
-    full: 'Everyone earns the full amount every cut-off, even with leave in it.',
-    unpaid: 'Days covered by PTO still earn PTO; unpaid hours earn nothing, so that cut-off’s accrual is prorated.',
-    all: 'Any leave hour earns nothing; accrual is prorated by hours actually worked in the cut-off.',
+    full: "Everyone earns the full amount every cut-off, even with leave in it.",
+    unpaid: "Days covered by PTO still earn PTO; unpaid hours earn nothing, so that cut-off’s accrual is prorated.",
+    all: "Any leave hour earns nothing; accrual is prorated by hours actually worked in the cut-off.",
     forfeit:
-        'Any leave in a cut-off, even part of a day, loses that whole cut-off’s hours. Leave on a holiday doesn’t count.',
+        "Any leave in a cut-off, even part of a day, loses that whole cut-off’s hours. Leave on a holiday doesn’t count.",
 };
 
 /** The office leave policy: one set of rules that applies to everyone. */
 export default function Policy({ policy, modes }: Props) {
     const [mode, setMode] = useState(policy.accrual_mode);
-    const [workDays, setWorkDays] = useState(String(policy.work_days_per_year));
 
     return (
         <>
@@ -145,30 +143,6 @@ export default function Policy({ policy, modes }: Props) {
                             <InputError message={errors.office_started_on} />
                         </div>
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="work_days_per_year">
-                                Working days a year (pay rate)
-                            </Label>
-                            <Input
-                                id="work_days_per_year"
-                                name="work_days_per_year"
-                                type="number"
-                                inputMode="decimal"
-                                step="any"
-                                min="200"
-                                max="366"
-                                value={workDays}
-                                onChange={(e) => setWorkDays(e.target.value)}
-                                required
-                            />
-                            <p className="text-xs text-muted">
-                                {Number(workDays) > 0
-                                    ? `${(Number(workDays) / 12).toFixed(2)} days a month. Daily rate = monthly × 12 ÷ ${workDays}; an unpaid hour is the daily rate ÷ ${policy.hours_per_day}.`
-                                    : 'Days a month = this ÷ 12.'}
-                            </p>
-                            <InputError message={errors.work_days_per_year} />
-                        </div>
-
                         <p className="text-xs text-muted">
                             Cut-offs are the 1st–15th and the 16th–month end. A
                             full day of leave is {policy.hours_per_day} hours.
@@ -190,5 +164,5 @@ export default function Policy({ policy, modes }: Props) {
 }
 
 Policy.layout = {
-    breadcrumbs: [{ title: 'Leave policy', href: policyRoute() }],
+    breadcrumbs: [{ title: "Leave policy", href: policyRoute() }],
 };

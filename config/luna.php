@@ -46,9 +46,8 @@ return [
     ],
 
     'pay' => [
-        // The accountant's rate basis: 5 days x 52 weeks. Daily rate = monthly x 12 / this
-        // (21.67 days a month), hourly = daily / hours_per_day. Monthly 60,000 is 346.15 an hour.
-        'work_days_per_year' => 260,
+        // The daily rate follows the month (user, 2026-11-13): monthly ÷ that month's working days
+        // (every Mon-Fri; holidays are paid, so they count), or a fixed daily rate HR sets per person. See App\Services\Payroll\PayRate.
 
         // monthly | semi_monthly (App\Services\Payroll\PayFrequency). The office has been paid monthly
         // since August 2026; HR switches to per cut-off from a month they pick (People → Formulas).

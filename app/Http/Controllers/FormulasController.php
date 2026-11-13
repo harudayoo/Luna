@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\Payroll\PayFrequency;
 use App\Services\Payroll\PaySchedule;
 use App\Services\Payroll\PayslipMath;
+use App\Services\Payroll\WorkDays;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -32,8 +33,9 @@ class FormulasController extends Controller
                 'accrual_label' => $policy->mode->label(),
                 'accrual_hours' => $policy->accrualHours,
                 'hours_per_day' => $policy->hoursPerDay,
-                'work_days_per_year' => $policy->workDaysPerYear,
             ],
+            // The daily rate follows the month: this month's count, as an example.
+            'work_days' => ['month' => $today->format('F Y'), 'days' => WorkDays::inMonth($today)],
             'premiums' => [
                 'regular' => PayslipMath::REGULAR_HOLIDAY_PREMIUM,
                 'special' => PayslipMath::SPECIAL_HOLIDAY_PREMIUM,

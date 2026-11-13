@@ -16,15 +16,7 @@ final readonly class Policy
         public float $hoursPerDay,
         public AccrualMode $mode,
         public float $monthlyCapDays,
-        /** The pay basis (setting "pay.work_days_per_year"): monthly x 12 / this is the daily rate. */
-        public float $workDaysPerYear = 260,
     ) {}
-
-    /** Pesos per hour from a monthly salary, unrounded: monthly x 12 / work days a year / hours a day. */
-    public function hourlyRate(float $monthly): float
-    {
-        return $monthly * 12 / $this->workDaysPerYear / $this->hoursPerDay;
-    }
 
     /** When office operations began (setting "office.started_on", default in config/luna.php). */
     public static function officeStartedOn(): CarbonImmutable
@@ -40,8 +32,6 @@ final readonly class Policy
             accrualHours: (float) Setting::get('pto.accrual_hours', $defaults['accrual_hours']),
             hoursPerDay: (float) Setting::get('pto.hours_per_day', $defaults['hours_per_day']),
             mode: AccrualMode::tryFrom((string) Setting::get('pto.accrual_mode', $defaults['accrual_mode'])) ?? AccrualMode::from($defaults['accrual_mode']),
-            monthlyCapDays: (float) Setting::get('pto.monthly_cap_days', $defaults['monthly_cap_days']),
-            workDaysPerYear: (float) Setting::get('pay.work_days_per_year', config('luna.pay.work_days_per_year')),
-        );
+            monthlyCapDays: (float) Setting::get('pto.monthly_cap_days', $defaults['monthly_cap_days']),        );
     }
 }

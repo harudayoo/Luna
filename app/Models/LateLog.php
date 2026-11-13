@@ -57,7 +57,7 @@ class LateLog extends Model
         $minutes = (int) $user->lateLogs()->whereBetween('date', [$start->toDateString(), $end->toDateString()])->sum('minutes');
         $exact = $minutes / 60;
 
-        return [round($exact, 2), $minutes === 0 ? 0.0 : PayRate::forHours($user, $exact, Policy::current()), $minutes];
+        return [round($exact, 2), $minutes === 0 ? 0.0 : PayRate::forHours($user, $exact, Policy::current(), $start), $minutes];
     }
 
     /** Stored as a plain Y-m-d (as on Leave), so range queries with date strings are exact. */

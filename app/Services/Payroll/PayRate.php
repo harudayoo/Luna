@@ -4,24 +4,46 @@ namespace App\Services\Payroll;
 
 use App\Models\User;
 use App\Services\Pto\Policy;
+use Carbon\CarbonImmutable;
 
 /**
- * What unpaid hours cost, the accountant's way: monthly x 12 / work days a year / hours a day
- * (monthly / 173.33 at 260 days), rounded once at the end. People without a monthly salary
- * fall back to their stored daily rate; with neither, there is no figure.
+ * What a day and an hour cost for someone in a given month (user, 2026-11-13):
+ * - a fixed daily rate HR set for the person wins;
+ * - otherwise monthly salary ÷ that month's working days (WorkDays: every Mon-Fri, holidays included as paid days);
+ * - people with neither fall back to their stored daily rate; with nothing, there is no figure.
+ * An hour is the daily rate ÷ hours a day; pesos are rounded once, at the end.
  */
 final class PayRate
 {
-    public static function forHours(User $user, float $hours, Policy $policy): ?float
+    /** The daily rate for the month $on falls in, rounded to centavos; null without any rate. */
+    public static function dailyFor(User $user, CarbonImmutable $on): ?float
     {
+        $daily = self::exactDaily($user, $on);
+
+        return $daily === null ? null : round($daily, 2);
+    }
+
+    public static function forHours(User $user, float $hours, Policy $policy, CarbonImmutable $on): ?float
+    {
+        $daily = self::exactDaily($user, $on);
+
+        return $daily === null ? null : round($hours / $policy->hoursPerDay * $daily, 2);
+    }
+
+    public static function hasRate(User $user): bool
+    {
+        return $user->fixed_daily_rate !== null || $user->monthly_salary !== null || $user->daily_rate !== null;
+    }
+
+    private static function exactDaily(User $user, CarbonImmutable $on): ?float
+    {
+        if ($user->fixed_daily_rate !== null) {
+            return (float) $user->fixed_daily_rate;
+        }
         if ($user->monthly_salary !== null) {
-            return round($hours * $policy->hourlyRate((float) $user->monthly_salary), 2);
+            return (float) $user->monthly_salary / max(1, WorkDays::inMonth($on));
         }
 
-        if ($user->daily_rate !== null) {
-            return round($hours / $policy->hoursPerDay * (float) $user->daily_rate, 2);
-        }
-
-        return null;
+        return $user->daily_rate === null ? null : (float) $user->daily_rate;
     }
 }

@@ -4,8 +4,6 @@ namespace Database\Seeders;
 
 use App\Enums\Role;
 use App\Models\User;
-use App\Services\Payroll\PayslipMath;
-use App\Services\Pto\Policy;
 use Illuminate\Database\Seeder;
 use RuntimeException;
 
@@ -42,7 +40,6 @@ class TestAccountsSeeder extends Seeder
             'role' => $role,
             'position' => $position,
             'monthly_salary' => $monthly,
-            'daily_rate' => PayslipMath::dailyRate($monthly, Policy::current()->workDaysPerYear),
             'email_verified_at' => $user->email_verified_at ?? now(),
         ])->save();
     }

@@ -13,7 +13,7 @@ use Tests\TestCase;
 
 /**
  * Tardiness on the payslip: its own line, prefilled from the period's declared lates at the accountant's
- * hourly rate (monthly x 12 / 260 / 8), exact hours rounded once. Ana earns 60,000 (346.1538 an hour), paid
+ * hourly rate (monthly ÷ the month's working days ÷ 8), exact hours rounded once. Ana earns 60,000 (357.1429 an hour in Nov 2026's 21 days), paid
  * monthly; she declared 47 + 30 minutes in November and 20 in October.
  */
 class TardinessPayslipTest extends TestCase
@@ -42,8 +42,8 @@ class TardinessPayslipTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('payslip.tardiness_hours', 1.28)
-                ->where('payslip.tardiness', 444.23)
-                ->where('payslip.gross_pay', 59555.77));
+                ->where('payslip.tardiness', 458.33)
+                ->where('payslip.gross_pay', 59541.67));
     }
 
     public function test_saving_stores_tardiness_and_takes_it_off_gross()

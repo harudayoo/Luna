@@ -127,8 +127,8 @@ class LateLogTest extends TestCase
                 ->where('lates.0.date', '2026-11-13')
                 ->where('lates.0.minutes', 47)
                 ->where('period.minutes', 77)
-                // 77 min at 60,000 x 12 / 260 / 8 = 346.1538 an hour, rounded once: 444.23.
-                ->where('period.pesos', 444.23)
+                // 77 min at 60,000 / 21 Nov working days / 8 = 357.1429 an hour, rounded once: 458.33.
+                ->where('period.pesos', 458.33)
                 ->where('wip_attendance', 'https://wip.quicksilversystems.com/servers/1d2a17e2-6f7d-48b3-8b00-de9e39fd23b1/channels/a0b29c6f-4200-4817-9e2d-23b29f893cd2'));
     }
 }

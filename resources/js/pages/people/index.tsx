@@ -1,11 +1,11 @@
-import { Form, Head, router, usePage } from '@inertiajs/react';
-import { UserX } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import PeopleController from '@/actions/App/Http/Controllers/PeopleController';
-import InputError from '@/components/input-error';
-import { PeopleTabs } from '@/components/people-tabs';
-import { Button } from '@/components/ui/button';
+import { Form, Head, router, usePage } from "@inertiajs/react";
+import { UserX } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import PeopleController from "@/actions/App/Http/Controllers/PeopleController";
+import InputError from "@/components/input-error";
+import { PeopleTabs } from "@/components/people-tabs";
+import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogClose,
@@ -14,20 +14,20 @@ import {
     DialogFooter,
     DialogTitle,
     DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
-import { useClipboard } from '@/hooks/use-clipboard';
-import { index as peopleIndex } from '@/routes/people';
-import type { Role } from '@/types';
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { useClipboard } from "@/hooks/use-clipboard";
+import { index as peopleIndex } from "@/routes/people";
+import type { Role } from "@/types";
 
 type Person = {
     id: number;
@@ -41,13 +41,20 @@ type Person = {
     position: string | null;
     monthly_salary: number | null;
     daily_rate: number | null;
+    /** HR pinned this daily rate for the person; it wins over the monthly basis. */
+    fixed_daily_rate: number | null;
+    /** What a day costs this month, whichever basis applies. */
+    month_rate: number | null;
     pto_start: string | null;
     pto_opening_hours: number;
 };
 
+type WorkDays = { month: string; days: number };
+
 type Props = {
     people: Person[];
     officeStartedOn: string;
+    workDays: WorkDays;
     roles: { value: Role; label: string }[];
     invitableRoles: Role[];
 };
@@ -57,6 +64,7 @@ export default function People({
     roles,
     invitableRoles,
     officeStartedOn,
+    workDays,
 }: Props) {
     const { auth } = usePage().props;
     const label = (role: Role) => roles.find((r) => r.value === role)?.label;
@@ -70,8 +78,9 @@ export default function People({
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <p className="max-w-prose text-sm text-muted">
                     Everyone with a Luna account. Invited people set their own
-                    password from their link. Set each person&rsquo;s daily rate
-                    so unpaid leave shows in pesos.
+                    password from their link. Set each person&rsquo;s monthly
+                    salary (or a fixed daily rate) so unpaid leave shows in
+                    pesos.
                 </p>
                 <InviteDialog roles={roles} invitableRoles={invitableRoles} />
             </div>
@@ -84,7 +93,7 @@ export default function People({
                     >
                         <div className="min-w-0 flex-1 sm:min-w-60">
                             <p
-                                className={`truncate font-semibold ${person.deactivated ? 'text-muted' : ''}`}
+                                className={`truncate font-semibold ${person.deactivated ? "text-muted" : ""}`}
                             >
                                 {person.name}
                                 {person.deactivated && (
@@ -103,12 +112,12 @@ export default function People({
                             </p>
                             <p className="mt-1 text-xs text-muted">
                                 {person.position && `${person.position} · `}
-                                {person.monthly_salary !== null
-                                    ? `${peso(person.monthly_salary)}/month`
-                                    : person.daily_rate !== null
-                                      ? `${peso(person.daily_rate)}/day`
-                                      : 'No daily rate'}
-                                {' · from '}
+                                {person.monthly_salary !== null &&
+                                    `${peso(person.monthly_salary)}/month · `}
+                                {person.month_rate !== null
+                                    ? `${peso(person.month_rate)}/day${person.fixed_daily_rate !== null ? " (fixed)" : ""}`
+                                    : "No daily rate"}
+                                {" · from "}
                                 {shortDate(person.pto_start ?? officeStartedOn)}
                                 {person.pto_opening_hours > 0 &&
                                     ` · opening ${person.pto_opening_hours.toFixed(2)} h`}
@@ -118,6 +127,7 @@ export default function People({
                         <LeaveDetails
                             person={person}
                             officeStartedOn={officeStartedOn}
+                            workDays={workDays}
                         />
 
                         {person.invite_url && (
@@ -147,25 +157,27 @@ export default function People({
 }
 
 const peso = (n: number) =>
-    new Intl.NumberFormat('en-PH', {
-        style: 'currency',
-        currency: 'PHP',
+    new Intl.NumberFormat("en-PH", {
+        style: "currency",
+        currency: "PHP",
     }).format(n);
 const shortDate = (iso: string) =>
-    new Intl.DateTimeFormat('en-PH', {
-        timeZone: 'UTC',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
+    new Intl.DateTimeFormat("en-PH", {
+        timeZone: "UTC",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
     }).format(new Date(`${iso}T00:00:00Z`));
 
 /** HR sets the PTO values the engine needs: rate (for pesos), start date, opening balance. */
 function LeaveDetails({
     person,
     officeStartedOn,
+    workDays,
 }: {
     person: Person;
     officeStartedOn: string;
+    workDays: WorkDays;
 }) {
     const [open, setOpen] = useState(false);
 
@@ -205,7 +217,7 @@ function LeaveDetails({
                                     name="position"
                                     maxLength={80}
                                     autoComplete="organization-title"
-                                    defaultValue={person.position ?? ''}
+                                    defaultValue={person.position ?? ""}
                                     placeholder="e.g. Software Developer"
                                 />
                                 <InputError message={errors.position} />
@@ -225,17 +237,39 @@ function LeaveDetails({
                                         person.monthly_salary ??
                                         (person.daily_rate !== null
                                             ? Math.round(person.daily_rate * 22)
-                                            : '')
+                                            : "")
                                     }
                                     placeholder="e.g. 60000"
                                 />
                                 <p className="text-xs text-muted">
-                                    The daily rate for unpaid leave is this ÷ 22
-                                    {person.daily_rate !== null &&
-                                        ` (now ${peso(person.daily_rate)})`}
-                                    .
+                                    The daily rate is this ÷ the month&rsquo;s
+                                    working days ({workDays.month}:{" "}
+                                    {workDays.days} days), unless a fixed rate
+                                    is set below.
                                 </p>
                                 <InputError message={errors.monthly_salary} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor={`fixed-rate-${person.id}`}>
+                                    Fixed daily rate (₱, optional)
+                                </Label>
+                                <Input
+                                    id={`fixed-rate-${person.id}`}
+                                    name="fixed_daily_rate"
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.01"
+                                    min="0"
+                                    defaultValue={person.fixed_daily_rate ?? ""}
+                                    placeholder="Leave empty to follow the month"
+                                />
+                                <p className="text-xs text-muted">
+                                    {person.month_rate !== null
+                                        ? `This month: ${peso(person.month_rate)} a day. `
+                                        : ""}
+                                    Used for every month while set.
+                                </p>
+                                <InputError message={errors.fixed_daily_rate} />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor={`start-${person.id}`}>
@@ -246,7 +280,7 @@ function LeaveDetails({
                                     name="pto_start"
                                     type="date"
                                     min={officeStartedOn}
-                                    defaultValue={person.pto_start ?? ''}
+                                    defaultValue={person.pto_start ?? ""}
                                 />
                                 <p className="text-xs text-muted">
                                     Leave empty if they started when the office
@@ -302,7 +336,7 @@ function CopyInviteLink({ url }: { url: string }) {
                     void copy(url).then((ok) =>
                         ok
                             ? toast.success(
-                                  'Invite link copied. Paste it to them in chat.',
+                                  "Invite link copied. Paste it to them in chat.",
                               )
                             : setManual(true),
                     )
@@ -449,7 +483,7 @@ function RoleSelect({
     roles,
 }: {
     person: Person;
-    roles: Props['roles'];
+    roles: Props["roles"];
 }) {
     return (
         <Select
@@ -486,7 +520,7 @@ function RoleSelect({
 function InviteDialog({
     roles,
     invitableRoles,
-}: Pick<Props, 'roles' | 'invitableRoles'>) {
+}: Pick<Props, "roles" | "invitableRoles">) {
     const [open, setOpen] = useState(false);
 
     return (
@@ -576,5 +610,5 @@ function InviteDialog({
 }
 
 People.layout = {
-    breadcrumbs: [{ title: 'People', href: peopleIndex() }],
+    breadcrumbs: [{ title: "People", href: peopleIndex() }],
 };

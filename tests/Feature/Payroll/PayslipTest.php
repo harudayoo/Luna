@@ -54,8 +54,9 @@ class PayslipTest extends TestCase
         ]);
     }
 
-    public function test_the_monthly_salary_sets_the_daily_rate()
+    public function test_saving_the_salary_no_longer_rewrites_the_stored_daily_rate()
     {
+        // The rate follows the month now (PayRate); the stored daily_rate is only for people without a salary.
         $this->actingAs($this->hr)
             ->patch(route('people.update', $this->ana), [
                 'monthly_salary' => 60000, 'position' => 'Senior Developer', 'pto_opening_hours' => 0,
@@ -63,7 +64,7 @@ class PayslipTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->ana->refresh();
-        $this->assertSame('2769.23', $this->ana->daily_rate);
+        $this->assertSame('2727.27', $this->ana->daily_rate);
         $this->assertSame('Senior Developer', $this->ana->position);
     }
 
@@ -79,7 +80,7 @@ class PayslipTest extends TestCase
                 ->where('period.end', '2026-11-15')
                 ->where('payslip.basic_pay', 30000)
                 ->where('payslip.unpaid_hours', 9.33)
-                ->where('payslip.absences', 3230.77)
+                ->where('payslip.absences', 3333.33)
                 ->where('payslip.sss', 0)
                 ->where('saved', false));
     }
@@ -90,14 +91,14 @@ class PayslipTest extends TestCase
 
         $slip = Payslip::sole();
         $this->assertSame(
-            ['30000.00', '3545.45', '29726.14', '3300.00', '26426.14', 'Developer', '2026-11-15'],
+            ['30000.00', '3714.28', '29894.97', '3300.00', '26594.97', 'Developer', '2026-11-15'],
             [$slip->basic_pay, $slip->holiday_pay, $slip->gross_pay, $slip->total_deductions, $slip->net_pay,
                 $slip->position, $slip->issued_on->toDateString()],
         );
 
         // Saving again updates the same payslip.
         $this->save('2026-11-01', ['cash_advance' => 1000])->assertSessionHasNoErrors();
-        $this->assertSame('25426.14', Payslip::sole()->net_pay);
+        $this->assertSame('25594.97', Payslip::sole()->net_pay);
     }
 
     public function test_the_next_payslip_reuses_the_previous_deductions()
@@ -135,7 +136,7 @@ class PayslipTest extends TestCase
                 ->component('people/payroll')
                 ->where('cutoff.start', '2026-11-01')
                 ->where('rows.1.name', 'Ana Cruz')
-                ->where('rows.1.net_pay', 26426.14)
+                ->where('rows.1.net_pay', 26594.97)
                 ->where('rows.0.payslip_id', null));
     }
 
@@ -158,7 +159,7 @@ class PayslipTest extends TestCase
                 ->where('payslip.name', 'Ana Cruz')
                 ->where('payslip.position', 'Developer')
                 ->where('payslip.monthly_salary', 60000)
-                ->where('payslip.net_pay', 26426.14)
+                ->where('payslip.net_pay', 26594.97)
                 ->where('company.name', 'Orchid City Software OPC'));
 
         $this->actingAs(User::factory()->create())->get(route('payslips.print', $slip))->assertForbidden();

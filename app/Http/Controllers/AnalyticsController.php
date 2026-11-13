@@ -62,7 +62,7 @@ class AnalyticsController extends Controller
             'balance' => $c->balance,
             'taken_hours' => $c->takenHours,
             'deducted_hours' => $c->deductedHours,
-            'deducted_pesos' => $this->pesos($c->deductedHoursExact, $user, $policy),
+            'deducted_pesos' => $this->pesos($c, $user, $policy),
         ]);
 
         return [
@@ -71,7 +71,7 @@ class AnalyticsController extends Controller
             // Leave by the hour makes fractions of a day; day totals are shown to 2 decimals.
             'taken_days' => round($this->leavesIn($year, $holidays)->where('user_id', $user->id)->sum('days'), 2),
             'unpaid_hours' => round($cutoffs->sum('deducted_hours'), 2),
-            'unpaid_pesos' => $user->daily_rate === null ? null : round($cutoffs->sum('deducted_pesos'), 2),
+            'unpaid_pesos' => ! PayRate::hasRate($user) ? null : round($cutoffs->sum('deducted_pesos'), 2),
             'cutoffs' => $cutoffs->values(),
         ];
     }
@@ -105,9 +105,9 @@ class AnalyticsController extends Controller
                         'name' => $u->name,
                         'days' => round($byUser->get($u->id)?->sum('days') ?? 0, 2),
                         'deducted_hours' => round($cutoffs->sum(fn (CutOff $c) => $c->deductedHours), 2),
-                        'deducted_pesos' => $u->daily_rate === null ? null
-                            : round($cutoffs->sum(fn (CutOff $c) => $this->pesos($c->deductedHoursExact, $u, $policy)), 2),
-                        'has_rate' => $u->daily_rate !== null,
+                        'deducted_pesos' => ! PayRate::hasRate($u) ? null
+                            : round($cutoffs->sum(fn (CutOff $c) => $this->pesos($c, $u, $policy)), 2),
+                        'has_rate' => PayRate::hasRate($u),
                     ],
                 ];
             });
@@ -121,7 +121,7 @@ class AnalyticsController extends Controller
                 'start' => $start,
                 'end' => $rows->first()['cutoff']->end->toDateString(),
                 'deducted_hours' => round($rows->sum(fn ($x) => $x['cutoff']->deductedHours), 2),
-                'deducted_pesos' => round($rows->sum(fn ($x) => $this->pesos($x['cutoff']->deductedHoursExact, $x['user'], $policy) ?? 0), 2),
+                'deducted_pesos' => round($rows->sum(fn ($x) => $this->pesos($x['cutoff'], $x['user'], $policy) ?? 0), 2),
                 'people' => $rows->count(),
             ])->values();
 
@@ -174,9 +174,10 @@ class AnalyticsController extends Controller
         return collect($ledger)->filter(fn (CutOff $c) => $c->start->year === $year)->values();
     }
 
-    private function pesos(float $hours, User $user, Policy $policy): ?float
+    /** A cut-off's unpaid hours at the rate of the month it falls in. */
+    private function pesos(CutOff $c, User $user, Policy $policy): ?float
     {
-        return PayRate::forHours($user, $hours, $policy);
+        return PayRate::forHours($user, $c->deductedHoursExact, $policy, $c->start);
     }
 
     /** @return list<int> from the office start year to this year (or the last year with leave) */
