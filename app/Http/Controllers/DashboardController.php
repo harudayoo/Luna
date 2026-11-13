@@ -33,6 +33,9 @@ class DashboardController extends Controller
             'out_today' => Holiday::query()->where('date', $today->toDateString())->exists()
                 ? 0
                 : Leave::query()->where('date', $today->toDateString())->distinct()->count('user_id'),
+            // Time (the headline card) and the WIP channels: WIP is the office's main channel.
+            'today' => TimeController::today($user),
+            'wip' => config('luna.wip'),
         ]);
     }
 }

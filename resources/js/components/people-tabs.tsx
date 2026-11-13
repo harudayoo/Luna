@@ -7,11 +7,13 @@ import {
     payroll as peoplePayroll,
     leave as peopleLeave,
     policy as peoplePolicy,
+    time as peopleTime,
 } from '@/routes/people';
 
 const TABS = [
     { title: 'People', href: peopleIndex(), path: '/people' },
     { title: 'Leave & pay', href: peopleLeave(), path: '/people/leave' },
+    { title: 'Time', href: peopleTime(), path: '/people/time' },
     { title: 'Payroll', href: peoplePayroll(), path: '/people/payroll' },
     { title: 'Formulas', href: peopleFormulas(), path: '/people/formulas' },
     { title: 'Policy', href: peoplePolicy(), path: '/people/policy' },

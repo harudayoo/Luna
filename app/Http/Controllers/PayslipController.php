@@ -73,8 +73,9 @@ class PayslipController extends Controller
             'holiday_regular_days' => $money('holiday_regular_days'),
             'holiday_special_days' => $money('holiday_special_days'),
             'unpaid_hours' => $money('unpaid_hours'),
+            'tardiness_hours' => $money('tardiness_hours'),
         ] + collect([
-            'monthly_salary', 'daily_rate', 'basic_pay', 'holiday_pay', 'absences', 'overtime_allowance', 'gross_pay',
+            'monthly_salary', 'daily_rate', 'basic_pay', 'holiday_pay', 'absences', 'tardiness', 'overtime_allowance', 'gross_pay',
             'sss', 'philhealth', 'pagibig', 'withholding_tax', 'cash_advance', 'total_deductions', 'net_pay',
         ])->mapWithKeys(fn ($k) => [$k => $money($k)])->all();
     }

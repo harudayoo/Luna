@@ -8,6 +8,7 @@ use App\Http\Controllers\PayrollReleaseController;
 use App\Http\Controllers\PeopleController;
 use App\Http\Controllers\PolicyController;
 use App\Http\Controllers\TeamLeaveController;
+use App\Http\Controllers\TeamTimeController;
 use Illuminate\Support\Facades\Route;
 
 // People (HR and admin): accounts and invites, each person's PTO values, everyone's leave and
@@ -17,6 +18,9 @@ Route::middleware(['auth', 'verified', 'can:hr'])->group(function () {
     Route::post('people', [PeopleController::class, 'store'])->name('people.store');
     Route::get('people/leave', [TeamLeaveController::class, 'index'])->name('people.leave');
     Route::post('people/{user}/leave', [TeamLeaveController::class, 'store'])->name('people.leave.store');
+    Route::get('people/time', [TeamTimeController::class, 'index'])->name('people.time');
+    Route::put('people/{user}/time/{date}', [TeamTimeController::class, 'update'])->name('people.time.update');
+    Route::post('people/{user}/lates', [TeamTimeController::class, 'storeLate'])->name('people.lates.store');
     Route::get('people/payroll', [PayrollController::class, 'index'])->name('people.payroll');
     // Release routes come before {user}/{cutoff}, which would otherwise catch release/print.
     Route::post('people/payroll/release', [PayrollReleaseController::class, 'store'])->name('people.payroll.release.all');

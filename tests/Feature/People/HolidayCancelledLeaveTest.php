@@ -122,7 +122,7 @@ class HolidayCancelledLeaveTest extends TestCase
 
     public function test_the_migration_rolls_back()
     {
-        Artisan::call('migrate:rollback', ['--step' => 1]);
+        Artisan::call('migrate:rollback', ['--path' => ['database/migrations/2026_11_13_000014_add_cancelled_by_holiday_to_leaves_table.php']]);
         $this->assertFalse(Schema::hasColumn('leaves', 'cancelled_by_holiday_id'));
 
         Artisan::call('migrate');

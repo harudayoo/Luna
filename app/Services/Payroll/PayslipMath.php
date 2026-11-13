@@ -7,7 +7,7 @@ namespace App\Services\Payroll;
  *
  * - Holiday pay: the premium for working a holiday, on top of the day already paid in the monthly
  *   salary: 100% of the daily rate for a regular holiday, 30% for a special non-working day.
- * - Gross = basic + holiday pay + overtime/allowance - absences (unpaid time off).
+ * - Gross = basic + holiday pay + overtime/allowance - absences (unpaid time off) - tardiness (declared lates).
  * - Net = gross - (SSS + PhilHealth + Pag-IBIG + withholding tax + cash advance/loan).
  *
  * Government deductions are entered by HR (from the accountant), not computed here.
@@ -36,7 +36,7 @@ final class PayslipMath
         $basic = round($monthly * $share, 2);
         $holiday = round($daily * ($n('holiday_regular_days') * self::REGULAR_HOLIDAY_PREMIUM
             + $n('holiday_special_days') * self::SPECIAL_HOLIDAY_PREMIUM), 2);
-        $gross = round($basic + $holiday + $n('overtime_allowance') - $n('absences'), 2);
+        $gross = round($basic + $holiday + $n('overtime_allowance') - $n('absences') - $n('tardiness'), 2);
         $deductions = round($n('sss') + $n('philhealth') + $n('pagibig') + $n('withholding_tax') + $n('cash_advance'), 2);
 
         return [

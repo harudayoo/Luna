@@ -15,6 +15,7 @@ import {
     CalendarDays,
     CalendarRange,
     ChartColumn,
+    Clock,
     House,
     Users,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import { index as analytics } from '@/routes/analytics';
 import { index as calendar } from '@/routes/calendar';
 import { index as leave } from '@/routes/leave';
 import { index as people } from '@/routes/people';
+import { index as time } from '@/routes/time';
 
 export type Module = {
     key: string;
@@ -42,6 +44,13 @@ export const MODULES: Module[] = [
         icon: House,
         href: dashboard(),
         match: '/dashboard',
+    },
+    {
+        key: 'time',
+        title: 'Time',
+        icon: Clock,
+        href: time(),
+        match: '/time',
     },
     {
         key: 'leave',

@@ -193,11 +193,20 @@ export default function Formulas({
                             name="Absences"
                             formula="unpaid PTO hours × hourly rate"
                         >
-                            Lates are added here by hand.
+                            Unpaid PTO only.
+                        </Formula>
+                        <Formula
+                            name="Tardiness"
+                            formula="declared late minutes ÷ 60 × hourly rate"
+                        >
+                            Only what people log under Time (as posted on
+                            WIP&rsquo;s Attendance channel), office hours only.
+                            The time-in and time-out stamps are a record and
+                            aren&rsquo;t charged.
                         </Formula>
                         <Formula
                             name="Gross pay"
-                            formula="basic + holiday pay + overtime/allowance − absences"
+                            formula="basic + holiday pay + overtime/allowance − absences − tardiness"
                         />
                         <Formula
                             name="Deductions"

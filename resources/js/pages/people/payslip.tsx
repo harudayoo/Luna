@@ -16,6 +16,7 @@ type Inputs = {
     holiday_regular_days: number;
     holiday_special_days: number;
     absences: number;
+    tardiness: number;
     overtime_allowance: number;
     sss: number;
     philhealth: number;
@@ -38,6 +39,9 @@ type Props = {
     payslip: Inputs & {
         basic_pay: number;
         unpaid_hours: number;
+        /** Declared lates in the period (Time) and what they cost at the hourly rate. */
+        tardiness_hours: number;
+        tardiness_due: number;
         issued_on: string;
     };
     saved: boolean;
@@ -77,6 +81,7 @@ export default function PayslipEditor({
         holiday_regular_days: payslip.holiday_regular_days,
         holiday_special_days: payslip.holiday_special_days,
         absences: payslip.absences,
+        tardiness: payslip.tardiness,
         overtime_allowance: payslip.overtime_allowance,
         sss: payslip.sss,
         philhealth: payslip.philhealth,
@@ -93,7 +98,11 @@ export default function PayslipEditor({
                 v.holiday_special_days * premiums.special),
     );
     const gross = r2(
-        payslip.basic_pay + holidayPay + v.overtime_allowance - v.absences,
+        payslip.basic_pay +
+            holidayPay +
+            v.overtime_allowance -
+            v.absences -
+            v.tardiness,
     );
     const deductions = r2(
         v.sss + v.philhealth + v.pagibig + v.withholding_tax + v.cash_advance,
@@ -218,12 +227,24 @@ export default function PayslipEditor({
                                         label="Absences / Unpaid time-off (₱)"
                                         hint={
                                             payslip.unpaid_hours > 0
-                                                ? `${payslip.unpaid_hours.toFixed(2)} h unpaid PTO in this ${frequency === 'monthly' ? 'month (both cut-offs)' : 'cut-off'}. Add lates here too.`
-                                                : `No unpaid PTO in this ${frequency === 'monthly' ? 'month' : 'cut-off'}. Add lates here.`
+                                                ? `${payslip.unpaid_hours.toFixed(2)} h unpaid PTO in this ${frequency === 'monthly' ? 'month (both cut-offs)' : 'cut-off'}.`
+                                                : `No unpaid PTO in this ${frequency === 'monthly' ? 'month' : 'cut-off'}.`
                                         }
                                         value={v.absences}
                                         onChange={set('absences')}
                                         error={errors.absences}
+                                    />
+                                    <Amount
+                                        name="tardiness"
+                                        label="Tardiness (₱)"
+                                        hint={
+                                            payslip.tardiness_hours > 0
+                                                ? `${payslip.tardiness_hours.toFixed(2)} h of declared lates (${peso(payslip.tardiness_due)} at the hourly rate).`
+                                                : 'No lates declared in this period.'
+                                        }
+                                        value={v.tardiness}
+                                        onChange={set('tardiness')}
+                                        error={errors.tardiness}
                                     />
                                     <Amount
                                         name="overtime_allowance"

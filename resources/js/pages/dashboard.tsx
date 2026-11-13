@@ -1,4 +1,8 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import type { Today } from '@/components/time-today';
+import { TimeToday } from '@/components/time-today';
+import type { WipChannel } from '@/components/wip-channels';
+import { WipChannels } from '@/components/wip-channels';
 import { dashboard } from '@/routes';
 import { index as analyticsIndex } from '@/routes/analytics';
 import { index as payslipsIndex } from '@/routes/payslips';
@@ -13,6 +17,8 @@ type Props = {
         next_accrual: number | null;
     };
     out_today: number;
+    today: Today;
+    wip: WipChannel[];
 };
 
 const short = (iso: string) =>
@@ -22,8 +28,9 @@ const short = (iso: string) =>
         day: 'numeric',
     }).format(new Date(`${iso}T00:00:00Z`));
 
-export default function Dashboard({ pto, out_today }: Props) {
+export default function Dashboard({ pto, out_today, today, wip }: Props) {
     const { auth } = usePage().props;
+    const attendance = wip.find((c) => c.key === 'attendance')?.url ?? '';
 
     return (
         <>
@@ -32,6 +39,11 @@ export default function Dashboard({ pto, out_today }: Props) {
             <h2 className="mb-6 text-2xl font-semibold">
                 Hello, {auth.user.name.split(' ')[0]}
             </h2>
+            {/* Gist first: today's time, then WIP (the office's main channel), then the rest. */}
+            <div className="mb-8">
+                <TimeToday today={today} wipUrl={attendance} />
+            </div>
+            <WipChannels channels={wip} />
             <div className="ocs-grid">
                 <Link
                     href={leaveIndex()}

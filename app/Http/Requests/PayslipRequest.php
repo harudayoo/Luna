@@ -20,6 +20,8 @@ class PayslipRequest extends FormRequest
             'holiday_regular_days' => $days,
             'holiday_special_days' => $days,
             'absences' => $money,
+            // Older clients don't send it: 0.
+            'tardiness' => ['sometimes', 'numeric', 'min:0', 'max:10000000'],
             'overtime_allowance' => $money,
             'sss' => $money,
             'philhealth' => $money,

@@ -106,6 +106,18 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $this->hasMany(Leave::class);
     }
 
+    /** @return HasMany<TimeLog, $this> */
+    public function timeLogs(): HasMany
+    {
+        return $this->hasMany(TimeLog::class);
+    }
+
+    /** @return HasMany<LateLog, $this> */
+    public function lateLogs(): HasMany
+    {
+        return $this->hasMany(LateLog::class);
+    }
+
     /** When PTO accrues from for this person: their own start date, else the office start. */
     public function ptoStart(): CarbonImmutable
     {

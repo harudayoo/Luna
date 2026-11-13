@@ -10,6 +10,22 @@ return [
         // When OCSPH office operations began: everyone's PTO accrues from here unless HR
         // gives them a later start date. Leave can't be logged before it.
         'started_on' => '2026-08-18',
+
+        // Time logs are stamped in office time (the app itself runs on UTC).
+        'timezone' => 'Asia/Manila',
+    ],
+
+    // WIP: the office's main channel to other offices, teams and clients (shown on Home). Attendance is
+    // where people post lates; Luna sends them there after logging one.
+    'wip' => [
+        ['key' => 'attendance', 'name' => 'attendance', 'server' => 'OCS', 'about' => 'Post your lates, early outs and errands.',
+            'url' => 'https://wip.quicksilversystems.com/servers/1d2a17e2-6f7d-48b3-8b00-de9e39fd23b1/channels/a0b29c6f-4200-4817-9e2d-23b29f893cd2'],
+        ['key' => 'ocs-dev', 'name' => 'development', 'server' => 'OCS', 'about' => 'The OCS team’s dev talk.',
+            'url' => 'https://wip.quicksilversystems.com/servers/1d2a17e2-6f7d-48b3-8b00-de9e39fd23b1/channels/8e678681-e8be-4fca-9b49-9bb111182da9'],
+        ['key' => 'qss-dev', 'name' => 'development', 'server' => 'QSS', 'about' => 'Quick Silver Systems dev talk.',
+            'url' => 'https://wip.quicksilversystems.com/servers/0ff1cecb-9617-41c8-995c-45338bba79c2/channels/902628eb-b1a5-4329-ae06-11b66eaa4d77'],
+        ['key' => 'qss-info', 'name' => 'internal-info', 'server' => 'QSS', 'about' => 'Client codebases, architecture, company policies.',
+            'url' => 'https://wip.quicksilversystems.com/servers/0ff1cecb-9617-41c8-995c-45338bba79c2/channels/8f633425-e963-48c3-bb50-a3a2279e576f/content-node/4f9f252e-c631-49d4-9f2f-22aca6da23da'],
     ],
 
     'pto' => [

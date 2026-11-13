@@ -15,6 +15,8 @@ export type PayslipData = {
     holiday_pay: number;
     unpaid_hours: number;
     absences: number;
+    tardiness_hours: number;
+    tardiness: number;
     overtime_allowance: number;
     gross_pay: number;
     sss: number;
@@ -115,6 +117,14 @@ export function PayslipDocument({
                             p.absences > 0 ? `(${peso(p.absences)})` : peso(0)
                         }
                     />
+                    {/* Older payslips have no lates line; only show it when there's something on it. */}
+                    {p.tardiness > 0 && (
+                        <Row
+                            label="Tardiness"
+                            hint={`${p.tardiness_hours.toFixed(2)} h`}
+                            value={`(${peso(p.tardiness)})`}
+                        />
+                    )}
                     <Row
                         label="Overtime / Allowance"
                         value={peso(p.overtime_allowance)}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\PayslipRequest;
+use App\Models\LateLog;
 use App\Models\Payslip;
 use App\Models\User;
 use App\Services\Payroll\PayFrequency;
@@ -87,6 +88,7 @@ class PayrollController extends Controller
         [$start, $end] = $this->period($user, $cutoff);
         $saved = $user->payslips()->where('period_start', $start->toDateString())->first();
         [$unpaid, $unpaidExact] = $this->unpaidHours($user, $start, $end);
+        [$lateHours, $latePesos] = LateLog::tardiness($user, $start, $end);
         $frequency = PaySchedule::frequencyOf($start, $end);
         $daily = (float) $user->daily_rate;
 
@@ -109,6 +111,8 @@ class PayrollController extends Controller
                 }
             }
             $inputs['absences'] = PayRate::forHours($user, $unpaidExact, Policy::current()) ?? 0.0;
+            // Declared lates (Time), at the same hourly rate, on their own line.
+            $inputs['tardiness'] = $latePesos ?? 0.0;
             $issued = CarbonImmutable::today()->toDateString();
         }
 
@@ -124,6 +128,8 @@ class PayrollController extends Controller
             'frequency' => $frequency->value,
             'payslip' => $inputs + PayslipMath::totals((float) $user->monthly_salary, $daily, $inputs, $frequency->share()) + [
                 'unpaid_hours' => $unpaid,
+                'tardiness_hours' => $lateHours,
+                'tardiness_due' => $latePesos ?? 0.0,
                 'issued_on' => $issued,
             ],
             'saved' => $saved !== null,
@@ -151,7 +157,7 @@ class PayrollController extends Controller
             ]);
         }
 
-        $inputs = $request->safe()->only(Payslip::INPUTS);
+        $inputs = $request->safe()->only(Payslip::INPUTS) + ['tardiness' => 0.0];
         $monthly = (float) $user->monthly_salary;
         $daily = (float) $user->daily_rate;
 
@@ -164,6 +170,7 @@ class PayrollController extends Controller
                 'monthly_salary' => $monthly,
                 'daily_rate' => $daily,
                 'unpaid_hours' => $this->unpaidHours($user, $start, $end)[0],
+                'tardiness_hours' => LateLog::tardiness($user, $start, $end)[0],
                 'created_by' => $request->user()->id,
             ],
         );

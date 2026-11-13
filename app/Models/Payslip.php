@@ -27,6 +27,8 @@ use Illuminate\Support\Carbon;
  * @property string $holiday_pay
  * @property string $unpaid_hours
  * @property string $absences
+ * @property string $tardiness_hours declared lates in the period (LateLog)
+ * @property string $tardiness pesos for them; HR can adjust
  * @property string $overtime_allowance
  * @property string $gross_pay
  * @property string $sss
@@ -41,7 +43,7 @@ class Payslip extends Model
 {
     /** Amounts HR types in; everything else is copied or computed. */
     public const INPUTS = [
-        'holiday_regular_days', 'holiday_special_days', 'absences', 'overtime_allowance',
+        'holiday_regular_days', 'holiday_special_days', 'absences', 'tardiness', 'overtime_allowance',
         'sss', 'philhealth', 'pagibig', 'withholding_tax', 'cash_advance',
     ];
 
@@ -58,6 +60,7 @@ class Payslip extends Model
         return array_fill_keys([
             'monthly_salary', 'daily_rate', 'basic_pay', 'holiday_pay', 'absences', 'overtime_allowance', 'gross_pay',
             'sss', 'philhealth', 'pagibig', 'withholding_tax', 'cash_advance', 'total_deductions', 'net_pay', 'unpaid_hours',
+            'tardiness', 'tardiness_hours',
         ], 'decimal:2') + [
             'holiday_regular_days' => 'decimal:1',
             'holiday_special_days' => 'decimal:1',
