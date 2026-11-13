@@ -4,10 +4,11 @@ import { BackButton } from '@/components/back-button';
 import { useState } from 'react';
 import PayrollController from '@/actions/App/Http/Controllers/PayrollController';
 import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { ocsRef } from '@/lib/ocs';
 import { index as peopleIndex, payroll as payrollRoute } from '@/routes/people';
 import { release as releaseRoute } from '@/routes/people/payroll';
 import { print as printRoute } from '@/routes/payslips';
@@ -345,15 +346,20 @@ export default function PayslipEditor({
                                 {saved ? 'Save changes' : 'Save payslip'}
                             </Button>
                             {payslip_id && (
-                                <Button
-                                    variant="secondary"
-                                    className="bg-bg"
-                                    asChild
+                                // An export: the kit's code button (decode). It stays a link, so the
+                                // effect attaches to it directly, with the icon outside the label.
+                                <Link
+                                    ref={ocsRef(['decode', 'squish'])}
+                                    href={printRoute(payslip_id)}
+                                    className={buttonVariants({
+                                        variant: 'code',
+                                    })}
                                 >
-                                    <Link href={printRoute(payslip_id)}>
-                                        <Printer /> Print payslip
-                                    </Link>
-                                </Button>
+                                    <Printer />
+                                    <span className="ocs-btn-label">
+                                        Print payslip
+                                    </span>
+                                </Link>
                             )}
                             <p className="text-xs text-muted">
                                 {saved

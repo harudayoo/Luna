@@ -61,12 +61,25 @@ const EFFECTS: Record<Variant, OcsEffect[]> = {
 // wave and decode rewrite the label's text, so they only run on a fixed plain-text label.
 const TEXT_EFFECTS: OcsEffect[] = ["wave", "decode"]
 
+/** The kit effects a button gets. Text effects need a plain-text label; asChild keeps only the press. */
+function effectsFor(
+  variant: Variant | null | undefined,
+  { plainText, asChild = false, fx }: { plainText: boolean; asChild?: boolean; fx?: OcsEffect[] }
+): OcsEffect[] {
+  return (fx ?? EFFECTS[variant ?? "default"]).filter((e) =>
+    // asChild renders the caller's element (e.g. a Link) whose children we don't own:
+    // only the press effect, which touches nothing inside it.
+    asChild ? e === "squish" : plainText || !TEXT_EFFECTS.includes(e)
+  )
+}
+
 function Button({
   className,
   variant,
   size,
   asChild = false,
   fx,
+  icon,
   children,
   ref,
   ...props
@@ -75,15 +88,12 @@ function Button({
     asChild?: boolean
     /** Override the kit effects for this button; [] turns them off. */
     fx?: OcsEffect[]
+    /** Drawn before the label, outside it, so text effects (decode, wave) can run without wiping it. */
+    icon?: React.ReactNode
   }) {
   const Comp = asChild ? Slot : "button"
   const plainText = typeof children === "string"
-  const effects = (fx ?? EFFECTS[variant ?? "default"]).filter((e) =>
-    // asChild renders the caller's element (e.g. a Link) whose children we don't own:
-    // only the press effect, which touches nothing inside it.
-    asChild ? e === "squish" : plainText || !TEXT_EFFECTS.includes(e)
-  )
-  const attach = ocsRef(effects)
+  const attach = ocsRef(effectsFor(variant, { plainText, asChild, fx }))
 
   return (
     <Comp
@@ -99,10 +109,13 @@ function Button({
       {/* The kit animates .ocs-btn-label; rendering it here keeps the kit from moving React's nodes.
           The gap is only for icon + text: wave splits a plain-text label into one span per letter. */}
       {asChild ? children : (
-        <span className={plainText ? "ocs-btn-label" : "ocs-btn-label items-center gap-2"}>{children}</span>
+        <>
+          {icon}
+          <span className={plainText ? "ocs-btn-label" : "ocs-btn-label items-center gap-2"}>{children}</span>
+        </>
       )}
     </Comp>
   )
 }
 
-export { Button, buttonVariants }
+export { Button, buttonVariants, effectsFor }

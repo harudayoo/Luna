@@ -209,14 +209,17 @@ export function LogLateDialog({
                             <ExternalLink /> Copy and open #attendance
                         </Button>
                         <div className="grid grid-cols-3 gap-2">
+                            {/* Writes a new message: the kit's code button (decode). Its "> " prompt and mono
+                                font are wider, so on phones (a third of the width) the icon gives way. */}
                             <Button
-                                variant="secondary"
-                                className="bg-bg px-2"
+                                variant="code"
+                                className="px-2"
+                                icon={<Shuffle className="hidden sm:block" />}
                                 onClick={() =>
                                     late && setPosted(wipMessage(late, today))
                                 }
                             >
-                                <Shuffle /> Reword
+                                Reword
                             </Button>
                             <Button
                                 variant="secondary"
