@@ -21,7 +21,10 @@ export function WipChannels({
     channels,
     mine = [],
     max = 4,
+    tags,
 }: {
+    /** Tag presets for pinned tiles (OCS and the client companies). */
+    tags?: string[];
     channels: WipChannel[];
     /** The channels this person pinned. */
     mine?: WipTile[];
@@ -88,6 +91,7 @@ export function WipChannels({
                         {/* A sibling of the link, never inside it: a button in a link is invalid HTML. */}
                         <WipTileDialog
                             tile={t}
+                            tags={tags}
                             trigger={
                                 <button
                                     type="button"
@@ -103,6 +107,7 @@ export function WipChannels({
                 {mine.length < max && (
                     <li>
                         <WipTileDialog
+                            tags={tags}
                             trigger={
                                 <button
                                     type="button"

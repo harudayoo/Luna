@@ -23,16 +23,17 @@ export type WipTile = {
     url: string;
 };
 
-const PRESETS = ['OCS', 'QSS'] as const;
-
 /**
- * Pin one of your own WIP channels on Home, or edit/unpin one you pinned. Tag: OCS, QSS, or Custom (up to
+ * Pin one of your own WIP channels on Home, or edit/unpin one you pinned. Tag: OCS, a client company (People -> Companies), or Custom (up to
  * 4 letters or numbers). The link must be a WIP link; the server checks it too (WipTileRequest).
  */
 export function WipTileDialog({
     tile,
+    tags = ['OCS', 'QSS'],
     trigger,
 }: {
+    /** Preset tags: OCS and the client companies' (People -> Companies). */
+    tags?: string[];
     /** Omit to pin a new one. */
     tile?: WipTile;
     trigger: ReactNode;
@@ -40,8 +41,7 @@ export function WipTileDialog({
     const [open, setOpen] = useState(false);
     const [confirmRemove, setConfirmRemove] = useState(false);
     const [removing, setRemoving] = useState(false);
-    const initialCustom =
-        tile && !PRESETS.includes(tile.tag as (typeof PRESETS)[number]);
+    const initialCustom = tile && !tags.includes(tile.tag);
     const [custom, setCustom] = useState(Boolean(initialCustom));
     const form = useForm({
         tag: tile?.tag ?? 'OCS',
@@ -132,8 +132,8 @@ export function WipTileDialog({
                                 <legend className="mb-2 text-sm font-medium">
                                     Tag
                                 </legend>
-                                <div className="grid grid-cols-3 gap-1 bg-surface-hover p-1">
-                                    {[...PRESETS, 'Custom'].map((t) => {
+                                <div className="grid grid-cols-3 gap-1 bg-surface-hover p-1 sm:grid-cols-5">
+                                    {[...tags, 'Custom'].map((t) => {
                                         const isCustom = t === 'Custom';
                                         const checked = isCustom
                                             ? custom

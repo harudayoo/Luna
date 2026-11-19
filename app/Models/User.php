@@ -126,6 +126,18 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $this->hasMany(WipTile::class)->orderBy('id');
     }
 
+    /** Items they created (Personal and Company). @return HasMany<Item, $this> */
+    public function items(): HasMany
+    {
+        return $this->hasMany(Item::class);
+    }
+
+    /** Time they logged on items. @return HasMany<ItemTime, $this> */
+    public function itemTimes(): HasMany
+    {
+        return $this->hasMany(ItemTime::class);
+    }
+
     /** When PTO accrues from for this person: their own start date, else the office start. */
     public function ptoStart(): CarbonImmutable
     {

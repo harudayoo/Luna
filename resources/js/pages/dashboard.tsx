@@ -23,6 +23,7 @@ type Props = {
     today: Today;
     wip: WipChannel[];
     my_wip: WipTile[];
+    wip_tags: string[];
     wip_max: number;
 };
 
@@ -39,6 +40,7 @@ export default function Dashboard({
     today,
     wip,
     my_wip,
+    wip_tags,
     wip_max,
 }: Props) {
     const { auth } = usePage().props;
@@ -73,19 +75,15 @@ export default function Dashboard({
             href: analyticsIndex(),
             icon: GLANCE_ICONS.analytics,
         },
-        // Payslips are HR and admin only.
-        ...(auth.can.hr
-            ? [
-                  {
-                      key: 'pay',
-                      eyebrow: 'Pay',
-                      title: 'My payslips',
-                      note: 'Ready to print',
-                      href: payslipsIndex(),
-                      icon: GLANCE_ICONS.pay,
-                  },
-              ]
-            : []),
+        // Everyone's own payslips; employees see them once HR releases their pay.
+        {
+            key: 'pay',
+            eyebrow: 'Pay',
+            title: 'My payslips',
+            note: auth.can.hr ? 'Ready to print' : 'Once your pay is released',
+            href: payslipsIndex(),
+            icon: GLANCE_ICONS.pay,
+        },
     ];
 
     return (
@@ -102,7 +100,12 @@ export default function Dashboard({
                     <div className="mb-8">
                         <TimeToday today={today} wipUrl={attendance} />
                     </div>
-                    <WipChannels channels={wip} mine={my_wip} max={wip_max} />
+                    <WipChannels
+                        channels={wip}
+                        mine={my_wip}
+                        max={wip_max}
+                        tags={wip_tags}
+                    />
                 </div>
                 <aside>
                     <GlanceRail items={glance} />

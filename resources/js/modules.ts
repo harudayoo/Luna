@@ -17,11 +17,13 @@ import {
     ChartColumn,
     Clock,
     House,
+    ListTodo,
     Users,
 } from 'lucide-react';
 import { dashboard } from '@/routes';
 import { index as analytics } from '@/routes/analytics';
 import { index as calendar } from '@/routes/calendar';
+import { index as items } from '@/routes/items';
 import { index as leave } from '@/routes/leave';
 import { index as people } from '@/routes/people';
 import { index as time } from '@/routes/time';
@@ -51,6 +53,13 @@ export const MODULES: Module[] = [
         icon: Clock,
         href: time(),
         match: '/time',
+    },
+    {
+        key: 'items',
+        title: 'Items',
+        icon: ListTodo,
+        href: items(),
+        match: '/items',
     },
     {
         key: 'leave',

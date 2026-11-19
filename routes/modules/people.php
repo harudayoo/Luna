@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AcceptInviteController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\FormulasController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\PayrollController;
@@ -41,8 +42,16 @@ Route::middleware(['auth', 'verified', 'can:hr'])->group(function () {
     Route::post('people/{user}/invite', [PeopleController::class, 'resendInvite'])->name('people.invite');
 });
 
-// Admin only: roles, and ending or restoring someone's access (deactivated accounts keep their history).
+// Admin only: roles, and ending or restoring someone's access (deactivated accounts keep their history);
+// the client companies and their WIP item channels.
 Route::middleware(['auth', 'verified', 'can:admin'])->group(function () {
+    Route::get('people/companies', [CompanyController::class, 'index'])->name('people.companies');
+    Route::post('people/companies', [CompanyController::class, 'store'])->name('people.companies.store');
+    Route::put('people/companies/{company}', [CompanyController::class, 'update'])->name('people.companies.update');
+    Route::delete('people/companies/{company}', [CompanyController::class, 'destroy'])->name('people.companies.destroy');
+    Route::post('people/companies/{company}/channels', [CompanyController::class, 'storeChannel'])->name('people.companies.channels.store');
+    Route::put('people/channels/{channel}', [CompanyController::class, 'updateChannel'])->name('people.channels.update');
+    Route::delete('people/channels/{channel}', [CompanyController::class, 'destroyChannel'])->name('people.channels.destroy');
     Route::patch('people/{user}/role', [PeopleController::class, 'updateRole'])->name('people.role');
     Route::patch('people/{user}/deactivate', [PeopleController::class, 'deactivate'])->name('people.deactivate');
     Route::patch('people/{user}/reactivate', [PeopleController::class, 'reactivate'])->name('people.reactivate');

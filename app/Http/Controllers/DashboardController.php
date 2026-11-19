@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
@@ -40,6 +41,8 @@ class DashboardController extends Controller
             // The channels this person pinned under the office's tiles.
             'my_wip' => $user->wipTiles()->get()->map(fn (WipTile $t) => $t->toTile()),
             'wip_max' => WipTile::MAX,
+            // Tags for pinned tiles: the office's own, then every client company's.
+            'wip_tags' => ['OCS', ...Company::query()->orderBy('tag')->pluck('tag')->all()],
         ]);
     }
 }
