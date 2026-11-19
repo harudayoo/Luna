@@ -1,14 +1,7 @@
-import { Link, usePage } from '@inertiajs/react';
-import { Ellipsis } from 'lucide-react';
-import { useLayoutEffect, useRef } from 'react';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Link, router, usePage } from '@inertiajs/react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import { bloomTravel, ocsRef } from '@/lib/ocs';
+import { bloomFan, bloomTravel, ocsRef } from '@/lib/ocs';
 import { DOCK_SLOTS, MODULES } from '@/modules';
 import type { Module } from '@/modules';
 
@@ -23,6 +16,9 @@ const press = ocsRef(['squish']);
  * kit's `lift` token (ink shadow by day, violet glow at night). A tiny orchid, for the Luna
  * orchid the app is named after, sits over the module you're in and travels when you move
  * (lib/ocs.ts bloomTravel).
+ *
+ * Past DOCK_SLOTS modules (HR/admin), the middle slot becomes an orchid bud: tapping it blooms
+ * the remaining modules out in an arc above the dock (lib/ocs.ts bloomFan).
  */
 export function BloomDock() {
     const { auth } = usePage().props;
@@ -32,11 +28,9 @@ export function BloomDock() {
     const placed = useRef(false);
 
     const mine = MODULES.filter((m) => !m.gate || auth.can[m.gate]);
-    const overflow = mine.length > DOCK_SLOTS;
-    const shown = overflow ? mine.slice(0, DOCK_SLOTS - 1) : mine;
-    const more = overflow ? mine.slice(DOCK_SLOTS - 1) : [];
+    const { left, fanned, right } = splitDock(mine);
     const here = mine.find((m) => isCurrentOrParentUrl(m.match));
-    const activeKey = here ? (shown.includes(here) ? here.key : 'more') : null;
+    const activeKey = here ? (fanned.includes(here) ? 'bud' : here.key) : null;
 
     useLayoutEffect(() => {
         const marker = bloom.current;
@@ -53,8 +47,10 @@ export function BloomDock() {
             marker.style.opacity = target ? '1' : '0';
 
             if (target) {
+                // offsetLeft of the bud is inside its wrapper; measure against the bar instead.
                 const x =
-                    target.offsetLeft +
+                    target.getBoundingClientRect().left -
+                    bar.getBoundingClientRect().left +
                     target.offsetWidth / 2 -
                     marker.offsetWidth / 2;
                 bloomTravel(marker, x, instant);
@@ -80,48 +76,52 @@ export function BloomDock() {
                 className="pointer-events-auto relative flex bg-surface shadow-lift"
             >
                 <Bloom ref={bloom} />
-                {shown.map((m) => (
+                {left.map((m) => (
                     <DockLink
                         key={m.key}
                         module={m}
                         current={m.key === activeKey}
                     />
                 ))}
-                {overflow && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger
-                            data-dock="more"
-                            className={tile}
-                            aria-current={
-                                activeKey === 'more' ? 'page' : undefined
-                            }
-                        >
-                            <Ellipsis aria-hidden="true" />
-                            More
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            side="top"
-                            align="end"
-                            sideOffset={12}
-                            className="grid min-w-48 gap-1 p-2"
-                        >
-                            {more.map((m) => (
-                                <DropdownMenuItem key={m.key} asChild>
-                                    <Link
-                                        href={m.href}
-                                        className="flex min-h-10 items-center gap-3"
-                                    >
-                                        <m.icon aria-hidden="true" />
-                                        {m.title}
-                                    </Link>
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                {fanned.length > 0 && (
+                    <Bud
+                        modules={fanned}
+                        currentKey={activeKey === 'bud' ? here?.key : undefined}
+                    />
                 )}
+                {right.map((m) => (
+                    <DockLink
+                        key={m.key}
+                        module={m}
+                        current={m.key === activeKey}
+                    />
+                ))}
             </div>
         </nav>
     );
+}
+
+/**
+ * Up to DOCK_SLOTS modules: all in a row (`left`). Past that, the middle slot is the bud: the first
+ * DOCK_SLOTS - 1 modules sit either side of it and the rest fan out of it, in MODULES order.
+ */
+export function splitDock<T>(mine: T[]): {
+    left: T[];
+    fanned: T[];
+    right: T[];
+} {
+    if (mine.length <= DOCK_SLOTS) {
+        return { left: mine, fanned: [], right: [] };
+    }
+
+    const direct = mine.slice(0, DOCK_SLOTS - 1);
+    const half = Math.ceil(direct.length / 2);
+
+    return {
+        left: direct.slice(0, half),
+        fanned: mine.slice(DOCK_SLOTS - 1),
+        right: direct.slice(half),
+    };
 }
 
 function DockLink({
@@ -146,12 +146,200 @@ function DockLink({
     );
 }
 
+/*
+ * Where each fanned tile sits, in px from the bud's centre. Rings of up to 4 tiles: neighbours stay
+ * 84px apart (64px tiles + a gap), a ring never opens wider than +-50 degrees so its outer tiles clear
+ * the dock (it grows its radius instead), and each ring sits 80px outside the last. Fits 360 wide.
+ */
+export function arc(n: number): { x: number; y: number }[] {
+    const rad = (deg: number) => (deg * Math.PI) / 180;
+    const rings = Math.ceil(n / 4);
+    const spots: { x: number; y: number }[] = [];
+    let radius = 24;
+
+    for (let r = 0; r < rings; r++) {
+        const m = Math.ceil((n - spots.length) / (rings - r));
+        radius = Math.max(104, radius + 80);
+        // Half the angle between neighbours, for an 84px chord.
+        let step = (Math.asin(42 / radius) * 180) / Math.PI;
+
+        if (m > 1 && (m - 1) * step > 50) {
+            step = 50 / (m - 1);
+            radius = 42 / Math.sin(rad(step));
+        }
+
+        for (let i = 0; i < m; i++) {
+            const a = rad((i - (m - 1) / 2) * 2 * step);
+            spots.push({
+                x: Math.round(radius * Math.sin(a)),
+                y: Math.round(-radius * Math.cos(a)),
+            });
+        }
+    }
+
+    return spots;
+}
+
+function Bud({
+    modules,
+    currentKey,
+}: {
+    modules: Module[];
+    currentKey?: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const wrap = useRef<HTMLDivElement>(null);
+    const fan = useRef<HTMLUListElement>(null);
+    const button = useRef<HTMLButtonElement>(null);
+    const first = useRef(true);
+    const id = useId();
+    const spots = arc(modules.length);
+
+    useEffect(() => {
+        if (!fan.current || !button.current) {
+            return;
+        }
+
+        // First render: settle closed without animating.
+        if (first.current) {
+            first.current = false;
+
+            if (!open) {
+                fan.current.style.visibility = 'hidden';
+
+                return;
+            }
+        }
+
+        bloomFan(fan.current, button.current, open);
+
+        if (open) {
+            fan.current
+                .querySelector<HTMLElement>('[data-fan-item]')
+                ?.focus({ preventScroll: true });
+        }
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        const outside = (e: PointerEvent) => {
+            if (!wrap.current?.contains(e.target as Node)) {
+                setOpen(false);
+            }
+        };
+        const stop = router.on('start', () => setOpen(false));
+        document.addEventListener('pointerdown', outside);
+
+        return () => {
+            document.removeEventListener('pointerdown', outside);
+            stop();
+        };
+    }, [open]);
+
+    return (
+        <div
+            ref={wrap}
+            className="relative"
+            onKeyDown={(e) => {
+                if (e.key === 'Escape' && open) {
+                    e.stopPropagation();
+                    setOpen(false);
+                    button.current?.focus();
+                }
+            }}
+            onBlur={(e) => {
+                if (
+                    open &&
+                    e.relatedTarget &&
+                    !wrap.current?.contains(e.relatedTarget as Node)
+                ) {
+                    setOpen(false);
+                }
+            }}
+        >
+            <ul
+                ref={fan}
+                id={id}
+                role="menu"
+                aria-label="More modules"
+                className="pointer-events-auto absolute top-1/2 left-1/2 z-20"
+            >
+                {modules.map((m, i) => (
+                    <li key={m.key} role="none">
+                        <Link
+                            href={m.href}
+                            prefetch
+                            role="menuitem"
+                            data-fan-item
+                            data-x={spots[i].x}
+                            data-y={spots[i].y}
+                            aria-current={
+                                m.key === currentKey ? 'page' : undefined
+                            }
+                            onClick={() => setOpen(false)}
+                            className="absolute -top-8 -left-8 flex size-16 flex-col items-center justify-center gap-1 bg-surface text-[11px] font-semibold text-muted opacity-0 shadow-lift hover:bg-surface-hover hover:text-ink focus-visible:bg-surface-hover focus-visible:text-ink focus-visible:outline-none aria-[current=page]:text-primary [&_svg]:size-5"
+                        >
+                            <m.icon aria-hidden="true" />
+                            {m.title}
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+            <button
+                ref={button}
+                type="button"
+                data-dock="bud"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-controls={id}
+                aria-current={currentKey ? 'page' : undefined}
+                onClick={() => setOpen((o) => !o)}
+                className={`${tile} ${open ? 'text-primary' : ''}`}
+            >
+                <OrchidGlyph budded />
+                More
+            </button>
+        </div>
+    );
+}
+
 const PETALS = [0, 72, 144, 216, 288];
 
 /**
- * A tiny five-petal orchid over the dock's top edge, above the current module.
- * Petals in `primary`, the centre in `accent`: tokens, so it switches with the theme.
+ * The five-petal orchid. Petals in `primary`, the centre in `accent`: tokens, so it switches with
+ * the theme. `budded`: the dock's middle bud, petals half-closed until the fan opens (bloomFan).
  */
+function OrchidGlyph({ budded = false }: { budded?: boolean }) {
+    return (
+        <svg viewBox="-12 -12 24 24" className="size-full" aria-hidden="true">
+            {PETALS.map((deg) => (
+                <g key={deg} transform={`rotate(${deg})`}>
+                    <ellipse
+                        {...(budded
+                            ? { 'data-bud-petal': '' }
+                            : { 'data-petal': '' })}
+                        cx="0"
+                        cy="-5.4"
+                        rx="3.4"
+                        ry="5.6"
+                        className="fill-primary"
+                        style={{
+                            transformBox: 'fill-box',
+                            transformOrigin: '50% 100%',
+                            transform: budded ? 'scale(0.55)' : undefined,
+                        }}
+                    />
+                </g>
+            ))}
+            <circle r="2.6" className="fill-accent" />
+        </svg>
+    );
+}
+
+/** A tiny orchid over the dock's top edge, above the current module. */
 function Bloom({ ref }: { ref: React.Ref<HTMLSpanElement> }) {
     return (
         <span
@@ -161,25 +349,7 @@ function Bloom({ ref }: { ref: React.Ref<HTMLSpanElement> }) {
             // otherwise paint their hover shade over the petals that dip into the dock.
             className="pointer-events-none absolute -top-3 left-0 z-10 size-[18px] opacity-0 transition-opacity duration-(--dur-base) dark:drop-shadow-[0_0_6px_var(--accent)]"
         >
-            <svg viewBox="-12 -12 24 24" className="size-full">
-                {PETALS.map((deg) => (
-                    <g key={deg} transform={`rotate(${deg})`}>
-                        <ellipse
-                            data-petal
-                            cx="0"
-                            cy="-5.4"
-                            rx="3.4"
-                            ry="5.6"
-                            className="fill-primary"
-                            style={{
-                                transformBox: 'fill-box',
-                                transformOrigin: '50% 100%',
-                            }}
-                        />
-                    </g>
-                ))}
-                <circle r="2.6" className="fill-accent" />
-            </svg>
+            <OrchidGlyph />
         </span>
     );
 }

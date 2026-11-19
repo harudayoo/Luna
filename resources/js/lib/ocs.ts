@@ -248,3 +248,114 @@ export function backHop(el: HTMLElement): () => void {
 
     return () => el.removeEventListener('pointerenter', enter);
 }
+
+/*
+ * bloomFan: the Bloom dock's middle bud opens and the overflow modules bloom out of it in an arc
+ * (Luna-local, like bloomTravel). Items are the fan's [data-fan-item] tiles, each carrying its arc
+ * position in data-x / data-y (px from the bud's centre); bud petals are [data-bud-petal].
+ *   LIGHT (paper): the bud's petals snap open and the tiles are stamped out one by one on a quick
+ *                  overshoot, like cards dealt from a press.
+ *   DARK  (code):  the petals turn and breathe open, and the tiles drift out on a spring, fading up.
+ * Closing folds everything back into the bud, quicker. Reduced motion = it just appears / goes.
+ */
+export function bloomFan(
+    fan: HTMLElement,
+    bud: HTMLElement,
+    open: boolean,
+): void {
+    const { animate, spring, stagger, utils } = anime;
+    const items = [...fan.querySelectorAll<HTMLElement>('[data-fan-item]')];
+    const petals = bud.querySelectorAll<SVGElement>('[data-bud-petal]');
+    const at = (el: HTMLElement) => ({
+        x: Number(el.dataset.x),
+        y: Number(el.dataset.y),
+    });
+
+    utils.remove(items);
+    utils.remove(petals);
+
+    if (ocs().reduced()) {
+        items.forEach((el) =>
+            utils.set(
+                el,
+                open
+                    ? { ...at(el), scale: 1, opacity: 1 }
+                    : { x: 0, y: 0, scale: 0, opacity: 0 },
+            ),
+        );
+        utils.set(petals, { scale: open ? 1 : 0.55, rotate: open ? 36 : 0 });
+        fan.style.visibility = open ? 'visible' : 'hidden';
+
+        return;
+    }
+
+    if (open) {
+        fan.style.visibility = 'visible';
+        utils.set(items, { x: 0, y: 0, scale: 0, opacity: 0 });
+    }
+
+    const dark = ocs().isDark();
+
+    animate(petals, {
+        scale: open ? 1 : 0.55,
+        rotate: open ? 36 : 0,
+        duration: open ? 420 : 240,
+        ease: open ? (dark ? 'outElastic(1, .6)' : 'outBack(3)') : 'inQuad',
+        delay: stagger(open ? 30 : 15),
+    });
+
+    if (!open) {
+        let left = items.length;
+        items.forEach((el, i) =>
+            animate(el, {
+                x: 0,
+                y: 0,
+                scale: 0,
+                opacity: 0,
+                duration: 200,
+                ease: 'inQuad',
+                delay: (items.length - 1 - i) * 25,
+                onComplete: () => {
+                    left -= 1;
+
+                    if (left === 0) {
+                        fan.style.visibility = 'hidden';
+                    }
+                },
+            }),
+        );
+
+        if (items.length === 0) {
+            fan.style.visibility = 'hidden';
+        }
+
+        return;
+    }
+
+    items.forEach((el, i) => {
+        const { x, y } = at(el);
+
+        if (dark) {
+            animate(el, {
+                x: { to: x, ease: spring({ bounce: 0.35, duration: 700 }) },
+                y: { to: y, ease: spring({ bounce: 0.35, duration: 700 }) },
+                scale: { to: 1, duration: 420, ease: 'outQuad' },
+                opacity: { to: 1, duration: 300, ease: 'outQuad' },
+                delay: i * 45,
+            });
+
+            return;
+        }
+
+        animate(el, {
+            x: { to: x, duration: 300, ease: 'outBack(1.8)' },
+            y: { to: y, duration: 300, ease: 'outBack(1.8)' },
+            scale: [
+                { to: 1.12, duration: 220, ease: 'outQuad' },
+                { to: 1, duration: 160, ease: 'outBack(3)' },
+            ],
+            opacity: { to: 1, duration: 120 },
+            delay: i * 30,
+        });
+    });
+}

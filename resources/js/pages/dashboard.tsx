@@ -1,4 +1,6 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
+import type { GlanceItem } from '@/components/glance';
+import { GLANCE_ICONS, GlanceRail, GlanceStrip } from '@/components/glance';
 import type { Today } from '@/components/time-today';
 import { TimeToday } from '@/components/time-today';
 import type { WipChannel } from '@/components/wip-channels';
@@ -6,9 +8,9 @@ import { WipChannels } from '@/components/wip-channels';
 import type { WipTile } from '@/components/wip-tile-dialog';
 import { dashboard } from '@/routes';
 import { index as analyticsIndex } from '@/routes/analytics';
-import { index as payslipsIndex } from '@/routes/payslips';
 import { index as calendarIndex } from '@/routes/calendar';
 import { index as leaveIndex } from '@/routes/leave';
+import { index as payslipsIndex } from '@/routes/payslips';
 
 type Props = {
     pto: {
@@ -42,6 +44,50 @@ export default function Dashboard({
     const { auth } = usePage().props;
     const attendance = wip.find((c) => c.key === 'attendance')?.url ?? '';
 
+    const glance: GlanceItem[] = [
+        {
+            key: 'leave',
+            eyebrow: 'Leave',
+            title: `${pto.balance_hours.toFixed(2)} h PTO`,
+            note:
+                `${(pto.balance_hours / pto.hours_per_day).toFixed(2)} days` +
+                (pto.next_payday && pto.next_accrual !== null
+                    ? ` · +${pto.next_accrual.toFixed(2)} h ${short(pto.next_payday)}`
+                    : ''),
+            href: leaveIndex(),
+            icon: GLANCE_ICONS.leave,
+        },
+        {
+            key: 'calendar',
+            eyebrow: 'Calendar',
+            title: out_today === 0 ? 'Everyone’s in' : `${out_today} out today`,
+            note: 'Leave and office holidays',
+            href: calendarIndex(),
+            icon: GLANCE_ICONS.calendar,
+        },
+        {
+            key: 'analytics',
+            eyebrow: 'Analytics',
+            title: 'Your year',
+            note: 'PTO and pay by cut-off',
+            href: analyticsIndex(),
+            icon: GLANCE_ICONS.analytics,
+        },
+        // Payslips are HR and admin only.
+        ...(auth.can.hr
+            ? [
+                  {
+                      key: 'pay',
+                      eyebrow: 'Pay',
+                      title: 'My payslips',
+                      note: 'Ready to print',
+                      href: payslipsIndex(),
+                      icon: GLANCE_ICONS.pay,
+                  },
+              ]
+            : []),
+    ];
+
     return (
         <>
             <Head title="Dashboard" />
@@ -49,73 +95,18 @@ export default function Dashboard({
             <h2 className="mb-6 text-2xl font-semibold">
                 Hello, {auth.user.name.split(' ')[0]}
             </h2>
-            {/* Gist first: today's time, then WIP (the office's main channel), then the rest. */}
-            <div className="mb-8">
-                <TimeToday today={today} wipUrl={attendance} />
-            </div>
-            <WipChannels channels={wip} mine={my_wip} max={wip_max} />
-            <div className="ocs-grid">
-                <Link
-                    href={leaveIndex()}
-                    prefetch
-                    className="ocs-card ocs-card-link block"
-                >
-                    <p className="ocs-eyebrow">Leave</p>
-                    <h3>{pto.balance_hours.toFixed(2)} h of PTO</h3>
-                    <p>
-                        {(pto.balance_hours / pto.hours_per_day).toFixed(2)}{' '}
-                        days
-                        {pto.next_payday &&
-                            pto.next_accrual !== null &&
-                            ` · +${pto.next_accrual.toFixed(2)} h on ${short(pto.next_payday)}`}
-                    </p>
-                    <p className="mt-4 text-sm font-semibold text-primary">
-                        Log or view leave →
-                    </p>
-                </Link>
-                <Link
-                    href={calendarIndex()}
-                    prefetch
-                    className="ocs-card ocs-card-link block"
-                >
-                    <p className="ocs-eyebrow">Calendar</p>
-                    <h3>
-                        {out_today === 0
-                            ? 'Everyone’s in today'
-                            : `${out_today} out today`}
-                    </h3>
-                    <p>Everyone’s leave and the office holidays.</p>
-                    <p className="mt-4 text-sm font-semibold text-primary">
-                        See who’s out →
-                    </p>
-                </Link>
-                <Link
-                    href={analyticsIndex()}
-                    prefetch
-                    className="ocs-card ocs-card-link block"
-                >
-                    <p className="ocs-eyebrow">Analytics</p>
-                    <h3>Leave and pay over the year</h3>
-                    <p>Your PTO by cut-off, and what came off your pay.</p>
-                    <p className="mt-4 text-sm font-semibold text-primary">
-                        See the numbers →
-                    </p>
-                </Link>
-                {/* Payslips are HR and admin only. */}
-                {auth.can.hr && (
-                    <Link
-                        href={payslipsIndex()}
-                        prefetch
-                        className="ocs-card ocs-card-link block"
-                    >
-                        <p className="ocs-eyebrow">Pay</p>
-                        <h3>My payslips</h3>
-                        <p>Every payslip issued to you, ready to print.</p>
-                        <p className="mt-4 text-sm font-semibold text-primary">
-                            Open payslips →
-                        </p>
-                    </Link>
-                )}
+            {/* Gist first: on phones the glance strip leads; on desktop it's a rail beside Time and WIP. */}
+            <GlanceStrip items={glance} />
+            <div className="grid gap-x-6 lg:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-[minmax(0,1fr)_19rem]">
+                <div className="min-w-0">
+                    <div className="mb-8">
+                        <TimeToday today={today} wipUrl={attendance} />
+                    </div>
+                    <WipChannels channels={wip} mine={my_wip} max={wip_max} />
+                </div>
+                <aside>
+                    <GlanceRail items={glance} />
+                </aside>
             </div>
         </>
     );
