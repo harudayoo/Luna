@@ -11,9 +11,8 @@ Object.assign(globalThis, {
     requestAnimationFrame: () => 0,
     cancelAnimationFrame: () => {},
 });
-const { Button, effectsFor } = await import(
-    '../../resources/js/components/ui/button'
-);
+const { Button, effectsFor } =
+    await import('../../resources/js/components/ui/button');
 
 /**
  * The kit's text effects (decode, wave) rewrite the text of `.ocs-btn-label`. An icon passed as `icon` sits

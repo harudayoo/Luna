@@ -1,20 +1,20 @@
-import { Form, Head } from "@inertiajs/react";
-import { useState } from "react";
-import PolicyController from "@/actions/App/Http/Controllers/PolicyController";
-import InputError from "@/components/input-error";
-import { PeopleTabs } from "@/components/people-tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Form, Head } from '@inertiajs/react';
+import { useState } from 'react';
+import PolicyController from '@/actions/App/Http/Controllers/PolicyController';
+import InputError from '@/components/input-error';
+import { PeopleTabs } from '@/components/people-tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { policy as policyRoute } from "@/routes/people";
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
+import { policy as policyRoute } from '@/routes/people';
 
 type Props = {
     policy: {
@@ -28,11 +28,11 @@ type Props = {
 };
 
 const HINTS: Record<string, string> = {
-    full: "Everyone earns the full amount every cut-off, even with leave in it.",
-    unpaid: "Days covered by PTO still earn PTO; unpaid hours earn nothing, so that cut-off’s accrual is prorated.",
-    all: "Any leave hour earns nothing; accrual is prorated by hours actually worked in the cut-off.",
+    full: 'Everyone earns the full amount every cut-off, even with leave in it.',
+    unpaid: 'Days covered by PTO still earn PTO; unpaid hours earn nothing, so that cut-off’s accrual is prorated.',
+    all: 'Any leave hour earns nothing; accrual is prorated by hours actually worked in the cut-off.',
     forfeit:
-        "Any leave in a cut-off, even part of a day, loses that whole cut-off’s hours. Leave on a holiday doesn’t count.",
+        'Any leave in a cut-off, even part of a day, loses that whole cut-off’s hours. Leave on a holiday doesn’t count.',
 };
 
 /** The office leave policy: one set of rules that applies to everyone. */
@@ -164,5 +164,5 @@ export default function Policy({ policy, modes }: Props) {
 }
 
 Policy.layout = {
-    breadcrumbs: [{ title: "Leave policy", href: policyRoute() }],
+    breadcrumbs: [{ title: 'Leave policy', href: policyRoute() }],
 };

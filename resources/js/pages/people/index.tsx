@@ -1,11 +1,11 @@
-import { Form, Head, router, usePage } from "@inertiajs/react";
-import { UserX } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import PeopleController from "@/actions/App/Http/Controllers/PeopleController";
-import InputError from "@/components/input-error";
-import { PeopleTabs } from "@/components/people-tabs";
-import { Button } from "@/components/ui/button";
+import { Form, Head, router, usePage } from '@inertiajs/react';
+import { UserX } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import PeopleController from '@/actions/App/Http/Controllers/PeopleController';
+import InputError from '@/components/input-error';
+import { PeopleTabs } from '@/components/people-tabs';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogClose,
@@ -14,20 +14,20 @@ import {
     DialogFooter,
     DialogTitle,
     DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { useClipboard } from "@/hooks/use-clipboard";
-import { index as peopleIndex } from "@/routes/people";
-import type { Role } from "@/types";
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
+import { useClipboard } from '@/hooks/use-clipboard';
+import { index as peopleIndex } from '@/routes/people';
+import type { Role } from '@/types';
 
 type Person = {
     id: number;
@@ -93,7 +93,7 @@ export default function People({
                     >
                         <div className="min-w-0 flex-1 sm:min-w-60">
                             <p
-                                className={`truncate font-semibold ${person.deactivated ? "text-muted" : ""}`}
+                                className={`truncate font-semibold ${person.deactivated ? 'text-muted' : ''}`}
                             >
                                 {person.name}
                                 {person.deactivated && (
@@ -115,9 +115,9 @@ export default function People({
                                 {person.monthly_salary !== null &&
                                     `${peso(person.monthly_salary)}/month · `}
                                 {person.month_rate !== null
-                                    ? `${peso(person.month_rate)}/day${person.fixed_daily_rate !== null ? " (fixed)" : ""}`
-                                    : "No daily rate"}
-                                {" · from "}
+                                    ? `${peso(person.month_rate)}/day${person.fixed_daily_rate !== null ? ' (fixed)' : ''}`
+                                    : 'No daily rate'}
+                                {' · from '}
                                 {shortDate(person.pto_start ?? officeStartedOn)}
                                 {person.pto_opening_hours > 0 &&
                                     ` · opening ${person.pto_opening_hours.toFixed(2)} h`}
@@ -157,16 +157,16 @@ export default function People({
 }
 
 const peso = (n: number) =>
-    new Intl.NumberFormat("en-PH", {
-        style: "currency",
-        currency: "PHP",
+    new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
     }).format(n);
 const shortDate = (iso: string) =>
-    new Intl.DateTimeFormat("en-PH", {
-        timeZone: "UTC",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
+    new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'UTC',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
     }).format(new Date(`${iso}T00:00:00Z`));
 
 /** HR sets the PTO values the engine needs: rate (for pesos), start date, opening balance. */
@@ -217,7 +217,7 @@ function LeaveDetails({
                                     name="position"
                                     maxLength={80}
                                     autoComplete="organization-title"
-                                    defaultValue={person.position ?? ""}
+                                    defaultValue={person.position ?? ''}
                                     placeholder="e.g. Software Developer"
                                 />
                                 <InputError message={errors.position} />
@@ -237,13 +237,13 @@ function LeaveDetails({
                                         person.monthly_salary ??
                                         (person.daily_rate !== null
                                             ? Math.round(person.daily_rate * 22)
-                                            : "")
+                                            : '')
                                     }
                                     placeholder="e.g. 60000"
                                 />
                                 <p className="text-xs text-muted">
                                     The daily rate is this ÷ the month&rsquo;s
-                                    working days ({workDays.month}:{" "}
+                                    working days ({workDays.month}:{' '}
                                     {workDays.days} days), unless a fixed rate
                                     is set below.
                                 </p>
@@ -260,13 +260,13 @@ function LeaveDetails({
                                     inputMode="decimal"
                                     step="0.01"
                                     min="0"
-                                    defaultValue={person.fixed_daily_rate ?? ""}
+                                    defaultValue={person.fixed_daily_rate ?? ''}
                                     placeholder="Leave empty to follow the month"
                                 />
                                 <p className="text-xs text-muted">
                                     {person.month_rate !== null
                                         ? `This month: ${peso(person.month_rate)} a day. `
-                                        : ""}
+                                        : ''}
                                     Used for every month while set.
                                 </p>
                                 <InputError message={errors.fixed_daily_rate} />
@@ -280,7 +280,7 @@ function LeaveDetails({
                                     name="pto_start"
                                     type="date"
                                     min={officeStartedOn}
-                                    defaultValue={person.pto_start ?? ""}
+                                    defaultValue={person.pto_start ?? ''}
                                 />
                                 <p className="text-xs text-muted">
                                     Leave empty if they started when the office
@@ -336,7 +336,7 @@ function CopyInviteLink({ url }: { url: string }) {
                     void copy(url).then((ok) =>
                         ok
                             ? toast.success(
-                                  "Invite link copied. Paste it to them in chat.",
+                                  'Invite link copied. Paste it to them in chat.',
                               )
                             : setManual(true),
                     )
@@ -483,7 +483,7 @@ function RoleSelect({
     roles,
 }: {
     person: Person;
-    roles: Props["roles"];
+    roles: Props['roles'];
 }) {
     return (
         <Select
@@ -520,7 +520,7 @@ function RoleSelect({
 function InviteDialog({
     roles,
     invitableRoles,
-}: Pick<Props, "roles" | "invitableRoles">) {
+}: Pick<Props, 'roles' | 'invitableRoles'>) {
     const [open, setOpen] = useState(false);
 
     return (
@@ -610,5 +610,5 @@ function InviteDialog({
 }
 
 People.layout = {
-    breadcrumbs: [{ title: "People", href: peopleIndex() }],
+    breadcrumbs: [{ title: 'People', href: peopleIndex() }],
 };

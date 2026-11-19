@@ -1,23 +1,23 @@
-import { Form, Head } from "@inertiajs/react";
-import { useState } from "react";
-import type { ReactNode } from "react";
-import FormulasController from "@/actions/App/Http/Controllers/FormulasController";
-import InputError from "@/components/input-error";
-import { PeopleTabs } from "@/components/people-tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Form, Head } from '@inertiajs/react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
+import FormulasController from '@/actions/App/Http/Controllers/FormulasController';
+import InputError from '@/components/input-error';
+import { PeopleTabs } from '@/components/people-tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { formulas as formulasRoute } from "@/routes/people";
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
+import { formulas as formulasRoute } from '@/routes/people';
 
-type Frequency = "monthly" | "semi_monthly";
+type Frequency = 'monthly' | 'semi_monthly';
 
 type Props = {
     policy: {
@@ -36,25 +36,25 @@ type Props = {
 };
 
 const ACCRUAL_RULE: Record<string, string> = {
-    full: "Earned in full every cut-off, even with leave in it.",
-    unpaid: "Hours covered by PTO still earn; unpaid hours earn nothing, so the cut-off’s credit is prorated.",
-    all: "Any leave hour earns nothing: the credit is prorated by hours actually worked in the cut-off.",
+    full: 'Earned in full every cut-off, even with leave in it.',
+    unpaid: 'Hours covered by PTO still earn; unpaid hours earn nothing, so the cut-off’s credit is prorated.',
+    all: 'Any leave hour earns nothing: the credit is prorated by hours actually worked in the cut-off.',
     forfeit:
-        "Any leave in a cut-off, even part of a day, loses that cut-off’s whole credit. Leave on a holiday doesn’t count.",
+        'Any leave in a cut-off, even part of a day, loses that cut-off’s whole credit. Leave on a holiday doesn’t count.',
 };
 
 const peso = (n: number) =>
-    new Intl.NumberFormat("en-PH", {
-        style: "currency",
-        currency: "PHP",
+    new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
     }).format(n);
 const hrs = (n: number) => `${n.toFixed(2)} h`;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const monthName = (ym: string) =>
-    new Intl.DateTimeFormat("en-PH", {
-        timeZone: "UTC",
-        month: "long",
-        year: "numeric",
+    new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'UTC',
+        month: 'long',
+        year: 'numeric',
     }).format(new Date(`${ym.slice(0, 7)}-01T00:00:00Z`));
 
 /** HR and admin: how Luna works out PTO and pay, and how often pay is released. */
@@ -70,7 +70,7 @@ export default function Formulas({
 }: Props) {
     const label = (f: Frequency) =>
         frequencies.find((x) => x.value === f)?.label ?? f;
-    const monthly = frequency === "monthly";
+    const monthly = frequency === 'monthly';
     const hpd = policy.hours_per_day;
     const perMonth = policy.accrual_hours * 2;
 
@@ -108,13 +108,13 @@ export default function Formulas({
                             formula={`${round2(policy.accrual_hours).toFixed(2)} h`}
                         >
                             Kept unrounded ({policy.accrual_hours.toFixed(4)}
-                            …), so balances read{" "}
+                            …), so balances read{' '}
                             {[1, 2, 3]
                                 .map((n) =>
                                     round2(policy.accrual_hours * n).toFixed(2),
                                 )
-                                .join(", ")}
-                            . That is {hrs(perMonth)} a month and{" "}
+                                .join(', ')}
+                            . That is {hrs(perMonth)} a month and{' '}
                             {hrs(policy.accrual_hours * 24)} a year, from the
                             cut-off someone joins in.
                         </Formula>
@@ -143,8 +143,8 @@ export default function Formulas({
                             unpaid and the next cut-off starts from 0. It is
                             deducted on the payslip that covers that cut-off
                             {monthly
-                                ? " (the month’s payslip adds up both cut-offs)"
-                                : ""}
+                                ? ' (the month’s payslip adds up both cut-offs)'
+                                : ''}
                             .
                         </Formula>
                     </dl>
@@ -153,7 +153,7 @@ export default function Formulas({
                 <section className="ocs-card grid gap-4">
                     <div>
                         <p className="ocs-eyebrow">
-                            Pay · {monthly ? "per month" : "per cut-off"}
+                            Pay · {monthly ? 'per month' : 'per cut-off'}
                         </p>
                         <h3 className="text-lg font-semibold">
                             How a payslip is worked out
@@ -166,7 +166,7 @@ export default function Formulas({
                         >
                             Working days are every Monday to Friday; holidays
                             count, as they&rsquo;re paid. The rate moves with
-                            the month ({work_days.month}: {work_days.days}{" "}
+                            the month ({work_days.month}: {work_days.days}{' '}
                             days). A fixed daily rate set for a person on People
                             wins.
                         </Formula>
@@ -179,11 +179,11 @@ export default function Formulas({
                         </Formula>
                         <Formula
                             name="Basic pay"
-                            formula={monthly ? "monthly salary" : "monthly ÷ 2"}
+                            formula={monthly ? 'monthly salary' : 'monthly ÷ 2'}
                         >
                             {monthly
-                                ? "The whole salary, once a month."
-                                : "Half the salary on the 15th and half at month end."}
+                                ? 'The whole salary, once a month.'
+                                : 'Half the salary on the 15th and half at month end.'}
                         </Formula>
                         <Formula
                             name="Holiday pay"
@@ -260,14 +260,14 @@ function PayRelease({
     label,
 }: Pick<
     Props,
-    | "frequency"
-    | "default_frequency"
-    | "schedule"
-    | "frequencies"
-    | "next_month"
+    | 'frequency'
+    | 'default_frequency'
+    | 'schedule'
+    | 'frequencies'
+    | 'next_month'
 > & { label: (f: Frequency) => string }) {
     const [choice, setChoice] = useState<Frequency>(
-        frequency === "monthly" ? "semi_monthly" : "monthly",
+        frequency === 'monthly' ? 'semi_monthly' : 'monthly',
     );
 
     return (
@@ -276,9 +276,9 @@ function PayRelease({
                 <p className="ocs-eyebrow">Pay release</p>
                 <p className="text-2xl font-semibold">{label(frequency)}</p>
                 <p className="text-sm text-muted">
-                    {frequency === "monthly"
-                        ? "One payslip a month, released at month end."
-                        : "One payslip per cut-off, released on the 15th and at month end."}
+                    {frequency === 'monthly'
+                        ? 'One payslip a month, released at month end.'
+                        : 'One payslip per cut-off, released on the 15th and at month end.'}
                 </p>
             </div>
 
@@ -289,10 +289,10 @@ function PayRelease({
                 {schedule.map((s) => (
                     <li
                         key={s.from}
-                        className={s.upcoming ? "font-semibold" : "text-muted"}
+                        className={s.upcoming ? 'font-semibold' : 'text-muted'}
                     >
                         {label(s.frequency)} from {monthName(s.from)}
-                        {s.upcoming ? " (upcoming)" : ""}
+                        {s.upcoming ? ' (upcoming)' : ''}
                     </li>
                 ))}
             </ul>
@@ -370,8 +370,8 @@ function Example({
     days: number;
     hpd: number;
 }) {
-    const [salary, setSalary] = useState("30000");
-    const [unpaid, setUnpaid] = useState("9.33");
+    const [salary, setSalary] = useState('30000');
+    const [unpaid, setUnpaid] = useState('9.33');
     const [workDays, setWorkDays] = useState(String(days));
     const m = Number(salary) || 0;
     const u = Number(unpaid) || 0;
@@ -428,7 +428,7 @@ function Example({
                 <Line name="Daily rate" value={peso(daily)} />
                 <Line name="Hourly rate" value={`${peso(round2(hourly))}`} />
                 <Line
-                    name={monthly ? "Basic pay (month)" : "Basic pay (cut-off)"}
+                    name={monthly ? 'Basic pay (month)' : 'Basic pay (cut-off)'}
                     value={peso(basic)}
                 />
                 <Line
@@ -456,7 +456,7 @@ function Line({
 }) {
     return (
         <div
-            className={`flex items-baseline justify-between gap-4 p-2 ${strong ? "bg-background font-semibold" : ""}`}
+            className={`flex items-baseline justify-between gap-4 p-2 ${strong ? 'bg-background font-semibold' : ''}`}
         >
             <dt className="min-w-0 text-muted">{name}</dt>
             <dd className="shrink-0 font-semibold tabular-nums">{value}</dd>
@@ -465,5 +465,5 @@ function Line({
 }
 
 Formulas.layout = {
-    breadcrumbs: [{ title: "Formulas", href: formulasRoute() }],
+    breadcrumbs: [{ title: 'Formulas', href: formulasRoute() }],
 };
