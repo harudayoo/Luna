@@ -1,17 +1,40 @@
+import { useRef } from 'react';
+import { useAppearance } from '@/hooks/use-appearance';
 import { ocsRef } from '@/lib/ocs';
+import { switchTheme } from '@/lib/theme-switch';
 
-const attach = ocsRef(['theme-toggle', 'squish']);
+const attach = ocsRef(['squish']);
 
-/** The kit's ThemeToggle (resources/ocs/guides/ThemeToggle.md). ocs.js owns the click. */
+/**
+ * The kit's ThemeToggle look (resources/ocs/guides/ThemeToggle.md), with Luna's own switch: always switches,
+ * and plays a random effect from the tap (lib/theme-switch.ts).
+ */
 export function ThemeToggle() {
+    const { resolvedAppearance } = useAppearance();
+    const icon = useRef<SVGSVGElement>(null);
+
     return (
         <button
             type="button"
             ref={attach}
             className="ocs-btn ocs-icon-btn"
             aria-label="Toggle dark mode"
+            aria-pressed={resolvedAppearance === 'dark'}
+            onClick={(e) => {
+                // A keyboard press has no pointer position: start from the button itself.
+                const r = e.currentTarget.getBoundingClientRect();
+                const fromKey = e.detail === 0;
+                switchTheme(
+                    {
+                        x: fromKey ? r.left + r.width / 2 : e.clientX,
+                        y: fromKey ? r.top + r.height / 2 : e.clientY,
+                    },
+                    icon.current,
+                );
+            }}
         >
             <svg
+                ref={icon}
                 className="ocs-theme-icon"
                 viewBox="0 0 24 24"
                 fill="none"
