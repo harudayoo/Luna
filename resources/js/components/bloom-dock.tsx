@@ -230,7 +230,11 @@ function Bud({
                 setOpen(false);
             }
         };
-        const stop = router.on('start', () => setOpen(false));
+        const stop = router.on('start', (e) => {
+            if (closesFan(e.detail.visit)) {
+                setOpen(false);
+            }
+        });
         document.addEventListener('pointerdown', outside);
 
         return () => {
@@ -304,6 +308,14 @@ function Bud({
             </button>
         </div>
     );
+}
+
+/**
+ * Whether an Inertia "start" closes the fan. The tiles prefetch on hover and Inertia fires "start" for a
+ * prefetch too, so only a real visit may close it (else hovering a tile shut the fan under the cursor).
+ */
+export function closesFan(visit: { prefetch: boolean }): boolean {
+    return !visit.prefetch;
 }
 
 const PETALS = [0, 72, 144, 216, 288];

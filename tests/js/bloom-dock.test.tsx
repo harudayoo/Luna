@@ -10,7 +10,7 @@ Object.assign(globalThis, {
     history: { scrollRestoration: 'auto', state: null, replaceState: () => {} },
     location: { href: 'http://localhost/', pathname: '/' },
 });
-const { arc, splitDock } =
+const { arc, closesFan, splitDock } =
     await import('../../resources/js/components/bloom-dock');
 
 /**
@@ -66,5 +66,19 @@ describe('arc', () => {
         const spots = arc(4);
         expect(spots[0].x).toBe(-spots[3].x);
         expect(spots[0].y).toBe(spots[3].y);
+    });
+});
+
+/*
+ * The fan's tiles prefetch on hover, and Inertia fires "start" for a prefetch too. Only a real visit
+ * may close the fan, or hovering a tile shuts it under the cursor.
+ */
+describe('closesFan', () => {
+    it('stays open for a hover prefetch', () => {
+        expect(closesFan({ prefetch: true })).toBe(false);
+    });
+
+    it('closes for a real visit', () => {
+        expect(closesFan({ prefetch: false })).toBe(true);
     });
 });
