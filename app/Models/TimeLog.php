@@ -51,6 +51,19 @@ class TimeLog extends Model
         };
     }
 
+    /** Time in to time out, less lunch when both lunch stamps are there; null until timed out. */
+    public function workedMinutes(): ?int
+    {
+        if ($this->time_in === null || $this->time_out === null) {
+            return null;
+        }
+
+        $min = fn (string $t) => (int) substr($t, 0, 2) * 60 + (int) substr($t, 3, 2);
+        $lunch = $this->lunch_start !== null && $this->lunch_end !== null ? $min($this->lunch_end) - $min($this->lunch_start) : 0;
+
+        return $min($this->time_out) - $min($this->time_in) - $lunch;
+    }
+
     /** Stored as a plain Y-m-d (as on Leave), so lookups by date string are exact on every driver. */
     protected function date(): Attribute
     {

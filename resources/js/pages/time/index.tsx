@@ -1,5 +1,5 @@
-import { Head } from '@inertiajs/react';
-import { Lock } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import type { LateEntry } from '@/components/log-late-dialog';
 import {
     clock,
@@ -21,6 +21,14 @@ type Props = {
     };
     lates: (LateEntry & { locked: boolean })[];
     wip_attendance: string;
+    history: {
+        month: string;
+        prev: string;
+        next: string | null;
+        days: (Omit<Today, 'next' | 'can_skip_lunch'> & {
+            worked_minutes: number | null;
+        })[];
+    };
 };
 
 const fmt = (iso: string, o: Intl.DateTimeFormatOptions) =>
@@ -38,7 +46,13 @@ const peso = (n: number) =>
 const kindLabel = (k: string) =>
     LATE_KINDS.find((x) => x.value === k)?.label ?? k;
 
-export default function Time({ today, period, lates, wip_attendance }: Props) {
+export default function Time({
+    today,
+    period,
+    lates,
+    wip_attendance,
+    history,
+}: Props) {
     const inPeriod = lates.filter(
         (l) => l.date >= period.start && l.date <= period.end,
     );
@@ -80,6 +94,8 @@ export default function Time({ today, period, lates, wip_attendance }: Props) {
                 </section>
             </div>
 
+            <History history={history} />
+
             <LateList
                 title="This pay period"
                 entries={inPeriod}
@@ -89,6 +105,81 @@ export default function Time({ today, period, lates, wip_attendance }: Props) {
                 <LateList title="Earlier" entries={earlier} empty="" />
             )}
         </>
+    );
+}
+
+const monthLabel = (ym: string) =>
+    fmt(`${ym}-01`, { month: 'long', year: 'numeric' });
+const at = (t: string | null) => (t ? clock(t) : '—');
+
+/** My own days, a month at a time: the four stamps and the time worked (lunch taken out). */
+function History({ history }: { history: Props['history'] }) {
+    const step = (
+        month: string | null,
+        label: string,
+        Icon: typeof ChevronLeft,
+    ) =>
+        month ? (
+            <Link
+                href={timeIndex.url({ query: { month } })}
+                preserveScroll
+                aria-label={label}
+                className="flex size-10 items-center justify-center bg-surface text-muted hover:bg-surface-hover hover:text-ink"
+            >
+                <Icon className="size-5" />
+            </Link>
+        ) : (
+            <span aria-hidden="true" className="size-10" />
+        );
+    const worked = (m: number | null) => (m !== null ? duration(m) : 'open');
+
+    return (
+        <section className="mb-8">
+            <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="ocs-eyebrow mb-0">My time log</h3>
+                <div className="flex items-center gap-1">
+                    {step(history.prev, 'Previous month', ChevronLeft)}
+                    <span className="min-w-32 text-center text-sm font-semibold">
+                        {monthLabel(history.month)}
+                    </span>
+                    {step(history.next, 'Next month', ChevronRight)}
+                </div>
+            </div>
+            {history.days.length === 0 ? (
+                <p className="bg-surface p-4 text-sm text-muted">
+                    No days logged in {monthLabel(history.month)}.
+                </p>
+            ) : (
+                <ul className="grid gap-2">
+                    {history.days.map((d) => (
+                        <li
+                            key={d.date}
+                            className="grid min-h-14 gap-1 bg-surface px-4 py-2 sm:grid-cols-[10rem_1fr_auto] sm:items-center sm:gap-4"
+                        >
+                            <p className="flex items-center justify-between gap-2 font-semibold sm:block">
+                                {day(d.date)}
+                                <span className="font-mono text-sm sm:hidden">
+                                    {worked(d.worked_minutes)}
+                                </span>
+                            </p>
+                            <p className="flex flex-wrap gap-x-4 font-mono text-sm text-muted">
+                                <span>in {at(d.time_in)}</span>
+                                <span>
+                                    lunch{' '}
+                                    {d.lunch_start
+                                        ? `${at(d.lunch_start)}–${at(d.lunch_end)}`
+                                        : '—'}
+                                </span>
+                                <span>out {at(d.time_out)}</span>
+                            </p>
+                            <p className="hidden text-right font-mono text-sm font-semibold sm:block">
+                                {worked(d.worked_minutes)}
+                            </p>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
     );
 }
 

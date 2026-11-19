@@ -23,6 +23,7 @@ class TimeController extends Controller
 {
     public function index(Request $request): Response
     {
+        $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
         /** @var User $user */
         $user = $request->user();
         $today = CarbonImmutable::parse(TimeLog::officeNow()->toDateString());
@@ -39,7 +40,25 @@ class TimeController extends Controller
                 ]),
             'kinds' => LateLog::KINDS,
             'wip_attendance' => self::wipAttendance(),
+            'history' => self::history($user, $request->input('month')),
         ]);
+    }
+
+    /** Their own days in a month (default: this one), newest first, with the time worked. */
+    private static function history(User $user, ?string $month): array
+    {
+        $current = TimeLog::officeNow()->startOfMonth();
+        $first = $month ? CarbonImmutable::createFromFormat('!Y-m', $month) : CarbonImmutable::parse($current->toDateString());
+
+        return [
+            'month' => $first->format('Y-m'),
+            'prev' => $first->subMonth()->format('Y-m'),
+            'next' => $first->format('Y-m') < $current->format('Y-m') ? $first->addMonth()->format('Y-m') : null,
+            'days' => $user->timeLogs()->whereBetween('date', [$first->toDateString(), $first->endOfMonth()->toDateString()])
+                ->orderByDesc('date')->get()
+                ->map(fn (TimeLog $l) => ['date' => $l->date->toDateString()] + $l->only(TimeLog::STEPS) + ['worked_minutes' => $l->workedMinutes()])
+                ->values(),
+        ];
     }
 
     /** The next stamp of the day, at the office time now. The client sends which one, so a double tap can't skip ahead. */
