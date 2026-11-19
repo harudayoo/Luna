@@ -145,9 +145,9 @@ class PayslipTest extends TestCase
         $this->save('2026-11-01');
         $slip = Payslip::sole();
 
-        // Payslips are HR and admin only (user, 2026-11-12): employees can't list or print them, not even their own.
+        // Employees see their own payslips only once released (user, 2026-11-19; EmployeePayslipTest): this one isn't.
         $this->actingAs($this->ana)->get(route('people.payroll'))->assertForbidden();
-        $this->actingAs($this->ana)->get(route('payslips.index'))->assertForbidden();
+        $this->actingAs($this->ana)->get(route('payslips.index'))->assertOk()->assertInertia(fn ($page) => $page->has('payslips', 0));
         $this->actingAs($this->ana)->get(route('payslips.print', $slip))->assertForbidden();
 
         $this->actingAs($this->hr)->get(route('payslips.index'))->assertOk();

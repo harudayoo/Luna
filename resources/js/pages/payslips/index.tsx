@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { index as payslipsIndex, print as printRoute } from '@/routes/payslips';
@@ -24,8 +24,10 @@ const peso = (n: number) =>
         currency: 'PHP',
     }).format(n);
 
-/** My payslips: every payslip HR has made for you, newest first, each printable. */
+/** My payslips, newest first, each printable. Employees see a payslip once HR releases their pay. */
 export default function Payslips({ payslips }: Props) {
+    const { auth } = usePage().props;
+
     return (
         <>
             <Head title="My payslips" />
@@ -34,7 +36,8 @@ export default function Payslips({ payslips }: Props) {
 
             {payslips.length === 0 ? (
                 <p className="bg-surface p-4 text-sm text-muted">
-                    No payslips yet. They show up here once HR makes them.
+                    No payslips yet. They show up here once HR{' '}
+                    {auth.can.hr ? 'makes them' : 'releases your pay'}.
                 </p>
             ) : (
                 <ul className="grid gap-2">

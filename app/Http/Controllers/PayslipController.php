@@ -9,8 +9,9 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Payslips as documents (HR and admin only): their own list, and anyone's printable payslip, on a
- * whole sheet of the chosen paper. The release form prints them at half size, two to a sheet.
+ * Payslips as documents: your own list, and a printable payslip on a whole sheet of the chosen paper.
+ * Employees see only released payslips (their own); HR and admin see all their own and print anyone's.
+ * The release form prints them at half size, two to a sheet.
  */
 class PayslipController extends Controller
 {
@@ -33,27 +34,32 @@ class PayslipController extends Controller
         $user = $request->user();
 
         return Inertia::render('payslips/index', [
-            'payslips' => $user->payslips()->orderByDesc('period_start')->get()->map(fn (Payslip $p) => [
-                'id' => $p->id,
-                'start' => $p->period_start->toDateString(),
-                'end' => $p->period_end->toDateString(),
-                'issued_on' => $p->issued_on->toDateString(),
-                'net_pay' => (float) $p->net_pay,
-                'released_on' => $p->released_on?->toDateString(),
-            ]),
+            'payslips' => $user->payslips()->when(! $user->can('hr'), fn ($q) => $q->whereNotNull('released_on'))
+                ->orderByDesc('period_start')->get()->map(fn (Payslip $p) => [
+                    'id' => $p->id,
+                    'start' => $p->period_start->toDateString(),
+                    'end' => $p->period_end->toDateString(),
+                    'issued_on' => $p->issued_on->toDateString(),
+                    'net_pay' => (float) $p->net_pay,
+                    'released_on' => $p->released_on?->toDateString(),
+                ]),
         ]);
     }
 
     public function print(Request $request, Payslip $payslip): Response
     {
-        // HR and admin only (routes/modules/payslips.php).
+        /** @var User $user */
+        $user = $request->user();
+        $hr = $user->can('hr');
+        abort_unless($hr || ($payslip->user_id === $user->id && $payslip->released_on !== null), 403);
+
         $paper = $request->validate(['paper' => ['nullable', 'in:'.implode(',', array_keys(self::PAPERS))]])['paper'] ?? 'letter';
 
         return Inertia::render('print/payslip', [
             'paper' => $paper,
             'papers' => collect(self::PAPERS)->map(fn ($p, $key) => $p + ['value' => $key])->values(),
             'company' => self::COMPANY,
-            'back' => route('people.payroll', ['cutoff' => $payslip->period_start->toDateString()]),
+            'back' => $hr ? route('people.payroll', ['cutoff' => $payslip->period_start->toDateString()]) : route('payslips.index'),
             'payslip' => self::document($payslip),
         ]);
     }
