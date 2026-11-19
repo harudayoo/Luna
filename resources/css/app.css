@@ -18,6 +18,111 @@
 }
 
 /*
+ * Luna's type (user, 2026-11-19; resources/fonts/README-fonts.txt): Cal Sans page titles, Urbanist section
+ * titles, Didact Gothic body/labels/captions, Encode Sans Expanded Light for code and eyebrows (Thin was too
+ * faint at 11-13 px). Self-hosted like Bungee: latin + latin-ext subsets, so ₱ comes from the same face.
+ */
+@font-face {
+    font-family: 'Cal Sans';
+    src: url('../fonts/CalSans-400-latin.woff2') format('woff2');
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Cal Sans';
+    src: url('../fonts/CalSans-400-latin-ext.woff2') format('woff2');
+    font-display: swap;
+    unicode-range:
+        U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+        U+1E00-1E9F, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+A720-A7FF;
+}
+@font-face {
+    font-family: 'Urbanist';
+    src: url('../fonts/Urbanist-100-900-latin.woff2') format('woff2');
+    font-weight: 100 900;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Urbanist';
+    src: url('../fonts/Urbanist-100-900-latin-ext.woff2') format('woff2');
+    font-weight: 100 900;
+    font-display: swap;
+    unicode-range:
+        U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+        U+1E00-1E9F, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+A720-A7FF;
+}
+@font-face {
+    font-family: 'Didact Gothic';
+    src: url('../fonts/DidactGothic-400-latin.woff2') format('woff2');
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Didact Gothic';
+    src: url('../fonts/DidactGothic-400-latin-ext.woff2') format('woff2');
+    font-display: swap;
+    unicode-range:
+        U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+        U+1E00-1E9F, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+A720-A7FF;
+}
+@font-face {
+    font-family: 'Encode Sans Expanded';
+    src: url('../fonts/EncodeSansExpanded-300-latin.woff2') format('woff2');
+    font-weight: 300;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Encode Sans Expanded';
+    src: url('../fonts/EncodeSansExpanded-300-latin-ext.woff2') format('woff2');
+    font-weight: 300;
+    font-display: swap;
+    unicode-range:
+        U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+        U+1E00-1E9F, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+A720-A7FF;
+}
+
+/* After tokens.css, so these win; the kit's system stacks stay as fallbacks. */
+:root {
+    --font-sans:
+        'Didact Gothic', system-ui, -apple-system, 'Segoe UI', Roboto,
+        sans-serif;
+    --font-mono:
+        'Encode Sans Expanded', ui-monospace, 'Cascadia Code', Consolas,
+        monospace;
+    --font-title: 'Cal Sans', var(--font-sans);
+    --font-section: 'Urbanist', var(--font-sans);
+}
+
+@layer base {
+    /* Page titles (and the sign-in title). The header's h1 is the small breadcrumb: body type. */
+    h1,
+    h2 {
+        font-family: var(--font-title);
+        font-weight: 400;
+        font-synthesis-weight: none;
+    }
+    header h1 {
+        font-family: var(--font-sans);
+    }
+    h3,
+    [data-slot='dialog-title'] {
+        font-family: var(--font-section);
+    }
+}
+
+/* Code and eyebrows: one Light face, never a synthesized bold (font-semibold falls back to Light). */
+.font-mono,
+.ocs-eyebrow,
+.ocs-code,
+.ocs-badge,
+.ocs-btn-code {
+    font-synthesis-weight: none;
+}
+
+/* Theme switch effects that send the old view away (fall, vortex, flip) need it above the new one. */
+html[data-vt-old-top]::view-transition-old(root) {
+    z-index: 2;
+}
+
+/*
  * Printed documents (payslip, Payroll Release Form) have their own look, not the app's light or dark
  * theme (user, 2026-11-12, "corporate band"): white paper, ink text, and the OCS logo's plum. These are
  * print colours, kept here so the components use names, not hex. Same on screen in either theme.
