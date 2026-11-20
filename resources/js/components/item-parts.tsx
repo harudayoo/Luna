@@ -144,7 +144,8 @@ export type Logged = {
 
 /**
  * After time is logged on an item with a client channel (flash `item_logged`): the time as it goes onto WIP,
- * with Copy and "Copy and open <board>". A button, because browsers block opening tabs after an async save.
+ * with Copy, "Copy and open <board>" and "Open channel" (opens it without copying). Buttons, because
+ * browsers block opening tabs after an async save. The row wraps: long board names don't fit one line.
  */
 export function LoggedStep() {
     const [logged, setLogged] = useState<Logged | null>(null);
@@ -183,7 +184,7 @@ export function LoggedStep() {
                         <p className="font-mono text-5xl font-semibold">
                             {logged.wip}
                         </p>
-                        <div className="grid gap-2 sm:grid-cols-[auto_1fr]">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                             <Button
                                 variant="secondary"
                                 className="min-h-11"
@@ -193,7 +194,7 @@ export function LoggedStep() {
                                 {copied === logged.wip ? 'Copied' : 'Copy'}
                             </Button>
                             <Button
-                                className="min-h-11"
+                                className="min-h-11 sm:grow"
                                 onClick={() => {
                                     void copy(logged.wip);
                                     window.open(
@@ -206,6 +207,20 @@ export function LoggedStep() {
                             >
                                 <ExternalLink /> Copy and open{' '}
                                 {logged.channel.label}
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                className="min-h-11 sm:grow"
+                                onClick={() => {
+                                    window.open(
+                                        logged.channel!.url,
+                                        '_blank',
+                                        'noopener',
+                                    );
+                                    setLogged(null);
+                                }}
+                            >
+                                <ExternalLink /> Open channel
                             </Button>
                         </div>
                     </>
