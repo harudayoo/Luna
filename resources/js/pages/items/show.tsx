@@ -31,6 +31,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { officeHm, useOfficeClock } from '@/lib/office-clock';
 import { index as itemsIndex, show as itemShow } from '@/routes/items';
 
 type Entry = {
@@ -282,10 +283,20 @@ function LogTime({ id, today }: { id: number; today: string }) {
             ? mins(data.end) - mins(data.start)
             : 0;
     const field = (f: string) => `log-time-${id}-${f}`;
+    const now = useOfficeClock(true);
 
     return (
         <section className="ocs-card">
-            <p className="ocs-eyebrow">Log time by hand</p>
+            {/* The time now (office time), live, so a start or an end can be read off it. */}
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3">
+                <p className="ocs-eyebrow">Log time by hand</p>
+                <p className="text-sm">
+                    Now{' '}
+                    <time className="font-mono text-base font-semibold text-ink tabular-nums">
+                        {now}
+                    </time>
+                </p>
+            </div>
             <form
                 className="grid gap-3"
                 onSubmit={(e) => {
@@ -311,7 +322,11 @@ function LogTime({ id, today }: { id: number; today: string }) {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                     <div className="grid gap-1">
-                        <Label htmlFor={field('start')}>Start</Label>
+                        <NowLabel
+                            htmlFor={field('start')}
+                            label="Start"
+                            onNow={() => setData('start', officeHm(new Date()))}
+                        />
                         <Input
                             id={field('start')}
                             type="time"
@@ -323,7 +338,11 @@ function LogTime({ id, today }: { id: number; today: string }) {
                         <InputError message={errors.start} />
                     </div>
                     <div className="grid gap-1">
-                        <Label htmlFor={field('end')}>End</Label>
+                        <NowLabel
+                            htmlFor={field('end')}
+                            label="End"
+                            onNow={() => setData('end', officeHm(new Date()))}
+                        />
                         <Input
                             id={field('end')}
                             type="time"
@@ -356,6 +375,32 @@ function LogTime({ id, today }: { id: number; today: string }) {
                 </div>
             </form>
         </section>
+    );
+}
+
+/** A Start or End label with "Now" at its right: one tap fills the field with the office time. */
+function NowLabel({
+    htmlFor,
+    label,
+    onNow,
+}: {
+    htmlFor: string;
+    label: string;
+    onNow: () => void;
+}) {
+    return (
+        <div className="flex items-center justify-between gap-2">
+            <Label htmlFor={htmlFor}>{label}</Label>
+            {/* Tall enough to tap, without pushing the row down. */}
+            <button
+                type="button"
+                onClick={onNow}
+                aria-label={`Set ${label.toLowerCase()} to now`}
+                className="-my-3 min-h-10 px-2 text-sm font-semibold text-primary hover:underline focus-visible:shadow-lift focus-visible:outline-none"
+            >
+                Now
+            </button>
+        </div>
     );
 }
 

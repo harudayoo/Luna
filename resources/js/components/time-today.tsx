@@ -1,9 +1,10 @@
 import { router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import TimeController from '@/actions/App/Http/Controllers/TimeController';
 import { clock, LogLateDialog } from '@/components/log-late-dialog';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { useOfficeClock } from '@/lib/office-clock';
 
 export type Step = 'time_in' | 'lunch_start' | 'lunch_end' | 'time_out';
 
@@ -23,25 +24,6 @@ const STEPS: { key: Step; label: string; action: string }[] = [
     { key: 'lunch_end', label: 'Lunch end', action: 'Back from lunch' },
     { key: 'time_out', label: 'Time out', action: 'Time out' },
 ];
-
-/** The office clock (Asia/Manila), ticking each 15 s: stamps use the server's time, this is a guide. */
-function useOfficeClock() {
-    const read = () =>
-        new Intl.DateTimeFormat('en-PH', {
-            timeZone: 'Asia/Manila',
-            hour: 'numeric',
-            minute: '2-digit',
-        }).format(new Date());
-    const [now, setNow] = useState(read);
-
-    useEffect(() => {
-        const t = window.setInterval(() => setNow(read()), 15000);
-
-        return () => window.clearInterval(t);
-    }, []);
-
-    return now;
-}
 
 /**
  * Today's four stamps with one big button for the next one (one tap, server time). A record only: lates are
