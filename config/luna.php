@@ -16,9 +16,9 @@ return [
     ],
 
     // WIP: the office's main channel to other offices, teams and clients (shown on Home). Attendance is
-    // where people post lates; Luna sends them there after logging one.
+    // where people post leave and lates; Luna sends them there after logging one.
     'wip' => [
-        ['key' => 'attendance', 'name' => 'attendance', 'server' => 'OCS', 'about' => 'Post your lates, early outs and errands.',
+        ['key' => 'attendance', 'name' => 'attendance', 'server' => 'OCS', 'about' => 'Post your leave, lates, early outs and errands.',
             'url' => 'https://wip.quicksilversystems.com/servers/1d2a17e2-6f7d-48b3-8b00-de9e39fd23b1/channels/a0b29c6f-4200-4817-9e2d-23b29f893cd2'],
         ['key' => 'ocs-dev', 'name' => 'development', 'server' => 'OCS', 'about' => 'The OCS team’s dev talk.',
             'url' => 'https://wip.quicksilversystems.com/servers/1d2a17e2-6f7d-48b3-8b00-de9e39fd23b1/channels/8e678681-e8be-4fca-9b49-9bb111182da9'],

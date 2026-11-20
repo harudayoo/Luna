@@ -20,11 +20,15 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import { WipPostStep } from '@/components/wip-post-step';
+import type { LeaveDetails } from '@/lib/wip-message';
+import { wipLeaveMessage } from '@/lib/wip-message';
 import type { RouteFormDefinition } from '@/wayfinder';
 
 /**
  * Logging leave: a day, a half day, some hours of a day, or a range of them, with an optional note. Used for your own leave
- * (My leave) and by HR for someone else's (Leave & pay); the server applies the rules.
+ * (My leave) and by HR for someone else's (Leave & pay); the server applies the rules. For your own leave the done step
+ * gives a message for WIP's Attendance channel, as for a late; HR adding one for someone gets no WIP step.
  */
 export function LogLeaveDialog({
     form,
@@ -33,6 +37,8 @@ export function LogLeaveDialog({
     trigger,
     defaultFrom,
     idPrefix = 'leave',
+    wipUrl,
+    today = defaultFrom,
 }: {
     form: RouteFormDefinition<'post'>;
     title: string;
@@ -42,6 +48,10 @@ export function LogLeaveDialog({
     defaultFrom: string;
     /** Keeps field ids unique when a page has several dialogs. */
     idPrefix?: string;
+    /** WIP's Attendance channel: shown after logging your own leave. */
+    wipUrl?: string;
+    /** Y-m-d, for the message's tense ("tomorrow", "yesterday"). */
+    today?: string;
 }) {
     const [open, setOpen] = useState(false);
     const [from, setFrom] = useState(defaultFrom);
@@ -49,6 +59,9 @@ export function LogLeaveDialog({
     const [part, setPart] = useState<Part>('full');
     const [start, setStart] = useState('13:00');
     const [end, setEnd] = useState('15:00');
+    const [note, setNote] = useState('');
+    const [leave, setLeave] = useState<LeaveDetails | null>(null);
+    const [posted, setPosted] = useState<string | null>(null);
     const id = (field: string) => `${idPrefix}-${field}`;
     const presets = timeframes();
     const pick = (p: Timeframe) => {
@@ -60,183 +73,238 @@ export function LogLeaveDialog({
         (p.to === p.from ? to === '' || to === from : p.to === to);
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+            open={open}
+            onOpenChange={(o) => {
+                setOpen(o);
+                if (!o) {
+                    setPosted(null);
+                }
+            }}
+        >
             <DialogTrigger asChild>{trigger}</DialogTrigger>
             <DialogContent className="max-h-[90dvh] overflow-y-auto">
-                <DialogTitle>{title}</DialogTitle>
-                <DialogDescription>{description}</DialogDescription>
+                {posted !== null && wipUrl ? (
+                    <WipPostStep
+                        id={id('wip')}
+                        message={posted}
+                        onChange={setPosted}
+                        wipUrl={wipUrl}
+                        onReword={() =>
+                            leave &&
+                            setPosted(wipLeaveMessage(leave, today, posted))
+                        }
+                        onDone={() => setOpen(false)}
+                    />
+                ) : (
+                    <>
+                        <DialogTitle>{title}</DialogTitle>
+                        <DialogDescription>{description}</DialogDescription>
 
-                <Form
-                    {...form}
-                    resetOnSuccess
-                    options={{ preserveScroll: true }}
-                    onSuccess={() => {
-                        setOpen(false);
-                        setTo('');
-                        setPart('full');
-                    }}
-                    className="grid gap-4"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            {/* Quick timeframes fill the dates; the dates stay editable (custom). */}
-                            <div
-                                className="flex flex-wrap gap-2"
-                                role="group"
-                                aria-label="Timeframe"
-                            >
-                                {presets.map((p) => (
-                                    <button
-                                        key={p.label}
-                                        type="button"
-                                        onClick={() => pick(p)}
-                                        aria-pressed={isPicked(p)}
-                                        className="min-h-10 bg-surface-hover px-3 text-sm font-semibold text-ink hover:shadow-lift aria-pressed:bg-primary aria-pressed:text-on-primary"
+                        <Form
+                            {...form}
+                            resetOnSuccess
+                            options={{ preserveScroll: true }}
+                            onSuccess={() => {
+                                if (wipUrl) {
+                                    const details: LeaveDetails = {
+                                        from,
+                                        to,
+                                        part,
+                                        start_time: start,
+                                        end_time: end,
+                                        note,
+                                    };
+                                    setLeave(details);
+                                    setPosted(wipLeaveMessage(details, today));
+                                } else {
+                                    setOpen(false);
+                                }
+                                setTo('');
+                                setPart('full');
+                                setNote('');
+                            }}
+                            className="grid gap-4"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    {/* Quick timeframes fill the dates; the dates stay editable (custom). */}
+                                    <div
+                                        className="flex flex-wrap gap-2"
+                                        role="group"
+                                        aria-label="Timeframe"
                                     >
-                                        {p.label}
-                                    </button>
-                                ))}
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        document
-                                            .getElementById(id('from'))
-                                            ?.focus()
-                                    }
-                                    aria-pressed={!presets.some(isPicked)}
-                                    className="min-h-10 bg-surface-hover px-3 text-sm font-semibold text-ink hover:shadow-lift aria-pressed:bg-primary aria-pressed:text-on-primary"
-                                >
-                                    Custom
-                                </button>
-                            </div>
-
-                            {/* Side by side only when both date pickers fit. */}
-                            <div className="grid gap-3 min-[400px]:grid-cols-2">
-                                <div className="grid gap-2">
-                                    <Label htmlFor={id('from')}>From</Label>
-                                    <Input
-                                        id={id('from')}
-                                        name="from"
-                                        type="date"
-                                        required
-                                        value={from}
-                                        onChange={(e) =>
-                                            setFrom(e.target.value)
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor={id('to')}>
-                                        To (optional)
-                                    </Label>
-                                    <Input
-                                        id={id('to')}
-                                        name="to"
-                                        type="date"
-                                        min={from}
-                                        value={to}
-                                        onChange={(e) => setTo(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <InputError message={errors.from ?? errors.to} />
-
-                            {/* Full day or a half: segmented, like the People tabs. Works on a range too. */}
-                            <fieldset className="grid gap-2">
-                                <legend className="mb-2 text-sm font-medium">
-                                    How long each day
-                                </legend>
-                                <div className="grid grid-cols-2 gap-1 bg-surface-hover p-1 sm:grid-cols-4">
-                                    {PARTS.map((p) => (
-                                        <label
-                                            key={p.value}
-                                            className="flex min-h-10 cursor-pointer flex-col items-center justify-center px-2 text-center text-sm font-semibold text-muted has-[:checked]:bg-primary has-[:checked]:text-on-primary has-[:focus-visible]:shadow-lift"
+                                        {presets.map((p) => (
+                                            <button
+                                                key={p.label}
+                                                type="button"
+                                                onClick={() => pick(p)}
+                                                aria-pressed={isPicked(p)}
+                                                className="min-h-10 bg-surface-hover px-3 text-sm font-semibold text-ink hover:shadow-lift aria-pressed:bg-primary aria-pressed:text-on-primary"
+                                            >
+                                                {p.label}
+                                            </button>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                document
+                                                    .getElementById(id('from'))
+                                                    ?.focus()
+                                            }
+                                            aria-pressed={
+                                                !presets.some(isPicked)
+                                            }
+                                            className="min-h-10 bg-surface-hover px-3 text-sm font-semibold text-ink hover:shadow-lift aria-pressed:bg-primary aria-pressed:text-on-primary"
                                         >
-                                            <input
-                                                type="radio"
-                                                name="part"
-                                                value={p.value}
-                                                checked={part === p.value}
-                                                onChange={() =>
-                                                    setPart(p.value)
-                                                }
-                                                className="sr-only"
-                                            />
-                                            {p.label}
-                                            <span className="text-xs font-normal opacity-80">
-                                                {p.hint}
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </fieldset>
-                            <InputError message={errors.part} />
-
-                            {/* Some hours of the day: on the half hour, office hours only; lunch isn't charged. */}
-                            {part === 'hours' && (
-                                <div className="grid gap-2">
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <TimeField
-                                            id={id('start')}
-                                            name="start_time"
-                                            label="From"
-                                            value={start}
-                                            onChange={(t) => {
-                                                setStart(t);
-                                                if (end <= t) {
-                                                    setEnd(
-                                                        TIMES[
-                                                            TIMES.indexOf(t) + 1
-                                                        ],
-                                                    );
-                                                }
-                                            }}
-                                            options={TIMES.slice(0, -1)}
-                                        />
-                                        <TimeField
-                                            id={id('end')}
-                                            name="end_time"
-                                            label="To"
-                                            value={end}
-                                            onChange={setEnd}
-                                            options={TIMES.filter(
-                                                (t) => t > start,
-                                            )}
-                                        />
+                                            Custom
+                                        </button>
                                     </div>
-                                    <p className="text-sm text-muted">
-                                        {workingHours(start, end) > 0
-                                            ? `${workingHours(start, end)} h of PTO each day (lunch 12–1 isn't counted).`
-                                            : "That's the lunch hour: pick some working time."}
-                                    </p>
+
+                                    {/* Side by side only when both date pickers fit. */}
+                                    <div className="grid gap-3 min-[400px]:grid-cols-2">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor={id('from')}>
+                                                From
+                                            </Label>
+                                            <Input
+                                                id={id('from')}
+                                                name="from"
+                                                type="date"
+                                                required
+                                                value={from}
+                                                onChange={(e) =>
+                                                    setFrom(e.target.value)
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor={id('to')}>
+                                                To (optional)
+                                            </Label>
+                                            <Input
+                                                id={id('to')}
+                                                name="to"
+                                                type="date"
+                                                min={from}
+                                                value={to}
+                                                onChange={(e) =>
+                                                    setTo(e.target.value)
+                                                }
+                                            />
+                                        </div>
+                                    </div>
                                     <InputError
-                                        message={
-                                            errors.start_time ?? errors.end_time
-                                        }
+                                        message={errors.from ?? errors.to}
                                     />
-                                </div>
+
+                                    {/* Full day or a half: segmented, like the People tabs. Works on a range too. */}
+                                    <fieldset className="grid gap-2">
+                                        <legend className="mb-2 text-sm font-medium">
+                                            How long each day
+                                        </legend>
+                                        <div className="grid grid-cols-2 gap-1 bg-surface-hover p-1 sm:grid-cols-4">
+                                            {PARTS.map((p) => (
+                                                <label
+                                                    key={p.value}
+                                                    className="flex min-h-10 cursor-pointer flex-col items-center justify-center px-2 text-center text-sm font-semibold text-muted has-[:checked]:bg-primary has-[:checked]:text-on-primary has-[:focus-visible]:shadow-lift"
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="part"
+                                                        value={p.value}
+                                                        checked={
+                                                            part === p.value
+                                                        }
+                                                        onChange={() =>
+                                                            setPart(p.value)
+                                                        }
+                                                        className="sr-only"
+                                                    />
+                                                    {p.label}
+                                                    <span className="text-xs font-normal opacity-80">
+                                                        {p.hint}
+                                                    </span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </fieldset>
+                                    <InputError message={errors.part} />
+
+                                    {/* Some hours of the day: on the half hour, office hours only; lunch isn't charged. */}
+                                    {part === 'hours' && (
+                                        <div className="grid gap-2">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <TimeField
+                                                    id={id('start')}
+                                                    name="start_time"
+                                                    label="From"
+                                                    value={start}
+                                                    onChange={(t) => {
+                                                        setStart(t);
+                                                        if (end <= t) {
+                                                            setEnd(
+                                                                TIMES[
+                                                                    TIMES.indexOf(
+                                                                        t,
+                                                                    ) + 1
+                                                                ],
+                                                            );
+                                                        }
+                                                    }}
+                                                    options={TIMES.slice(0, -1)}
+                                                />
+                                                <TimeField
+                                                    id={id('end')}
+                                                    name="end_time"
+                                                    label="To"
+                                                    value={end}
+                                                    onChange={setEnd}
+                                                    options={TIMES.filter(
+                                                        (t) => t > start,
+                                                    )}
+                                                />
+                                            </div>
+                                            <p className="text-sm text-muted">
+                                                {workingHours(start, end) > 0
+                                                    ? `${workingHours(start, end)} h of PTO each day (lunch 12–1 isn't counted).`
+                                                    : "That's the lunch hour: pick some working time."}
+                                            </p>
+                                            <InputError
+                                                message={
+                                                    errors.start_time ??
+                                                    errors.end_time
+                                                }
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor={id('note')}>
+                                            Note (optional)
+                                        </Label>
+                                        <Input
+                                            id={id('note')}
+                                            name="note"
+                                            maxLength={80}
+                                            placeholder="e.g. Dentist, family trip"
+                                            value={note}
+                                            onChange={(e) =>
+                                                setNote(e.target.value)
+                                            }
+                                        />
+                                        <InputError message={errors.note} />
+                                    </div>
+
+                                    <Button type="submit" disabled={processing}>
+                                        {processing && <Spinner />}
+                                        Log leave
+                                    </Button>
+                                </>
                             )}
-
-                            <div className="grid gap-2">
-                                <Label htmlFor={id('note')}>
-                                    Note (optional)
-                                </Label>
-                                <Input
-                                    id={id('note')}
-                                    name="note"
-                                    maxLength={80}
-                                    placeholder="e.g. Dentist, family trip"
-                                />
-                                <InputError message={errors.note} />
-                            </div>
-
-                            <Button type="submit" disabled={processing}>
-                                {processing && <Spinner />}
-                                Log leave
-                            </Button>
-                        </>
-                    )}
-                </Form>
+                        </Form>
+                    </>
+                )}
             </DialogContent>
         </Dialog>
     );

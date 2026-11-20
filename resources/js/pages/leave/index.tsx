@@ -49,6 +49,8 @@ type Props = {
     leaves: LeaveEntry[];
     history: CutOff[];
     pto_start: string;
+    /** WIP's Attendance channel, for the message after logging leave. */
+    wip_attendance: string;
 };
 
 // Dates arrive as Y-m-d; format them in UTC so the day never shifts with the time zone.
@@ -87,6 +89,7 @@ export default function MyLeave(props: Props) {
                     description="No approval needed. Weekends and holidays in a range are skipped."
                     trigger={<Button>Log leave</Button>}
                     defaultFrom={today()}
+                    wipUrl={props.wip_attendance}
                 />
             </div>
 

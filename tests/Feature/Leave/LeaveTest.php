@@ -186,6 +186,15 @@ class LeaveTest extends TestCase
                 ->where('leaves.2.locked', true));
     }
 
+    public function test_the_page_links_the_attendance_channel_for_the_wip_message()
+    {
+        $this->actingAs($this->me)
+            ->get(route('leave.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('wip_attendance', 'https://wip.quicksilversystems.com/servers/1d2a17e2-6f7d-48b3-8b00-de9e39fd23b1/channels/a0b29c6f-4200-4817-9e2d-23b29f893cd2'));
+    }
+
     public function test_the_dashboard_shows_the_balance()
     {
         $this->actingAs($this->me)

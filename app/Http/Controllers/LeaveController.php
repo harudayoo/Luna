@@ -59,6 +59,7 @@ class LeaveController extends Controller
                 ->reverse()->values()
                 ->map(fn (CutOff $c) => $this->cutOff($c, $user, $policy)),
             'pto_start' => $user->ptoStart()->toDateString(),
+            'wip_attendance' => TimeController::wipAttendance(),
         ]);
     }
 

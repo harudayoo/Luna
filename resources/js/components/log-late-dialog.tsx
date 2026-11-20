@@ -1,5 +1,5 @@
 import { router, useForm } from '@inertiajs/react';
-import { Check, Copy, ExternalLink, Shuffle, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import TimeController from '@/actions/App/Http/Controllers/TimeController';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { useClipboard } from '@/hooks/use-clipboard';
+import { WipPostStep } from '@/components/wip-post-step';
 import type { RouteDefinition } from '@/wayfinder';
 
 import type { LateDetails, LateKind } from '@/lib/wip-message';
@@ -125,7 +125,6 @@ export function LogLateDialog({
     const [open, setOpen] = useState(false);
     const [posted, setPosted] = useState<string | null>(null);
     const [late, setLate] = useState<LateDetails | null>(null);
-    const [copied, copy] = useClipboard();
     const form = useForm({
         date: today,
         kind: 'late_in' as LateKind,
@@ -162,13 +161,6 @@ export function LogLateDialog({
         });
     };
 
-    const openWip = () => {
-        if (posted) {
-            void copy(posted);
-        }
-        window.open(wipUrl, '_blank', 'noopener');
-    };
-
     return (
         <Dialog
             open={open}
@@ -182,62 +174,17 @@ export function LogLateDialog({
         >
             <DialogTrigger asChild>{trigger}</DialogTrigger>
             <DialogContent className="max-h-[90dvh] overflow-y-auto">
-                {posted && wipUrl ? (
-                    <div className="grid gap-4">
-                        <DialogTitle>
-                            Logged. Now tell the office on WIP
-                        </DialogTitle>
-                        <DialogDescription>
-                            Post it in the OCS Attendance channel. Luna wrote it
-                            for you; change anything, or reword it.
-                        </DialogDescription>
-                        <label htmlFor={`${idPrefix}-wip`} className="sr-only">
-                            Message for WIP
-                        </label>
-                        <textarea
-                            id={`${idPrefix}-wip`}
-                            rows={4}
-                            value={posted}
-                            onChange={(e) => setPosted(e.target.value)}
-                            className="w-full resize-y bg-surface-hover p-4 text-base text-ink focus-visible:shadow-lift focus-visible:outline-none md:text-sm"
-                        />
-                        <Button
-                            onClick={openWip}
-                            className="w-full"
-                            disabled={posted.trim() === ''}
-                        >
-                            <ExternalLink /> Copy and open #attendance
-                        </Button>
-                        <div className="grid grid-cols-3 gap-2">
-                            {/* Writes a new message: the kit's code button (decode). Its "> " prompt and mono
-                                font are wider, so on phones (a third of the width) the icon gives way. */}
-                            <Button
-                                variant="code"
-                                className="px-2"
-                                icon={<Shuffle className="hidden sm:block" />}
-                                onClick={() =>
-                                    late && setPosted(wipMessage(late, today))
-                                }
-                            >
-                                Reword
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                className="bg-bg px-2"
-                                onClick={() => void copy(posted)}
-                            >
-                                {copied === posted ? <Check /> : <Copy />}
-                                {copied === posted ? 'Copied' : 'Copy'}
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                className="bg-bg px-2"
-                                onClick={() => setOpen(false)}
-                            >
-                                Done
-                            </Button>
-                        </div>
-                    </div>
+                {posted !== null && wipUrl ? (
+                    <WipPostStep
+                        id={`${idPrefix}-wip`}
+                        message={posted}
+                        onChange={setPosted}
+                        wipUrl={wipUrl}
+                        onReword={() =>
+                            late && setPosted(wipMessage(late, today))
+                        }
+                        onDone={() => setOpen(false)}
+                    />
                 ) : (
                     <>
                         <DialogTitle>{title}</DialogTitle>
