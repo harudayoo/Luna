@@ -6,7 +6,6 @@ use App\Enums\Role;
 use App\Models\User;
 use App\Notifications\InviteNotification;
 use App\Services\Payroll\PayRate;
-use App\Services\Payroll\WorkDays;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -37,7 +36,7 @@ class PeopleController extends Controller
             'monthly_salary' => $user->monthly_salary === null ? null : (float) $user->monthly_salary,
             'daily_rate' => $user->daily_rate === null ? null : (float) $user->daily_rate,
             'fixed_daily_rate' => $user->fixed_daily_rate === null ? null : (float) $user->fixed_daily_rate,
-            // What a day costs this month, whichever basis applies.
+            // What a day costs, whichever basis applies.
             'month_rate' => PayRate::dailyFor($user, $today),
             'pto_start' => $user->pto_start?->toDateString(),
             'pto_opening_hours' => (float) $user->pto_opening_hours,
@@ -46,7 +45,6 @@ class PeopleController extends Controller
         return Inertia::render('people/index', [
             'people' => $people,
             'officeStartedOn' => Policy::officeStartedOn()->toDateString(),
-            'workDays' => ['month' => $today->format('F Y'), 'days' => WorkDays::inMonth($today)],
             'roles' => collect(Role::cases())->map(fn (Role $role) => [
                 'value' => $role->value,
                 'label' => $role->label(),
@@ -89,7 +87,7 @@ class PeopleController extends Controller
     {
         $validated = $request->validate([
             'position' => ['nullable', 'string', 'max:80'],
-            // Pay is monthly; a month's daily rate is this ÷ its working days (PayRate), unless HR pins one.
+            // Pay is monthly; the daily rate is this × 12 ÷ 260 (PayRate), unless HR pins one.
             'monthly_salary' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
             'daily_rate' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'fixed_daily_rate' => ['nullable', 'numeric', 'min:0', 'max:1000000'],

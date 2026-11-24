@@ -49,12 +49,9 @@ type Person = {
     pto_opening_hours: number;
 };
 
-type WorkDays = { month: string; days: number };
-
 type Props = {
     people: Person[];
     officeStartedOn: string;
-    workDays: WorkDays;
     roles: { value: Role; label: string }[];
     invitableRoles: Role[];
 };
@@ -64,7 +61,6 @@ export default function People({
     roles,
     invitableRoles,
     officeStartedOn,
-    workDays,
 }: Props) {
     const { auth } = usePage().props;
     const label = (role: Role) => roles.find((r) => r.value === role)?.label;
@@ -127,7 +123,6 @@ export default function People({
                         <LeaveDetails
                             person={person}
                             officeStartedOn={officeStartedOn}
-                            workDays={workDays}
                         />
 
                         {person.invite_url && (
@@ -173,11 +168,9 @@ const shortDate = (iso: string) =>
 function LeaveDetails({
     person,
     officeStartedOn,
-    workDays,
 }: {
     person: Person;
     officeStartedOn: string;
-    workDays: WorkDays;
 }) {
     const [open, setOpen] = useState(false);
 
@@ -236,16 +229,18 @@ function LeaveDetails({
                                     defaultValue={
                                         person.monthly_salary ??
                                         (person.daily_rate !== null
-                                            ? Math.round(person.daily_rate * 22)
+                                            ? Math.round(
+                                                  (person.daily_rate * 260) /
+                                                      12,
+                                              )
                                             : '')
                                     }
                                     placeholder="e.g. 60000"
                                 />
                                 <p className="text-xs text-muted">
-                                    The daily rate is this ÷ the month&rsquo;s
-                                    working days ({workDays.month}:{' '}
-                                    {workDays.days} days), unless a fixed rate
-                                    is set below.
+                                    The daily rate is this × 12 ÷ 260, the same
+                                    every month, unless a fixed rate is set
+                                    below.
                                 </p>
                                 <InputError message={errors.monthly_salary} />
                             </div>
@@ -261,13 +256,14 @@ function LeaveDetails({
                                     step="0.01"
                                     min="0"
                                     defaultValue={person.fixed_daily_rate ?? ''}
-                                    placeholder="Leave empty to follow the month"
+                                    placeholder="Leave empty to use the salary"
                                 />
                                 <p className="text-xs text-muted">
                                     {person.month_rate !== null
-                                        ? `This month: ${peso(person.month_rate)} a day. `
+                                        ? `Now: ${peso(person.month_rate)} a day. `
                                         : ''}
-                                    Used for every month while set.
+                                    A fixed rate replaces the salary&rsquo;s
+                                    rate while set.
                                 </p>
                                 <InputError message={errors.fixed_daily_rate} />
                             </div>

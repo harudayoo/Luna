@@ -2,11 +2,10 @@
 
 namespace Tests\Feature\Payroll;
 
-use App\Models\Holiday;
 use App\Models\Leave;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\Payroll\PayRate;
-use App\Services\Payroll\WorkDays;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,18 +13,18 @@ use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * The daily rate follows the month (user, 2026-11-13): monthly salary ÷ that month's working days
- * (every Mon-Fri; holidays still count, as they are paid days: user, 2026-11-13), unless HR pins a fixed
- * daily rate for the person. The 2026 holidays are seeded by migration, so Aug and Nov have weekday holidays.
+ * The rate matches the accountant's audit workbook "PAYROLL & PTO TRACKER" (Aug-Dec 2026; user, 2026-11-24):
+ * an hour costs monthly x 12 / 2080 (a day is monthly x 12 / 260) in every month, and the unpaid and late
+ * deductions are both charged at it. A fixed daily rate HR sets for a person still wins.
  */
-class MonthlyWorkDaysRateTest extends TestCase
+class AuditRateTest extends TestCase
 {
     use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->travelTo('2026-11-13 09:00:00');
+        $this->travelTo('2026-11-24 09:00:00');
     }
 
     private function employee(float $monthly, ?float $fixed = null): User
@@ -41,30 +40,18 @@ class MonthlyWorkDaysRateTest extends TestCase
         return CarbonImmutable::parse($date);
     }
 
-    public function test_working_days_are_every_weekday_in_the_month()
-    {
-        $this->assertSame(21, WorkDays::inMonth($this->on('2026-08-10')));   // Aug 21 and Aug 31 still count
-        $this->assertSame(22, WorkDays::inMonth($this->on('2026-09-25')));
-        $this->assertSame(22, WorkDays::inMonth($this->on('2026-10-01')));
-        $this->assertSame(21, WorkDays::inMonth($this->on('2026-11-30')));   // Nov 2 and Nov 30 still count
-    }
-
-    public function test_a_weekday_holiday_is_a_paid_working_day()
-    {
-        Holiday::query()->create(['date' => '2026-10-15', 'name' => 'A Thursday', 'kind' => 'regular']);
-
-        $this->assertSame(22, WorkDays::inMonth($this->on('2026-10-15')));
-    }
-
-    public function test_the_rate_follows_the_months_working_days()
+    public function test_an_hour_is_monthly_times_12_over_2080_in_every_month()
     {
         $harold = $this->employee(60000);
         $policy = Policy::current();
 
-        $this->assertSame(2727.27, PayRate::dailyFor($harold, $this->on('2026-09-25')));
-        $this->assertSame(2045.45, PayRate::forHours($harold, 6, $policy, $this->on('2026-09-25')));
-        $this->assertSame(340.91, PayRate::forHours($harold, 1, $policy, $this->on('2026-10-09')));
-        $this->assertSame(2142.86, PayRate::forHours($harold, 6, $policy, $this->on('2026-11-03')));   // 60,000 / 21 / 8 x 6
+        $this->assertSame(2769.23, PayRate::dailyFor($harold, $this->on('2026-09-25')));
+        $this->assertSame(2769.23, PayRate::dailyFor($harold, $this->on('2026-11-03')));
+        $this->assertSame(2076.92, PayRate::forHours($harold, 6, $policy, $this->on('2026-09-25')));   // audit, Aug-Sep tab
+        $this->assertSame(2076.92, PayRate::forHours($harold, 6, $policy, $this->on('2026-11-03')));   // audit, Nov 1-15 tab
+        $this->assertSame(311.54, PayRate::forHours($harold, 54 / 60, $policy, $this->on('2026-10-09')));   // 54 late minutes
+        $this->assertSame(1384.62, PayRate::forHours($this->employee(40000), 6, $policy, $this->on('2026-09-15')));   // Dave
+        $this->assertSame(201.92, PayRate::forHours($this->employee(35000), 1, $policy, $this->on('2026-12-01')));
     }
 
     public function test_a_fixed_daily_rate_wins_in_every_month()
@@ -102,21 +89,29 @@ class MonthlyWorkDaysRateTest extends TestCase
         $this->assertNull($user->fresh()->fixed_daily_rate);
     }
 
-    public function test_the_payslip_charges_at_its_months_rate()
+    public function test_the_monthly_payslips_match_the_audit()
     {
         config(['luna.pay.frequency' => 'monthly']);
+        Setting::put('pto.accrual_mode', 'full');
         $user = $this->employee(60000);
-        // Full accrual: 10.00 h by Sep 30, 16 h taken, 6 h unpaid.
-        \App\Models\Setting::put('pto.accrual_mode', 'full');
-        Leave::factory()->for($user)->create(['date' => '2026-09-25']);
-        Leave::factory()->for($user)->create(['date' => '2026-09-28']);
+        // Audit: 10.00 h by Sep 30, Sep 25+28 leaves 6 h unpaid; 10.00 h again by Nov 1-15, Nov 3+4 leaves 6 h unpaid.
+        foreach (['2026-09-25', '2026-09-28', '2026-11-03', '2026-11-04'] as $date) {
+            Leave::factory()->for($user)->create(['date' => $date]);
+        }
+        $hr = User::factory()->hr()->create();
 
-        $this->actingAs(User::factory()->hr()->create())
+        $this->actingAs($hr)
             ->get(route('people.payroll.edit', [$user, '2026-09-01']))
             ->assertInertia(fn ($page) => $page
-                ->where('person.daily_rate', 2727.27)
+                ->where('person.daily_rate', 2769.23)
                 ->where('payslip.unpaid_hours', 6)
-                ->where('payslip.absences', 2045.45));
+                ->where('payslip.absences', 2076.92));
+
+        $this->actingAs($hr)
+            ->get(route('people.payroll.edit', [$user, '2026-11-01']))
+            ->assertInertia(fn ($page) => $page
+                ->where('payslip.unpaid_hours', 6)
+                ->where('payslip.absences', 2076.92));
     }
 
     public function test_the_migration_adds_and_drops_the_column()

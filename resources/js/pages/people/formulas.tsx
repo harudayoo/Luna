@@ -26,7 +26,6 @@ type Props = {
         accrual_hours: number;
         hours_per_day: number;
     };
-    work_days: { month: string; days: number };
     premiums: { regular: number; special: number };
     frequency: Frequency;
     default_frequency: Frequency;
@@ -60,7 +59,6 @@ const monthName = (ym: string) =>
 /** HR and admin: how Luna works out PTO and pay, and how often pay is released. */
 export default function Formulas({
     policy,
-    work_days,
     premiums,
     frequency,
     default_frequency,
@@ -160,22 +158,18 @@ export default function Formulas({
                         </h3>
                     </div>
                     <dl className="grid gap-4">
-                        <Formula
-                            name="Daily rate"
-                            formula="monthly ÷ the month’s working days"
-                        >
-                            Working days are every Monday to Friday; holidays
-                            count, as they&rsquo;re paid. The rate moves with
-                            the month ({work_days.month}: {work_days.days}{' '}
-                            days). A fixed daily rate set for a person on People
-                            wins.
+                        <Formula name="Daily rate" formula="monthly × 12 ÷ 260">
+                            260 working days a year, the same in every month, as
+                            the accountant computes it. A fixed daily rate set
+                            for a person on People wins.
                         </Formula>
                         <Formula
                             name="Hourly rate"
                             formula={`daily rate ÷ ${hpd}`}
                         >
-                            Kept unrounded, so a peso figure is rounded only
-                            once, at the end.
+                            At {hpd} hours a day, that&rsquo;s monthly × 12 ÷{' '}
+                            {260 * hpd}. Kept unrounded, so a peso figure is
+                            rounded only once, at the end.
                         </Formula>
                         <Formula
                             name="Basic pay"
@@ -221,7 +215,7 @@ export default function Formulas({
                     </dl>
                 </section>
 
-                <Example monthly={monthly} days={work_days.days} hpd={hpd} />
+                <Example monthly={monthly} hpd={hpd} />
             </div>
         </>
     );
@@ -361,23 +355,13 @@ function PayRelease({
 }
 
 /** A worked example with numbers HR types in. Display only: payslips are computed on the server. */
-function Example({
-    monthly,
-    days,
-    hpd,
-}: {
-    monthly: boolean;
-    days: number;
-    hpd: number;
-}) {
+function Example({ monthly, hpd }: { monthly: boolean; hpd: number }) {
     const [salary, setSalary] = useState('30000');
     const [unpaid, setUnpaid] = useState('9.33');
-    const [workDays, setWorkDays] = useState(String(days));
     const m = Number(salary) || 0;
     const u = Number(unpaid) || 0;
-    const d = Number(workDays) || 0;
-    const daily = d > 0 ? round2(m / d) : 0;
-    const hourly = d > 0 ? m / d / hpd : 0;
+    const daily = round2((m * 12) / 260);
+    const hourly = hpd > 0 ? (m * 12) / 260 / hpd : 0;
     const basic = round2(monthly ? m : m / 2);
     const absences = round2(u * hourly);
 
@@ -409,18 +393,6 @@ function Example({
                         step="any"
                         value={unpaid}
                         onChange={(e) => setUnpaid(e.target.value)}
-                    />
-                </div>
-                <div className="grid content-start gap-2">
-                    <Label htmlFor="ex_days">Working days</Label>
-                    <Input
-                        id="ex_days"
-                        type="number"
-                        inputMode="numeric"
-                        min="1"
-                        max="31"
-                        value={workDays}
-                        onChange={(e) => setWorkDays(e.target.value)}
                     />
                 </div>
             </div>

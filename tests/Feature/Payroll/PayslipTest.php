@@ -80,7 +80,7 @@ class PayslipTest extends TestCase
                 ->where('period.end', '2026-11-15')
                 ->where('payslip.basic_pay', 30000)
                 ->where('payslip.unpaid_hours', 9.33)
-                ->where('payslip.absences', 3333.33)
+                ->where('payslip.absences', 3230.77)
                 ->where('payslip.sss', 0)
                 ->where('saved', false));
     }
@@ -91,14 +91,14 @@ class PayslipTest extends TestCase
 
         $slip = Payslip::sole();
         $this->assertSame(
-            ['30000.00', '3714.28', '29894.97', '3300.00', '26594.97', 'Developer', '2026-11-15'],
+            ['30000.00', '3600.00', '29780.69', '3300.00', '26480.69', 'Developer', '2026-11-15'],
             [$slip->basic_pay, $slip->holiday_pay, $slip->gross_pay, $slip->total_deductions, $slip->net_pay,
                 $slip->position, $slip->issued_on->toDateString()],
         );
 
         // Saving again updates the same payslip.
         $this->save('2026-11-01', ['cash_advance' => 1000])->assertSessionHasNoErrors();
-        $this->assertSame('25594.97', Payslip::sole()->net_pay);
+        $this->assertSame('25480.69', Payslip::sole()->net_pay);
     }
 
     public function test_the_next_payslip_reuses_the_previous_deductions()
@@ -136,7 +136,7 @@ class PayslipTest extends TestCase
                 ->component('people/payroll')
                 ->where('cutoff.start', '2026-11-01')
                 ->where('rows.1.name', 'Ana Cruz')
-                ->where('rows.1.net_pay', 26594.97)
+                ->where('rows.1.net_pay', 26480.69)
                 ->where('rows.0.payslip_id', null));
     }
 
@@ -159,7 +159,7 @@ class PayslipTest extends TestCase
                 ->where('payslip.name', 'Ana Cruz')
                 ->where('payslip.position', 'Developer')
                 ->where('payslip.monthly_salary', 60000)
-                ->where('payslip.net_pay', 26594.97)
+                ->where('payslip.net_pay', 26480.69)
                 ->where('company.name', 'Orchid City Software OPC'));
 
         $this->actingAs(User::factory()->create())->get(route('payslips.print', $slip))->assertForbidden();

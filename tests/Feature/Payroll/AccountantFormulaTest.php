@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 /**
  * The accountant's formula, from the Sep and Oct 2026 payroll summaries and the Aug-Dec PTO computation:
- * - an hour costs monthly / that month's working days / 8 h (user, 2026-11-13; was x 12 / 260, see MonthlyWorkDaysRateTest);
+ * - an hour costs monthly x 12 / 2080 (audit workbook, user 2026-11-24; see AuditRateTest);
  * - PTO earns exactly 10/3 h per cut-off, from the cut-off someone joins in (Aug 16-31 for Aug 18);
  * - any leave in a cut-off forfeits that cut-off's 10/3 h (accountant, 2026-11-12: PTO on the 7th loses 1-15);
  * - a payslip deducts the unpaid hours of its own cut-off.
@@ -48,13 +48,13 @@ class AccountantFormulaTest extends TestCase
         $this->assertSame(10.0, $rows[2]->balance);
     }
 
-    public function test_an_hour_in_september_costs_monthly_over_22_days_of_8_hours()
+    public function test_an_hour_costs_monthly_times_12_over_2080()
     {
         $policy = Policy::current();
         $sep = CarbonImmutable::parse('2026-09-15');
 
-        $this->assertSame(1363.64, PayRate::forHours($this->employee(40000), 6, $policy, $sep));
-        $this->assertSame(2045.45, PayRate::forHours($this->employee(60000), 6, $policy, $sep));
+        $this->assertSame(1384.62, PayRate::forHours($this->employee(40000), 6, $policy, $sep));
+        $this->assertSame(2076.92, PayRate::forHours($this->employee(60000), 6, $policy, $sep));
     }
 
     public function test_leave_in_a_cut_off_forfeits_that_cut_offs_accrual()
@@ -69,8 +69,8 @@ class AccountantFormulaTest extends TestCase
 
         // Pesos come from the exact hours (4.6667, not 4.67), rounded once at the end.
         $dave = $this->employee(40000);
-        $this->assertSame(1060.61, PayRate::forHours($dave, $rows[1]->deductedHoursExact, Policy::current(), $rows[1]->start));
-        $this->assertSame(1818.18, PayRate::forHours($dave, $rows[2]->deductedHoursExact, Policy::current(), $rows[2]->start));
+        $this->assertSame(1076.92, PayRate::forHours($dave, $rows[1]->deductedHoursExact, Policy::current(), $rows[1]->start));
+        $this->assertSame(1846.15, PayRate::forHours($dave, $rows[2]->deductedHoursExact, Policy::current(), $rows[2]->start));
     }
 
     public function test_leave_on_a_holiday_does_not_forfeit_the_accrual()
@@ -94,7 +94,7 @@ class AccountantFormulaTest extends TestCase
             ->get(route('people.payroll.edit', [$user, '2026-09-16']))
             ->assertInertia(fn ($page) => $page
                 ->where('payslip.unpaid_hours', 9.33)
-                ->where('payslip.absences', 3181.82));   // 9.33 h at 60,000 / 22 Sep days / 8
+                ->where('payslip.absences', 3230.77));   // 9.33 h at 60,000 x 12 / 2080
 
         $this->actingAs($hr)
             ->get(route('people.payroll.edit', [$user, '2026-10-01']))

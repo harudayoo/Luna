@@ -27,7 +27,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $email
  * @property Role $role
  * @property string|null $position printed on payslips
- * @property string|null $monthly_salary pesos; a month's daily rate is this ÷ its working days (PayRate)
+ * @property string|null $monthly_salary pesos; the daily rate is this × 12 ÷ 260 (PayRate)
  * @property string|null $daily_rate pesos; legacy, only used for people without a monthly salary
  * @property string|null $fixed_daily_rate pesos; HR pins it for one person, and it wins over the monthly basis
  * @property Carbon|null $pto_start null = the office start (Policy::officeStartedOn)

@@ -56,7 +56,6 @@ class PayFrequencyTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('people/formulas')
                 ->where('frequency', 'monthly')
-                ->where('work_days.days', 21)
                 ->where('policy.hours_per_day', 8)
                 ->where('policy.accrual_mode', 'forfeit')
                 ->has('schedule'));
@@ -87,7 +86,7 @@ class PayFrequencyTest extends TestCase
                 ->where('frequency', 'monthly')
                 ->where('payslip.basic_pay', 60000)
                 ->where('payslip.unpaid_hours', 17.33)
-                ->where('payslip.absences', 6190.48));
+                ->where('payslip.absences', 6000));   // 17.33 h at 60,000 x 12 / 2080
 
         $this->actingAs($this->hr)->put(route('people.payroll.update', [$this->ana, '2026-11-01']), ['absences' => 6000] + $this->payload())
             ->assertSessionHasNoErrors();
