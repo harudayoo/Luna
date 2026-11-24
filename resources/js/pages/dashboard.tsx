@@ -23,6 +23,7 @@ type Props = {
     today: Today;
     wip: WipChannel[];
     my_wip: WipTile[];
+    my_links: WipTile[];
     wip_tags: string[];
     wip_max: number;
 };
@@ -40,6 +41,7 @@ export default function Dashboard({
     today,
     wip,
     my_wip,
+    my_links,
     wip_tags,
     wip_max,
 }: Props) {
@@ -103,6 +105,7 @@ export default function Dashboard({
                     <WipChannels
                         channels={wip}
                         mine={my_wip}
+                        links={my_links}
                         max={wip_max}
                         tags={wip_tags}
                     />

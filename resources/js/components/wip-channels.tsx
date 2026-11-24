@@ -15,11 +15,12 @@ export type WipChannel = {
  * WIP, the office's main channel to other offices, teams and clients (the boss's rule: talk there first).
  * Each channel is a card that opens WIP in a new tab: picked up like paper in the light theme, tilted under a
  * spotlight in the dark one. Attendance gets the accent: it's where lates are posted. Under the office's
- * channels, each person pins up to `max` of their own (only they see them).
+ * channels, each person pins up to `max` of their own, then up to `max` of any other link (only they see them).
  */
 export function WipChannels({
     channels,
     mine = [],
+    links = [],
     max = 4,
     tags,
 }: {
@@ -28,6 +29,9 @@ export function WipChannels({
     channels: WipChannel[];
     /** The channels this person pinned. */
     mine?: WipTile[];
+    /** The other links this person pinned (any web address), a row of their own. */
+    links?: WipTile[];
+    /** Tiles of each kind one person can pin. */
     max?: number;
 }) {
     return (
@@ -72,20 +76,45 @@ export function WipChannels({
                 ))}
             </ul>
 
+            <PinnedRow kind="wip" tiles={mine} max={max} tags={tags} />
+            <PinnedRow kind="link" tiles={links} max={max} tags={tags} />
+        </section>
+    );
+}
+
+/** One row of a person's own pinned tiles (WIP channels or links), with a Pin tile while there's room. */
+function PinnedRow({
+    kind,
+    tiles,
+    max,
+    tags,
+}: {
+    kind: WipTile['kind'];
+    tiles: WipTile[];
+    max: number;
+    tags?: string[];
+}) {
+    const isLink = kind === 'link';
+
+    return (
+        <>
             <div className="mt-6 mb-3 flex items-baseline justify-between gap-4">
-                <h4 className="ocs-eyebrow mb-0">Your channels</h4>
+                <h4 className="ocs-eyebrow mb-0">
+                    {isLink ? 'Your links' : 'Your channels'}
+                </h4>
                 <span className="text-xs text-muted">
-                    {mine.length} of {max} pinned
+                    {tiles.length} of {max} pinned
                 </span>
             </div>
             <ul className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
-                {mine.map((t) => (
+                {tiles.map((t) => (
                     <li key={t.id} className="relative">
                         <ChannelLink
                             tag={t.tag}
                             name={t.name}
                             about={t.about}
                             url={t.url}
+                            link={isLink}
                             editable
                         />
                         {/* A sibling of the link, never inside it: a button in a link is invalid HTML. */}
@@ -95,7 +124,7 @@ export function WipChannels({
                             trigger={
                                 <button
                                     type="button"
-                                    aria-label={`Edit #${t.name}`}
+                                    aria-label={`Edit ${isLink ? t.name : `#${t.name}`}`}
                                     className="absolute top-1 right-1 z-10 grid size-10 place-items-center text-muted hover:text-ink focus-visible:shadow-lift focus-visible:outline-none"
                                 >
                                     <Pencil aria-hidden className="size-4" />
@@ -104,9 +133,10 @@ export function WipChannels({
                         />
                     </li>
                 ))}
-                {mine.length < max && (
+                {tiles.length < max && (
                     <li>
                         <WipTileDialog
+                            kind={kind}
                             tags={tags}
                             trigger={
                                 <button
@@ -115,12 +145,16 @@ export function WipChannels({
                                 >
                                     <span className="flex items-center gap-2 text-sm font-semibold text-primary sm:text-base">
                                         <Plus aria-hidden className="size-5" />
-                                        Pin a channel
+                                        {isLink
+                                            ? 'Pin a link'
+                                            : 'Pin a channel'}
                                     </span>
                                     <span className="text-xs text-muted sm:text-sm">
-                                        {mine.length === 0
-                                            ? 'Your team’s or a client’s, one tap away.'
-                                            : `${max - mine.length} more you can pin.`}
+                                        {tiles.length > 0
+                                            ? `${max - tiles.length} more you can pin.`
+                                            : isLink
+                                              ? 'Any page you open often, one tap away.'
+                                              : 'Your team’s or a client’s, one tap away.'}
                                     </span>
                                 </button>
                             }
@@ -128,11 +162,23 @@ export function WipChannels({
                     </li>
                 )}
             </ul>
-        </section>
+        </>
     );
 }
 
-/** One WIP channel tile, opening WIP in a new tab. A pinned one leaves its top-right corner to its Edit button. */
+/** The address's host ("acme.atlassian.net"), shown on a link tile that has no description. */
+function hostOf(url: string): string {
+    try {
+        return new URL(url).host;
+    } catch {
+        return url;
+    }
+}
+
+/**
+ * One tile, opening WIP (or, for a pinned link, its page) in a new tab. A pinned one leaves its top-right
+ * corner to its Edit button.
+ */
 function ChannelLink({
     tag,
     name,
@@ -140,6 +186,7 @@ function ChannelLink({
     url,
     highlight = false,
     editable = false,
+    link = false,
 }: {
     tag: string;
     name: string;
@@ -147,7 +194,11 @@ function ChannelLink({
     url: string;
     highlight?: boolean;
     editable?: boolean;
+    /** Any web link rather than a WIP channel: no `#`, and the host stands in for a missing description. */
+    link?: boolean;
 }) {
+    const detail = about ?? (link ? hostOf(url) : null);
+
     return (
         <a
             ref={ocsRef(['tilt'])}
@@ -175,18 +226,24 @@ function ChannelLink({
                     />
                 )}
             </span>
-            <span className="flex min-w-0 items-center gap-1 font-mono text-sm font-semibold sm:text-lg">
-                <Hash aria-hidden className="size-4 shrink-0 opacity-70" />
+            <span
+                className={`flex min-w-0 items-center gap-1 text-sm font-semibold sm:text-lg ${link ? '' : 'font-mono'}`}
+            >
+                {!link && (
+                    <Hash aria-hidden className="size-4 shrink-0 opacity-70" />
+                )}
                 <span className="break-all">{name}</span>
             </span>
-            {about && (
+            {detail && (
                 <span
-                    className={`hidden text-sm sm:block ${highlight ? '' : 'text-muted'}`}
+                    className={`hidden text-sm sm:block ${about ? '' : 'break-all'} ${highlight ? '' : 'text-muted'}`}
                 >
-                    {about}
+                    {detail}
                 </span>
             )}
-            <span className="sr-only">(opens WIP in a new tab)</span>
+            <span className="sr-only">
+                {link ? '(opens in a new tab)' : '(opens WIP in a new tab)'}
+            </span>
         </a>
     );
 }

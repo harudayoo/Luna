@@ -128,4 +128,69 @@ class WipTileTest extends TestCase
         Artisan::call('migrate');
         $this->assertTrue(Schema::hasTable('wip_tiles'));
     }
+
+    public function test_a_pinned_link_can_be_any_web_address_and_has_its_own_row()
+    {
+        $this->pin()->assertSessionHasNoErrors();
+        $this->pin(['kind' => 'link', 'name' => 'Jira board', 'about' => '', 'url' => 'https://acme.atlassian.net/jira/boards/1'])
+            ->assertSessionHasNoErrors();
+        $this->pin(['kind' => 'link', 'tag' => 'ssi', 'name' => 'Staging', 'url' => 'http://10.0.0.5:8080/login'])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($this->ana)->get(route('dashboard'))->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('my_wip', 1)
+                ->where('my_wip.0.kind', 'wip')
+                ->has('my_links', 2)
+                ->where('my_links.0.kind', 'link')
+                ->where('my_links.0.name', 'Jira board')
+                ->where('my_links.0.about', null)
+                ->where('my_links.0.url', 'https://acme.atlassian.net/jira/boards/1')
+                ->where('my_links.1.tag', 'SSI'));
+
+        $this->actingAs(User::factory()->create())->get(route('dashboard'))
+            ->assertInertia(fn ($page) => $page->has('my_links', 0));
+    }
+
+    public function test_four_links_at_most_apart_from_the_four_channels()
+    {
+        foreach (range(1, 4) as $i) {
+            $this->pin(['name' => "channel-$i"])->assertSessionHasNoErrors();
+            $this->pin(['kind' => 'link', 'name' => "link-$i", 'url' => "https://example.com/$i"])->assertSessionHasNoErrors();
+        }
+
+        $this->pin(['kind' => 'link', 'name' => 'link-5', 'url' => 'https://example.com/5'])->assertSessionHasErrors('tiles');
+        $this->assertSame(8, $this->ana->wipTiles()->count());
+    }
+
+    public function test_links_must_be_web_addresses_and_kind_is_checked()
+    {
+        foreach (['javascript:alert(1)', 'ftp://example.com/x', 'example.com', 'data:text/html,hi'] as $url) {
+            $this->pin(['kind' => 'link', 'url' => $url])->assertSessionHasErrors('url');
+        }
+        $this->pin(['kind' => 'other'])->assertSessionHasErrors('kind');
+
+        $this->assertSame(0, WipTile::query()->count());
+    }
+
+    public function test_an_edited_link_stays_a_link()
+    {
+        $this->pin(['kind' => 'link', 'url' => 'https://example.com/a'])->assertSessionHasNoErrors();
+        $tile = $this->ana->wipTiles()->first();
+
+        $this->actingAs($this->ana)->put(route('wip-tiles.update', $tile), [
+            'kind' => 'wip', 'tag' => 'OCS', 'name' => 'docs', 'url' => 'https://example.com/b',
+        ])->assertSessionHasNoErrors();
+        $tile->refresh();
+        $this->assertSame(['link', 'docs', 'https://example.com/b'], [$tile->kind, $tile->name, $tile->url]);
+    }
+
+    public function test_the_link_kind_migration_rolls_back()
+    {
+        Artisan::call('migrate:rollback', ['--path' => ['database/migrations/2026_11_24_000025_add_kind_to_wip_tiles_table.php']]);
+        $this->assertFalse(Schema::hasColumn('wip_tiles', 'kind'));
+
+        Artisan::call('migrate');
+        $this->assertTrue(Schema::hasColumn('wip_tiles', 'kind'));
+    }
 }

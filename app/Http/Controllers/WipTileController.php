@@ -9,14 +9,14 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 /**
- * The WIP channels people pin on their own Home (under the office's tiles). Each person manages only theirs.
+ * The WIP channels and links people pin on their own Home (under the office's tiles). Each person manages only theirs.
  */
 class WipTileController extends Controller
 {
     public function store(WipTileRequest $request): RedirectResponse
     {
         $tile = $request->user()->wipTiles()->create($request->tile());
-        Inertia::flash('toast', ['type' => 'success', 'message' => "#{$tile->name} pinned."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => self::label($tile).' pinned.']);
 
         return back();
     }
@@ -25,7 +25,7 @@ class WipTileController extends Controller
     public function update(WipTileRequest $request, WipTile $tile): RedirectResponse
     {
         $tile->update($request->tile());
-        Inertia::flash('toast', ['type' => 'success', 'message' => "#{$tile->name} saved."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => self::label($tile).' saved.']);
 
         return back();
     }
@@ -35,8 +35,14 @@ class WipTileController extends Controller
         abort_unless($tile->user_id === $request->user()->id, 403);
 
         $tile->delete();
-        Inertia::flash('toast', ['type' => 'success', 'message' => "#{$tile->name} unpinned."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => self::label($tile).' unpinned.']);
 
         return back();
+    }
+
+    /** "#design" for a WIP channel, plain "Jira board" for a link. */
+    private static function label(WipTile $tile): string
+    {
+        return $tile->kind === 'link' ? $tile->name : "#{$tile->name}";
     }
 }

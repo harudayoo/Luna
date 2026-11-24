@@ -38,8 +38,9 @@ class DashboardController extends Controller
             // Time (the headline card) and the WIP channels: WIP is the office's main channel.
             'today' => TimeController::today($user),
             'wip' => config('luna.wip'),
-            // The channels this person pinned under the office's tiles.
-            'my_wip' => $user->wipTiles()->get()->map(fn (WipTile $t) => $t->toTile()),
+            // The channels, then the links, this person pinned under the office's tiles.
+            'my_wip' => $user->wipTiles()->where('kind', 'wip')->get()->map(fn (WipTile $t) => $t->toTile()),
+            'my_links' => $user->wipTiles()->where('kind', 'link')->get()->map(fn (WipTile $t) => $t->toTile()),
             'wip_max' => WipTile::MAX,
             // Tags for pinned tiles: the office's own, then every client company's.
             'wip_tags' => ['OCS', ...Company::query()->orderBy('tag')->pluck('tag')->all()],
