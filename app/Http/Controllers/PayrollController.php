@@ -86,7 +86,8 @@ class PayrollController extends Controller
     public function edit(User $user, string $cutoff): Response
     {
         [$start, $end] = $this->period($user, $cutoff);
-        $saved = $user->payslips()->where('period_start', $start->toDateString())->first();
+        // Only a payslip of this exact period prefills: a draft from an older schedule is redone from the ledger.
+        $saved = $user->payslips()->where('period_start', $start->toDateString())->where('period_end', $end->toDateString())->first();
         [$unpaid, $unpaidExact] = $this->unpaidHours($user, $start, $end);
         [$lateHours, $latePesos] = LateLog::tardiness($user, $start, $end);
         $frequency = PaySchedule::frequencyOf($start, $end);
@@ -182,24 +183,30 @@ class PayrollController extends Controller
     }
 
     /**
-     * The pay period starting on $cutoff. A saved payslip keeps the period it was made in, even after the
-     * pay schedule changed (an Aug 16-31 cut-off stays one once August counts as monthly).
+     * The pay period starting on $cutoff. When the date starts a period of the current pay schedule, that
+     * period wins, so an unreleased payslip from an older schedule (a Nov 1-15 draft once November is monthly)
+     * is redone as the month. A released payslip keeps the period it was paid in. A date the schedule no
+     * longer starts on opens a saved payslip in its own period (an Aug 16-31 cut-off once August is monthly).
      *
      * @return array{0: CarbonImmutable, 1: CarbonImmutable}
      */
     private function period(User $user, string $cutoff): array
     {
         $date = CarbonImmutable::createFromFormat('!Y-m-d', $cutoff) ?: null;
-        $saved = $date === null ? null : $user->payslips()->where('period_start', $date->toDateString())->first();
-        if ($saved) {
-            return [$date, CarbonImmutable::createFromFormat('!Y-m-d', $saved->period_end->toDateString())];
-        }
-        $period = $date === null ? null : PaySchedule::periodFor($date);
-        if ($period === null || ! $period[0]->equalTo($date)) {
+        if ($date === null) {
             throw ValidationException::withMessages(['cutoff' => 'Pick a pay period: it starts on the 1st (or the 16th, when paid per cut-off).']);
         }
+        $saved = $user->payslips()->where('period_start', $date->toDateString())->first();
+        $ownPeriod = $saved ? [$date, CarbonImmutable::createFromFormat('!Y-m-d', $saved->period_end->toDateString())] : null;
+        $period = PaySchedule::periodFor($date);
 
-        return $period;
+        if ($period[0]->equalTo($date)) {
+            return $saved?->isReleased() ? $ownPeriod : $period;
+        }
+        if ($ownPeriod) {
+            return $ownPeriod;
+        }
+        throw ValidationException::withMessages(['cutoff' => 'Pick a pay period: it starts on the 1st (or the 16th, when paid per cut-off).']);
     }
 
     /**

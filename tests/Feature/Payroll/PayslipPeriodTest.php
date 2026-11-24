@@ -69,6 +69,57 @@ class PayslipPeriodTest extends TestCase
                 ->where('released_on', '2026-11-12'));
     }
 
+    /** A Nov 1-15 draft saved while per cut-off was the default (production payslip #1, 2026-11-24). */
+    private function staleNovemberDraft(array $attributes = []): Payslip
+    {
+        return $this->oldCutOffPayslip($attributes + [
+            'period_start' => '2026-11-01', 'period_end' => '2026-11-15', 'issued_on' => '2026-11-15', 'absences' => 1234,
+        ]);
+    }
+
+    public function test_a_stale_cut_off_draft_opens_as_the_schedules_month()
+    {
+        $this->staleNovemberDraft();
+
+        $this->actingAs($this->hr)->get(route('people.payroll.edit', [$this->ana, '2026-11-01']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('period.start', '2026-11-01')
+                ->where('period.end', '2026-11-30')
+                ->where('frequency', 'monthly')
+                ->where('saved', false)
+                ->where('payslip.basic_pay', 60000)
+                ->where('payslip.absences', 0));   // from the ledger, not the draft's 1,234
+    }
+
+    public function test_saving_over_a_stale_draft_makes_it_the_month()
+    {
+        $this->staleNovemberDraft();
+
+        $this->actingAs($this->hr)->put(route('people.payroll.update', [$this->ana, '2026-11-01']), $this->payload())
+            ->assertSessionHasNoErrors();
+
+        $slip = Payslip::sole();
+        $this->assertSame(['2026-11-30', '60000.00'], [$slip->period_end->toDateString(), $slip->basic_pay]);
+        $this->actingAs($this->hr)->get(route('people.payroll', ['cutoff' => '2026-11-12']))
+            ->assertInertia(fn ($page) => $page->where('rows', fn ($rows) => collect($rows)->firstWhere('id', $this->ana->id)['payslip_id'] === $slip->id));
+    }
+
+    public function test_a_released_cut_off_payslip_keeps_its_own_period()
+    {
+        $this->staleNovemberDraft(['released_on' => '2026-11-15']);
+
+        $this->actingAs($this->hr)->get(route('people.payroll.edit', [$this->ana, '2026-11-01']))
+            ->assertInertia(fn ($page) => $page
+                ->where('period.end', '2026-11-15')
+                ->where('saved', true)
+                ->where('released_on', '2026-11-15'));
+
+        $this->actingAs($this->hr)->put(route('people.payroll.update', [$this->ana, '2026-11-01']), $this->payload())
+            ->assertSessionHasErrors('released');
+        $this->assertSame('2026-11-15', Payslip::sole()->period_end->toDateString());
+    }
+
     public function test_an_unreleased_old_payslip_saves_in_its_own_period()
     {
         $this->oldCutOffPayslip();
