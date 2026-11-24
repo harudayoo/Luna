@@ -21,7 +21,8 @@ const press = ocsRef(['squish']);
  * the remaining modules out in an arc above the dock (lib/ocs.ts bloomFan).
  */
 export function BloomDock() {
-    const { auth } = usePage().props;
+    const { auth, notifications } = usePage().props;
+    const dots = notifications?.modules ?? {};
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const dock = useRef<HTMLDivElement>(null);
     const bloom = useRef<HTMLSpanElement>(null);
@@ -81,12 +82,14 @@ export function BloomDock() {
                         key={m.key}
                         module={m}
                         current={m.key === activeKey}
+                        unread={dots[m.key] ?? 0}
                     />
                 ))}
                 {fanned.length > 0 && (
                     <Bud
                         modules={fanned}
                         currentKey={activeKey === 'bud' ? here?.key : undefined}
+                        dots={dots}
                     />
                 )}
                 {right.map((m) => (
@@ -94,6 +97,7 @@ export function BloomDock() {
                         key={m.key}
                         module={m}
                         current={m.key === activeKey}
+                        unread={dots[m.key] ?? 0}
                     />
                 ))}
             </div>
@@ -124,12 +128,27 @@ export function splitDock<T>(mine: T[]): {
     };
 }
 
+/** A tile's "something new here" mark: a small square in the accent, from the bell's unread notices. */
+function NewDot() {
+    return (
+        <>
+            <span
+                aria-hidden="true"
+                className="absolute top-2 right-3 size-2 bg-accent"
+            />
+            <span className="sr-only"> (new)</span>
+        </>
+    );
+}
+
 function DockLink({
     module: m,
     current,
+    unread,
 }: {
     module: Module;
     current: boolean;
+    unread: number;
 }) {
     return (
         <Link
@@ -138,10 +157,11 @@ function DockLink({
             prefetch
             data-dock={m.key}
             aria-current={current ? 'page' : undefined}
-            className={tile}
+            className={`${tile} relative`}
         >
             <m.icon aria-hidden="true" />
             {m.title}
+            {unread > 0 && <NewDot />}
         </Link>
     );
 }
@@ -183,9 +203,11 @@ export function arc(n: number): { x: number; y: number }[] {
 function Bud({
     modules,
     currentKey,
+    dots,
 }: {
     modules: Module[];
     currentKey?: string;
+    dots: Record<string, number>;
 }) {
     const [open, setOpen] = useState(false);
     const wrap = useRef<HTMLDivElement>(null);
@@ -288,6 +310,7 @@ function Bud({
                         >
                             <m.icon aria-hidden="true" />
                             {m.title}
+                            {(dots[m.key] ?? 0) > 0 && <NewDot />}
                         </Link>
                     </li>
                 ))}
@@ -301,10 +324,11 @@ function Bud({
                 aria-controls={id}
                 aria-current={currentKey ? 'page' : undefined}
                 onClick={() => setOpen((o) => !o)}
-                className={`${tile} ${open ? 'text-primary' : ''}`}
+                className={`${tile} relative ${open ? 'text-primary' : ''}`}
             >
                 <OrchidGlyph budded />
                 More
+                {modules.some((m) => (dots[m.key] ?? 0) > 0) && <NewDot />}
             </button>
         </div>
     );

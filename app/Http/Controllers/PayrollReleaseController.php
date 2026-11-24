@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payslip;
+use App\Models\User;
+use App\Notifications\LunaNotice;
+use App\Services\Notify;
 use App\Services\Payroll\PaySchedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +34,7 @@ class PayrollReleaseController extends Controller
                 'released_on' => $data['released_on'] ?? CarbonImmutable::today()->toDateString(),
                 'released_by' => $request->user()->id,
             ]);
+            $this->tell($payslip, $request->user());
             Inertia::flash('toast', ['type' => 'success', 'message' => "{$name}'s pay marked as received."]);
         } else {
             $payslip->update(['released_on' => null, 'released_by' => null]);
@@ -52,10 +56,10 @@ class PayrollReleaseController extends Controller
             ->where('period_start', $start->toDateString())
             ->whereNull('released_on')
             ->get()
-            ->each(fn (Payslip $p) => $p->update([
-                'released_on' => $on,
-                'released_by' => $request->user()->id,
-            ]))
+            ->each(function (Payslip $p) use ($on, $request) {
+                $p->update(['released_on' => $on, 'released_by' => $request->user()->id]);
+                $this->tell($p, $request->user());
+            })
             ->count();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $count === 1
@@ -63,6 +67,17 @@ class PayrollReleaseController extends Controller
             : "{$count} payslips marked as received."]);
 
         return back();
+    }
+
+    /** The bell: the payslip's owner can now see and print it. */
+    private function tell(Payslip $payslip, User $actor): void
+    {
+        $period = Notify::range($payslip->period_start->toImmutable(), $payslip->period_end->toImmutable());
+        Notify::user($payslip->user, $actor, new LunaNotice(
+            'payslip_released', 'Your payslip is ready',
+            "Your payslip for {$period} has been released. You can view or print it now.",
+            route('payslips.print', $payslip, false), 'home',
+        ));
     }
 
     /** The Payroll Release Form: every payslip of the pay period, a line each to sign. */

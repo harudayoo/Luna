@@ -359,3 +359,74 @@ export function bloomFan(
         });
     });
 }
+
+/*
+ * ringBell: a notification arrived (Luna-local, one personality per theme; reduced motion = no motion,
+ * the count badge alone says it). Parts: [data-bell-icon], [data-bell-badge].
+ *   LIGHT (paper): the bell is struck: a quick ink wobble that settles fast, then the badge is stamped on.
+ *   DARK  (code):  the bell sways on a spring, and the badge pops in with a violet glow that fades.
+ */
+export function ringBell(el: HTMLElement): void {
+    const { animate, spring } = anime;
+    const icon = el.querySelector<HTMLElement>('[data-bell-icon]');
+    const badge = el.querySelector<HTMLElement>('[data-bell-badge]');
+
+    if (ocs().reduced() || !icon) {
+        return;
+    }
+
+    if (ocs().isDark()) {
+        animate(icon, {
+            rotate: {
+                from: 18,
+                to: 0,
+                ease: spring({ bounce: 0.6, duration: 900 }),
+            },
+        });
+        if (badge) {
+            // The token's value, not var(): Anime interpolates real colours only (tokens are #rrggbb).
+            const glow = getComputedStyle(document.documentElement)
+                .getPropertyValue('--primary')
+                .trim();
+            animate(badge, {
+                scale: {
+                    from: 0.4,
+                    to: 1,
+                    ease: spring({ bounce: 0.5, duration: 700 }),
+                },
+                boxShadow: [
+                    {
+                        from: `0 0 0px 0px ${glow}`,
+                        to: `0 0 14px 2px ${glow}`,
+                        duration: 200,
+                    },
+                    {
+                        to: `0 0 0px 0px ${glow}00`,
+                        duration: 600,
+                        ease: 'outQuad',
+                    },
+                ],
+            });
+        }
+
+        return;
+    }
+
+    animate(icon, {
+        rotate: [
+            { to: -16, duration: 70, ease: 'outQuad' },
+            { to: 12, duration: 90 },
+            { to: -6, duration: 90 },
+            { to: 0, duration: 160, ease: 'outBack(3)' },
+        ],
+    });
+    if (badge) {
+        animate(badge, {
+            y: { from: -8, to: 0, duration: 180, ease: 'inQuad' },
+            scale: [
+                { from: 1.3, to: 1.3, duration: 180 },
+                { to: 1, duration: 220, ease: 'outBack(3)' },
+            ],
+        });
+    }
+}

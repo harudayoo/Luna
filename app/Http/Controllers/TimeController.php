@@ -6,6 +6,8 @@ use App\Http\Requests\StoreLateRequest;
 use App\Models\LateLog;
 use App\Models\TimeLog;
 use App\Models\User;
+use App\Notifications\LunaNotice;
+use App\Services\Notify;
 use App\Services\Payroll\PaySchedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -87,6 +89,12 @@ class TimeController extends Controller
     public function storeLate(StoreLateRequest $request): RedirectResponse
     {
         $late = $request->save();
+        $user = $request->user();
+        Notify::hr($user, new LunaNotice(
+            'late_declared', "{$user->name} declared a late",
+            LateLog::KINDS[$late->kind].", {$late->minutes} min on ".$late->date->format('M j').'.',
+            route('people.time', ['date' => $late->date->toDateString()], false), 'people',
+        ));
         Inertia::flash('toast', ['type' => 'success', 'message' => LateLog::KINDS[$late->kind].' logged: '.$late->minutes.' min.']);
 
         return back();

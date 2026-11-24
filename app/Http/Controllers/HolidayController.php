@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\HolidayRequest;
 use App\Models\Holiday;
 use App\Models\Leave;
+use App\Notifications\LunaNotice;
+use App\Services\Notify;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -90,6 +92,7 @@ class HolidayController extends Controller
 
             return $restored;
         });
+        $this->announce($holiday, 'removed', 'is no longer a holiday. It’s a working day again.');
         $message = $holiday->name.' removed. Leave on that date is charged again.';
         if ($restored > 0) {
             $message .= ' '.($restored === 1 ? '1 person’s cancelled leave is' : "$restored people’s cancelled leave is").' back.';
@@ -118,8 +121,21 @@ class HolidayController extends Controller
             ->update(['cancelled_by_holiday_id' => null]);
     }
 
+    /** The bell: everyone but the HR person who changed it. */
+    private function announce(Holiday $holiday, string $verb, string $note): void
+    {
+        Notify::everyone(request()->user(), new LunaNotice(
+            'holiday', "Holiday {$verb}: {$holiday->name}",
+            $holiday->date->format('D, M j').' '.$note,
+            route('calendar.index', ['month' => $holiday->date->format('Y-m')], false), 'calendar',
+        ));
+    }
+
     private function done(Holiday $holiday, string $verb, int $leave, bool $cancelled): RedirectResponse
     {
+        $this->announce($holiday, $verb === 'added' ? 'added' : 'changed', $holiday->kind === 'special'
+            ? 'is a special non-working day.'
+            : 'is a regular holiday.');
         $message = $holiday->name.' '.$verb.'.';
         if ($leave > 0) {
             $people = $leave === 1 ? '1 person’s leave' : "$leave people’s leave";

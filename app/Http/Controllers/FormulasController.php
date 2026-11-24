@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Notifications\LunaNotice;
+use App\Services\Notify;
 use App\Services\Payroll\PayFrequency;
 use App\Services\Payroll\PaySchedule;
 use App\Services\Payroll\PayslipMath;
@@ -64,6 +66,11 @@ class FormulasController extends Controller
         PaySchedule::change($frequency, $data['from']);
 
         $month = CarbonImmutable::createFromFormat('!Y-m', $data['from'])->format('F Y');
+        Notify::everyone($request->user(), new LunaNotice(
+            'pay_schedule', 'Pay schedule change',
+            "From {$month}, pay is ".strtolower($frequency->label()).'. PTO still builds up per cut-off.',
+            route('payslips.index', [], false), 'home',
+        ));
         Inertia::flash('toast', ['type' => 'success', 'message' => "Pay is {$frequency->label()} from {$month}."]);
 
         return to_route('people.formulas');

@@ -6,6 +6,8 @@ use App\Http\Requests\StoreLeaveRequest;
 use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
+use App\Notifications\LunaNotice;
+use App\Services\Notify;
 use App\Services\Payroll\PayRate;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Ledger;
@@ -69,7 +71,16 @@ class LeaveController extends Controller
 
         $request->save();
 
+        $user = $request->user();
         $days = count($dates) * $request->daysEach();
+        $what = $request->partOfTheDay() ? $request->hoursLabel(count($dates)) : ((float) $days).' '.($days > 1 ? 'days' : 'day');
+        Notify::hr($user, new LunaNotice(
+            'leave_logged', "{$user->name} logged leave",
+            "{$what} from {$dates[0]->format('M j')}.",
+            route('people.leave', ['cutoff' => $dates[0]->toDateString()], false), 'people',
+        ));
+        Notify::unpaidLeave($user, $user, $dates);
+
         Inertia::flash('toast', ['type' => 'success', 'message' => match (true) {
             $request->partOfTheDay() => $request->hoursLabel(count($dates)).' logged.',
             $days === 1.0 => 'Leave logged for '.$dates[0]->format('M j').'.',

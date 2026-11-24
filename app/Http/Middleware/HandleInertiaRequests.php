@@ -2,7 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
+use App\Services\Notify;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\DatabaseNotification;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -46,6 +49,29 @@ class HandleInertiaRequests extends Middleware
                     'admin' => (bool) $request->user()?->can('admin'),
                 ],
             ],
+            // The bell and the dock dots. A closure, so the bell's poll can reload just this.
+            'notifications' => fn () => $request->user() ? $this->notifications($request->user()) : null,
+        ];
+    }
+
+    /** @return array{unread: int, items: list<array<string, mixed>>, modules: array<string, int>} */
+    private function notifications(User $user): array
+    {
+        Notify::payslipsDue($user);
+        $unread = $user->unreadNotifications()->get(['data']);
+
+        return [
+            'unread' => $unread->count(),
+            'items' => $user->notifications()->latest()->limit(15)->get()->map(fn (DatabaseNotification $n) => [
+                'id' => $n->id,
+                'kind' => $n->data['kind'] ?? '',
+                'title' => $n->data['title'] ?? '',
+                'body' => $n->data['body'] ?? '',
+                'module' => $n->data['module'] ?? null,
+                'read' => $n->read_at !== null,
+                'ago' => $n->created_at->diffForHumans(short: true),
+            ])->all(),
+            'modules' => $unread->countBy(fn (DatabaseNotification $n) => $n->data['module'] ?? '')->forget('')->all(),
         ];
     }
 }

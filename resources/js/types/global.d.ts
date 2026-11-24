@@ -1,3 +1,4 @@
+import type { Notifications } from '@/lib/notifications';
 import type { Auth } from '@/types/auth';
 
 declare module 'react' {
@@ -11,6 +12,8 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
+            /** Null for guests (components/notification-bell.tsx). */
+            notifications: Notifications | null;
             [key: string]: unknown;
         };
     }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\WipTileController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('wip-tiles', [WipTileController::class, 'store'])->name('wip-tiles.store');
     Route::put('wip-tiles/{tile}', [WipTileController::class, 'update'])->name('wip-tiles.update');
     Route::delete('wip-tiles/{tile}', [WipTileController::class, 'destroy'])->name('wip-tiles.destroy');
+
+    // The bell in the top bar (components/notification-bell.tsx): part of the shell, not a module.
+    Route::get('notifications/{id}', [NotificationController::class, 'open'])->name('notifications.open');
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
 });
 
 // Each feature module keeps its routes in routes/modules/<module>.php (see resources/js/modules.ts).

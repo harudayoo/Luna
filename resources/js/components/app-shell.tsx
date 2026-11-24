@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import AppLogo from '@/components/app-logo';
 import { BloomDock } from '@/components/bloom-dock';
+import { NotificationBell } from '@/components/notification-bell';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
     DropdownMenu,
@@ -45,6 +46,7 @@ export function AppShell({
                 </div>
                 <div className="flex items-center gap-2">
                     <ThemeToggle />
+                    <NotificationBell />
                     <DropdownMenu>
                         <DropdownMenuTrigger
                             className="flex h-10 items-center gap-2 px-2 hover:bg-surface-hover"

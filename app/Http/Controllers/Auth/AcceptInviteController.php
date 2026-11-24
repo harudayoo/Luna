@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Concerns\PasswordValidationRules;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\LunaNotice;
+use App\Services\Notify;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,6 +49,12 @@ class AcceptInviteController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+
+        Notify::hr($user, new LunaNotice(
+            'joined', "{$user->name} joined Luna",
+            'They accepted their invite. Set their salary and PTO start under Leave details.',
+            route('people.index', [], false), 'people',
+        ));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Welcome to Luna.']);
 

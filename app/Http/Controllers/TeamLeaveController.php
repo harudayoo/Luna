@@ -6,6 +6,8 @@ use App\Http\Requests\StoreLeaveForRequest;
 use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
+use App\Notifications\LunaNotice;
+use App\Services\Notify;
 use App\Services\Payroll\PayRate;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Ledger;
@@ -94,6 +96,14 @@ class TeamLeaveController extends Controller
         $request->save();
 
         $days = count($dates) * $request->daysEach();
+        $what = $request->partOfTheDay() ? $request->hoursLabel(count($dates)) : ((float) $days).' '.($days > 1 ? 'days' : 'day');
+        Notify::user($user, $request->user(), new LunaNotice(
+            'leave_for_you', 'HR logged leave for you',
+            "{$request->user()->name} logged {$what} from {$dates[0]->format('M j')} on your record.",
+            route('leave.index', [], false), 'leave',
+        ));
+        Notify::unpaidLeave($user, $request->user(), $dates);
+
         $first = explode(' ', $user->name)[0];
         Inertia::flash('toast', ['type' => 'success', 'message' => $request->partOfTheDay()
             ? $request->hoursLabel(count($dates))." logged for {$first}."
