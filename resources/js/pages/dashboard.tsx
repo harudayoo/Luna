@@ -116,8 +116,9 @@ export default function Dashboard({
                         tags={wip_tags}
                     />
                 </div>
-                {/* On phones the aside follows WIP, so the pet comes after the gist. */}
-                <aside className="mt-8 lg:mt-0">
+                {/* On phones the aside follows WIP, so the pet comes after the gist. On desktop it reaches into
+                    the room left for the dock, so the sticky rail stays put to the bottom of the page. */}
+                <aside className="mt-8 lg:mt-0 lg:-mb-24">
                     {/* The rail is sticky itself: its own box keeps it from sliding over the pet. */}
                     <div className="flex flex-col gap-3 lg:sticky lg:top-20">
                         <div>

@@ -31,10 +31,10 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
     return (
         <section
             aria-label="Your moonling"
-            className="ocs-card flex items-center gap-4 p-4! sm:p-5! lg:flex-col lg:items-stretch"
+            className="ocs-card flex items-center gap-4 p-4! sm:p-5! lg:gap-3 lg:p-4!"
         >
-            {/* Beside the text on phones and tablets; above it in the narrow desktop rail. */}
-            <span ref={sprite} className="inline-block self-center">
+            {/* Beside the text everywhere; smaller in the desktop rail so the whole rail fits on screen and stays put. */}
+            <span ref={sprite} className="inline-block">
                 <PetSprite
                     stage={progress.stage}
                     title={`Your moonling: ${progress.name}`}

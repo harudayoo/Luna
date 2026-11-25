@@ -22,7 +22,7 @@ export function PetSprite({ stage, title }: { stage: number; title: string }) {
             viewBox="0 0 120 120"
             role="img"
             aria-label={title}
-            className="size-24 shrink-0 overflow-visible min-[390px]:size-30"
+            className="size-24 shrink-0 overflow-visible min-[390px]:size-30 lg:size-20"
         >
             {GLOW[stage] > 0 && (
                 <circle
