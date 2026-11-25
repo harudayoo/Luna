@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\LunaNotice;
 use App\Services\Notify;
 use App\Services\Payroll\PayRate;
+use App\Services\Pet;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Ledger;
 use App\Services\Pto\Policy;
@@ -80,6 +81,7 @@ class LeaveController extends Controller
             route('people.leave', ['cutoff' => $dates[0]->toDateString()], false), 'people',
         ));
         Notify::unpaidLeave($user, $user, $dates);
+        Pet::award($user, 'leave', $dates[0]->toDateString());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => match (true) {
             $request->partOfTheDay() => $request->hoursLabel(count($dates)).' logged.',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Payslip;
 use App\Models\User;
+use App\Services\Pet;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -51,7 +52,11 @@ class PayslipController extends Controller
         /** @var User $user */
         $user = $request->user();
         $hr = $user->can('hr');
-        abort_unless($hr || ($payslip->user_id === $user->id && $payslip->released_on !== null), 403);
+        $ownReleased = $payslip->user_id === $user->id && $payslip->released_on !== null;
+        abort_unless($hr || $ownReleased, 403);
+        if ($ownReleased) {
+            Pet::award($user, 'payslip', (string) $payslip->id);
+        }
 
         $paper = $request->validate(['paper' => ['nullable', 'in:'.implode(',', array_keys(self::PAPERS))]])['paper'] ?? 'letter';
 

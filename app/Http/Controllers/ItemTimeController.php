@@ -6,6 +6,7 @@ use App\Models\Item;
 use App\Models\ItemTime;
 use App\Models\TimeLog;
 use App\Models\User;
+use App\Services\Pet;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -82,6 +83,7 @@ class ItemTimeController extends Controller
     {
         $item = $time->item()->with('channel.company')->first();
         $wip = ItemTime::wip($time->minutes());
+        Pet::award($time->user, 'item_time', $item->id.':'.Pet::today());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$verb}: {$wip} on \"{$item->title}\"."]);
         Inertia::flash('item_logged', [

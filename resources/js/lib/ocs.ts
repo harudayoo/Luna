@@ -430,3 +430,144 @@ export function ringBell(el: HTMLElement): void {
         });
     }
 }
+
+/*
+ * The pet on Home (Luna-local, spec 2026-11-24-luna-pet). Parts: [data-pet-body], [data-pet-eye],
+ * [data-pet-glow] inside the sprite; petFed / petGrow move the wrapper itself so they never fight
+ * the idle bob. Reduced motion = a still sprite.
+ *   LIGHT (paper): short, stamp-like moves: a small step bob, a squish-and-hop that lands hard,
+ *                  and growth stamped on with an overshoot.
+ *   DARK  (code):  softer springs: a slow float with breathing glow, a springy hop, and growth that
+ *                  swells in on a spring while the glow flares.
+ */
+export function petIdle(el: HTMLElement): () => void {
+    const { animate } = anime;
+    const body = el.querySelector<SVGElement>('[data-pet-body]');
+    const eyes = el.querySelectorAll<SVGElement>('[data-pet-eye]');
+    const glow = el.querySelectorAll<SVGElement>('[data-pet-glow]');
+
+    if (ocs().reduced() || !body) {
+        return () => {};
+    }
+
+    const dark = ocs().isDark();
+    const running = [
+        animate(body, {
+            y: dark ? -4 : -2,
+            duration: dark ? 1800 : 900,
+            ease: dark ? 'inOutSine' : 'inOutQuad',
+            loop: true,
+            alternate: true,
+        }),
+    ];
+    if (dark && glow.length) {
+        running.push(
+            animate(glow, {
+                opacity: { from: 0.12, to: 0.3 },
+                duration: 1800,
+                ease: 'inOutSine',
+                loop: true,
+                alternate: true,
+            }),
+        );
+    }
+    const blink = window.setInterval(() => {
+        animate(eyes, {
+            scaleY: [
+                { to: 0.1, duration: 70 },
+                { to: 1, duration: 120 },
+            ],
+        });
+    }, 3600);
+
+    return () => {
+        window.clearInterval(blink);
+        running.forEach((a) => a.revert());
+    };
+}
+
+export function petFed(el: HTMLElement): void {
+    const { animate, spring } = anime;
+
+    if (ocs().reduced()) {
+        return;
+    }
+
+    if (ocs().isDark()) {
+        animate(el, {
+            scaleX: [
+                { to: 1.12, duration: 160 },
+                { to: 1, ease: spring({ bounce: 0.6, duration: 700 }) },
+            ],
+            scaleY: [
+                { to: 0.86, duration: 160 },
+                { to: 1, ease: spring({ bounce: 0.6, duration: 700 }) },
+            ],
+            y: [
+                { to: -12, duration: 260, delay: 160, ease: 'outQuad' },
+                { to: 0, ease: spring({ bounce: 0.5, duration: 600 }) },
+            ],
+        });
+
+        return;
+    }
+
+    animate(el, {
+        scaleX: [
+            { to: 1.14, duration: 90 },
+            { to: 1, duration: 120 },
+            { to: 1.08, duration: 60, delay: 200 },
+            { to: 1, duration: 100 },
+        ],
+        scaleY: [
+            { to: 0.84, duration: 90 },
+            { to: 1, duration: 120 },
+            { to: 0.9, duration: 60, delay: 200 },
+            { to: 1, duration: 100 },
+        ],
+        y: [
+            { to: -10, duration: 160, delay: 90, ease: 'outQuad' },
+            { to: 0, duration: 160, ease: 'inQuad' },
+        ],
+    });
+}
+
+export function petGrow(el: HTMLElement): void {
+    const { animate, spring } = anime;
+    const glow = el.querySelectorAll<SVGElement>('[data-pet-glow]');
+
+    if (ocs().reduced()) {
+        return;
+    }
+
+    if (ocs().isDark()) {
+        animate(el, {
+            scale: {
+                from: 0.6,
+                to: 1,
+                ease: spring({ bounce: 0.55, duration: 1100 }),
+            },
+        });
+        if (glow.length) {
+            animate(glow, {
+                opacity: [
+                    { from: 0, to: 0.5, duration: 300 },
+                    { to: 0.2, duration: 900, ease: 'outQuad' },
+                ],
+            });
+        }
+
+        return;
+    }
+
+    animate(el, {
+        scale: [
+            { from: 0.7, to: 1.12, duration: 180, ease: 'outQuad' },
+            { to: 1, duration: 260, ease: 'outBack(3)' },
+        ],
+        rotate: [
+            { from: -6, to: 3, duration: 180 },
+            { to: 0, duration: 260, ease: 'outBack(3)' },
+        ],
+    });
+}

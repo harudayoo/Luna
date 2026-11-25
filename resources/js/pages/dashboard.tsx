@@ -1,11 +1,13 @@
 import { Head, usePage } from '@inertiajs/react';
 import type { GlanceItem } from '@/components/glance';
 import { GLANCE_ICONS, GlanceRail, GlanceStrip } from '@/components/glance';
+import { PetCard } from '@/components/pet-card';
 import type { Today } from '@/components/time-today';
 import { TimeToday } from '@/components/time-today';
 import type { WipChannel } from '@/components/wip-channels';
 import { WipChannels } from '@/components/wip-channels';
 import type { WipTile } from '@/components/wip-tile-dialog';
+import type { Pet, PetMoment } from '@/lib/pet';
 import { dashboard } from '@/routes';
 import { index as analyticsIndex } from '@/routes/analytics';
 import { index as calendarIndex } from '@/routes/calendar';
@@ -26,6 +28,8 @@ type Props = {
     my_links: WipTile[];
     wip_tags: string[];
     wip_max: number;
+    pet: Pet;
+    pet_moment: PetMoment;
 };
 
 const short = (iso: string) =>
@@ -44,6 +48,8 @@ export default function Dashboard({
     my_links,
     wip_tags,
     wip_max,
+    pet,
+    pet_moment,
 }: Props) {
     const { auth } = usePage().props;
     const attendance = wip.find((c) => c.key === 'attendance')?.url ?? '';
@@ -110,8 +116,15 @@ export default function Dashboard({
                         tags={wip_tags}
                     />
                 </div>
-                <aside>
-                    <GlanceRail items={glance} />
+                {/* On phones the aside follows WIP, so the pet comes after the gist. */}
+                <aside className="mt-8 lg:mt-0">
+                    {/* The rail is sticky itself: its own box keeps it from sliding over the pet. */}
+                    <div className="flex flex-col gap-3 lg:sticky lg:top-20">
+                        <div>
+                            <GlanceRail items={glance} />
+                        </div>
+                        <PetCard pet={pet} moment={pet_moment} />
+                    </div>
                 </aside>
             </div>
         </>

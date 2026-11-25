@@ -7,6 +7,7 @@ use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
 use App\Models\WipTile;
+use App\Services\Pet;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
@@ -23,6 +24,8 @@ class DashboardController extends Controller
         $policy = Policy::current();
         $today = CarbonImmutable::today();
         $current = collect($user->ptoLedger($policy, $today))->first(fn (CutOff $c) => $c->contains($today));
+        $fed = Pet::visit($user);
+        $grew = $request->session()->pull(Pet::GREW, false);
 
         return Inertia::render('dashboard', [
             'pto' => [
@@ -44,6 +47,9 @@ class DashboardController extends Controller
             'wip_max' => WipTile::MAX,
             // Tags for pinned tiles: the office's own, then every client company's.
             'wip_tags' => ['OCS', ...Company::query()->orderBy('tag')->pluck('tag')->all()],
+            // The person's pet, and what just happened to it on this load (for the card's motion).
+            'pet' => Pet::state($user),
+            'pet_moment' => $grew ? 'grew' : ($fed ? 'fed' : null),
         ]);
     }
 }
