@@ -3,6 +3,7 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PetController;
+use App\Http\Controllers\PetDuelController;
 use App\Http\Controllers\WipTileController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Your pet on Home (spec 2026-11-25-luna-pet-social).
     Route::patch('pet', [PetController::class, 'update'])->name('pet.update');
+    Route::post('pet/duels', [PetDuelController::class, 'store'])->name('pet.duels.store');
+    Route::post('pet/duels/{duel}/answer', [PetDuelController::class, 'answer'])->name('pet.duels.answer');
+    Route::post('pet/duels/{duel}/decline', [PetDuelController::class, 'decline'])->name('pet.duels.decline');
 
     // The bell in the top bar (components/notification-bell.tsx): part of the shell, not a module.
     Route::get('notifications/{id}', [NotificationController::class, 'open'])->name('notifications.open');

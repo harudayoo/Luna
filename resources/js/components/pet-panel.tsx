@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import PetController from '@/actions/App/Http/Controllers/PetController';
 import InputError from '@/components/input-error';
 import { PetBoard } from '@/components/pet-board';
+import { PetDuels } from '@/components/pet-duels';
 import { PetSprite } from '@/components/pet-sprite';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,15 +38,27 @@ const DAY_WORD: Record<PetDetail['week'][number]['status'], string> = {
 /**
  * The pet up close (spec 2026-11-25-luna-pet-social, slice 1): tap it, name it, see the stages ahead, this week's
  * visits, what gives XP and what gave it lately. The extras (pet_detail) load when it opens; full screen on phones.
+ * Tabs: the pet, the office board (slice 2), moon duels (slice 3). `startTab` opens on a tab (the bell's ?pet=duels).
  */
+export type PetTab = 'pet' | 'board' | 'duels';
+
+/** The optional props each tab needs (the board offers duels, so it loads those too). */
+const TAB_PROPS: Record<PetTab, string[]> = {
+    pet: ['pet_detail'],
+    board: ['pet_board', 'pet_duels'],
+    duels: ['pet_duels'],
+};
+
 export function PetPanel({
     pet,
     open,
     onOpenChange,
+    startTab = 'pet',
 }: {
     pet: Pet;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    startTab?: PetTab;
 }) {
     const { pet_detail: detail, errors } = usePage<{
         pet_detail?: PetDetail;
@@ -56,16 +69,24 @@ export function PetPanel({
     const [editing, setEditing] = useState(false);
     const [name, setName] = useState(pet.name ?? '');
     const [saving, setSaving] = useState(false);
-    const [tab, setTab] = useState<'pet' | 'board'>('pet');
+    const [tab, setTab] = useState<PetTab>('pet');
 
+    // The panel alone loads what the open tab shows: one partial reload per opening or tab change, so two
+    // reloads never race each other.
     useEffect(() => {
         if (open) {
-            router.reload({ only: ['pet_detail'] });
+            setTab(startTab);
+            router.reload({ only: TAB_PROPS[startTab] });
         } else {
             setEditing(false);
             setTab('pet');
         }
-    }, [open]);
+    }, [open, startTab]);
+
+    const showTab = (next: PetTab) => {
+        setTab(next);
+        router.reload({ only: TAB_PROPS[next] });
+    };
 
     // The idle bob, once the dialog has put the sprite on the page.
     useEffect(() => {
@@ -183,12 +204,13 @@ export function PetPanel({
                 <div
                     role="tablist"
                     aria-label="Pet views"
-                    className="grid grid-cols-2 gap-1 bg-surface-hover p-1"
+                    className="grid grid-cols-3 gap-1 bg-surface-hover p-1"
                 >
                     {(
                         [
                             ['pet', 'Your pet'],
-                            ['board', 'Office board'],
+                            ['board', 'Board'],
+                            ['duels', 'Duels'],
                         ] as const
                     ).map(([key, label]) => (
                         <button
@@ -196,7 +218,7 @@ export function PetPanel({
                             type="button"
                             role="tab"
                             aria-selected={tab === key}
-                            onClick={() => setTab(key)}
+                            onClick={() => showTab(key)}
                             className="min-h-10 px-3 text-sm font-semibold text-muted aria-selected:bg-primary aria-selected:text-on-primary focus-visible:shadow-lift focus-visible:outline-none"
                         >
                             {label}
@@ -206,6 +228,8 @@ export function PetPanel({
 
                 {tab === 'board' ? (
                     <PetBoard pet={pet} />
+                ) : tab === 'duels' ? (
+                    <PetDuels pet={pet} revealLatest={startTab === 'duels'} />
                 ) : (
                     <>
                         {/* The pet, large. Tapping is just for fun: no XP. */}

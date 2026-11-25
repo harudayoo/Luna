@@ -635,3 +635,74 @@ export function petPoke(el: HTMLElement): void {
         ],
     });
 }
+
+/*
+ * duelReveal: a moon duel's result (spec 2026-11-25-luna-pet-social). Parts: [data-duel-pick] (both moves),
+ * [data-duel-winner], [data-duel-loser] (none on a draw). Reduced motion = the result text alone.
+ *   LIGHT (paper): the moves are stamped down one after the other, the winner hops once, the loser flattens.
+ *   DARK  (code):  the moves flip over on a spring, the winner floats up with a glow, the loser sinks and dims.
+ */
+export function duelReveal(el: HTMLElement): void {
+    const { animate, spring, stagger } = anime;
+    const picks = el.querySelectorAll<HTMLElement>('[data-duel-pick]');
+    const winner = el.querySelector<HTMLElement>('[data-duel-winner]');
+    const loser = el.querySelector<HTMLElement>('[data-duel-loser]');
+
+    if (ocs().reduced()) {
+        return;
+    }
+
+    if (ocs().isDark()) {
+        animate(picks, {
+            rotateY: { from: 90, to: 0, ease: spring({ bounce: 0.5, duration: 700 }) },
+            opacity: { from: 0, to: 1, duration: 250 },
+            delay: stagger(220),
+        });
+        if (winner) {
+            const glow = getComputedStyle(document.documentElement)
+                .getPropertyValue('--primary')
+                .trim();
+            animate(winner, {
+                y: [
+                    { to: -14, duration: 360, delay: 700, ease: 'outQuad' },
+                    { to: 0, ease: spring({ bounce: 0.5, duration: 800 }) },
+                ],
+                filter: [
+                    { from: `drop-shadow(0 0 0px ${glow})`, to: `drop-shadow(0 0 12px ${glow})`, duration: 360, delay: 700 },
+                    { to: `drop-shadow(0 0 0px ${glow})`, duration: 900 },
+                ],
+            });
+        }
+        if (loser) {
+            animate(loser, {
+                y: { to: 4, duration: 500, delay: 700, ease: 'outQuad' },
+                opacity: { to: 0.55, duration: 500, delay: 700 },
+            });
+        }
+
+        return;
+    }
+
+    animate(picks, {
+        scale: [
+            { from: 1.6, to: 0.92, duration: 140, ease: 'inQuad' },
+            { to: 1, duration: 160, ease: 'outBack(3)' },
+        ],
+        opacity: { from: 0, to: 1, duration: 100 },
+        delay: stagger(260),
+    });
+    if (winner) {
+        animate(winner, {
+            y: [
+                { to: -12, duration: 160, delay: 640, ease: 'outQuad' },
+                { to: 0, duration: 160, ease: 'inQuad' },
+            ],
+        });
+    }
+    if (loser) {
+        animate(loser, {
+            scaleY: { to: 0.8, duration: 140, delay: 640, ease: 'outQuad' },
+            scaleX: { to: 1.12, duration: 140, delay: 640, ease: 'outQuad' },
+        });
+    }
+}

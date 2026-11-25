@@ -8,19 +8,28 @@ use App\Models\Leave;
 use App\Models\User;
 use App\Models\WipTile;
 use App\Services\Pet;
+use App\Services\PetDuels;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): Response|RedirectResponse
     {
+        // A duel notice links to ?pet=duels. Swap that for a one-time note and the plain address, so the panel opens
+        // on the Duels tab once and a refresh of Home doesn't open it again.
+        if ($request->query('pet') === 'duels') {
+            return to_route('dashboard')->with('pet_open', 'duels');
+        }
+
         /** @var User $user */
         $user = $request->user();
+        $openDuels = $request->session()->get('pet_open') === 'duels';
         $policy = Policy::current();
         $today = CarbonImmutable::today();
         $current = collect($user->ptoLedger($policy, $today))->first(fn (CutOff $c) => $c->contains($today));
@@ -54,6 +63,10 @@ class DashboardController extends Controller
             'pet_detail' => Inertia::optional(fn () => Pet::detail($user)),
             // The office board, when the panel's board tab opens.
             'pet_board' => Inertia::optional(fn () => Pet::board($user)),
+            // Moon duels, when the panel's duels or board tab opens.
+            'pet_duels' => Inertia::optional(fn () => PetDuels::tab($user)),
+            // Which panel tab to open straight away (once, after a duel notice), or null.
+            'pet_open' => $openDuels ? 'duels' : null,
         ]);
     }
 }

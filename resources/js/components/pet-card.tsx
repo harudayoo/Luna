@@ -1,4 +1,6 @@
+import { usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import type { PetTab } from '@/components/pet-panel';
 import { PetPanel } from '@/components/pet-panel';
 import { PetSprite } from '@/components/pet-sprite';
 import { ocsRef, petFed, petGrow, petIdle } from '@/lib/ocs';
@@ -14,7 +16,20 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
     const sprite = useRef<HTMLSpanElement>(null);
     const progress = stageProgress(pet.xp);
     const [open, setOpen] = useState(false);
+    const [startTab, setStartTab] = useState<PetTab>('pet');
     const tilt = useRef(ocsRef(['tilt'])).current;
+    const { pet_open: openTab } = usePage<{ pet_open?: PetTab | null }>().props;
+
+    // A duel notice in the bell links to /dashboard?pet=duels; the server turns that into the plain address and a
+    // one-time `pet_open: 'duels'` prop, which opens the panel on that tab when Home mounts.
+    useEffect(() => {
+        if (openTab) {
+            setStartTab(openTab);
+            setOpen(true);
+        }
+        // Only on mount: partial reloads keep the old prop.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         const el = sprite.current;
@@ -86,7 +101,17 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
                     </p>
                 </div>
             </div>
-            <PetPanel pet={pet} open={open} onOpenChange={setOpen} />
+            <PetPanel
+                pet={pet}
+                open={open}
+                startTab={startTab}
+                onOpenChange={(o) => {
+                    setOpen(o);
+                    if (!o) {
+                        setStartTab('pet');
+                    }
+                }}
+            />
         </>
     );
 }

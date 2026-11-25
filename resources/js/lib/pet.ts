@@ -15,6 +15,7 @@ export type PetBoardData = {
     joined: boolean;
     rows: {
         rank: number;
+        user_id: number;
         first_name: string;
         pet_name: string | null;
         stage: number;
@@ -25,6 +26,70 @@ export type PetBoardData = {
 };
 
 export type PetMoment = 'fed' | 'grew' | null;
+
+/** Moon duels (App\Services\PetDuels): Moon outshines Star, Star outlasts Comet, Comet eclipses Moon. */
+export type DuelPick = 'moon' | 'star' | 'comet';
+
+export const DUEL_PICKS: {
+    pick: DuelPick;
+    label: string;
+    icon: string;
+    beats: string;
+}[] = [
+    { pick: 'moon', label: 'Moon', icon: '🌙', beats: 'outshines Star' },
+    { pick: 'star', label: 'Star', icon: '⭐', beats: 'outlasts Comet' },
+    { pick: 'comet', label: 'Comet', icon: '☄️', beats: 'eclipses Moon' },
+];
+
+export type PetDuelsData = {
+    /** Never carries the challenger's pick. */
+    incoming: {
+        id: number;
+        from_id: number;
+        from: string;
+        from_pet: string | null;
+        stage: number;
+        at: string;
+    }[];
+    sent: {
+        id: number;
+        to_id: number;
+        to: string;
+        pick: DuelPick;
+        at: string;
+    }[];
+    results: {
+        id: number;
+        against: string;
+        their_stage: number;
+        mine: DuelPick | null;
+        theirs: DuelPick | null;
+        outcome: 'win' | 'loss' | 'draw' | 'declined' | 'expired';
+        at: string;
+    }[];
+    tally: { win: number; loss: number; draw: number };
+    open_sent_max: number;
+};
+
+/**
+ * Whether a board row offers "Challenge": you joined, it isn't you, you two have no open duel either way, and you
+ * have fewer than the maximum waiting. The server checks the same rules.
+ */
+export function canChallenge(
+    row: PetBoardData['rows'][number],
+    duels: PetDuelsData | undefined,
+    joined: boolean,
+): boolean {
+    if (!duels || !joined || row.me) {
+        return false;
+    }
+
+    const open =
+        duels.sent.some((d) => d.to_id === row.user_id) ||
+        duels.incoming.some((d) => d.from_id === row.user_id);
+
+    return !open && duels.sent.length < duels.open_sent_max;
+}
 
 /** The pet panel's extras (App\Services\Pet::detail), loaded when the panel opens. */
 export type PetDetail = {

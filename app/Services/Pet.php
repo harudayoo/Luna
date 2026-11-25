@@ -114,7 +114,7 @@ final class Pet
      * The office board (spec 2026-11-25-luna-pet-social, slice 2): active people who joined, ranked by stage, then
      * streak, then name. The top 10, plus your own row under them when you're on it but lower. No XP for anyone.
      *
-     * @return array{joined: bool, rows: list<array{rank: int, first_name: string, pet_name: string|null, stage: int, stage_name: string, streak: int, me: bool}>}
+     * @return array{joined: bool, rows: list<array{rank: int, user_id: int, first_name: string, pet_name: string|null, stage: int, stage_name: string, streak: int, me: bool}>}
      */
     public static function board(User $me): array
     {
@@ -122,14 +122,15 @@ final class Pet
             ->whereNull('deactivated_at')->whereNotNull('password')
             ->get(['id', 'name', 'pet_name']);
         $ids = $people->pluck('id')->all();
-        $xp = PetEvent::query()->whereIn('user_id', $ids)->groupBy('user_id')
-            ->selectRaw('user_id, sum(xp) as total')->toBase()->pluck('total', 'user_id');
+        $stages = self::stages($ids);
         $streaks = self::streaks($ids);
 
-        $ranked = $people->map(function (User $u) use ($xp, $streaks, $me) {
-            $stage = self::stageFor((int) ($xp[$u->id] ?? 0));
+        $ranked = $people->map(function (User $u) use ($stages, $streaks, $me) {
+            $stage = $stages[$u->id];
 
             return [
+                // The person, so a duel can be sent from their row (slice 3).
+                'user_id' => $u->id,
                 'first_name' => strtok($u->name, ' ') ?: $u->name,
                 'pet_name' => $u->pet_name,
                 'stage' => $stage,
@@ -245,6 +246,20 @@ final class Pet
         $e = CarbonImmutable::instance($end);
 
         return $s->format('M j').'–'.($s->isSameMonth($e) ? $e->format('j') : $e->format('M j'));
+    }
+
+    /**
+     * The stage of many people's pets in one query (the board, duel challengers).
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, int> stage by user id
+     */
+    public static function stages(array $userIds): array
+    {
+        $xp = PetEvent::query()->whereIn('user_id', $userIds)->groupBy('user_id')
+            ->selectRaw('user_id, sum(xp) as total')->toBase()->pluck('total', 'user_id');
+
+        return collect($userIds)->mapWithKeys(fn (int $id) => [$id => self::stageFor((int) ($xp[$id] ?? 0))])->all();
     }
 
     private static function xp(User $user): int
