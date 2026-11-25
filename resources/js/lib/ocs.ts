@@ -441,6 +441,21 @@ export function ringBell(el: HTMLElement): void {
  *                  swells in on a spring while the glow flares.
  */
 export function petIdle(el: HTMLElement): () => void {
+    // The kit sets data-theme before it announces "ocs:theme", so a restart picks the new personality.
+    let stop = petIdleOnce(el);
+    const restart = () => {
+        stop();
+        stop = petIdleOnce(el);
+    };
+    document.addEventListener('ocs:theme', restart);
+
+    return () => {
+        document.removeEventListener('ocs:theme', restart);
+        stop();
+    };
+}
+
+function petIdleOnce(el: HTMLElement): () => void {
     const { animate } = anime;
     const body = el.querySelector<SVGElement>('[data-pet-body]');
     const eyes = el.querySelectorAll<SVGElement>('[data-pet-eye]');
