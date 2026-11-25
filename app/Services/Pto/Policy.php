@@ -32,6 +32,7 @@ final readonly class Policy
             accrualHours: (float) Setting::get('pto.accrual_hours', $defaults['accrual_hours']),
             hoursPerDay: (float) Setting::get('pto.hours_per_day', $defaults['hours_per_day']),
             mode: AccrualMode::tryFrom((string) Setting::get('pto.accrual_mode', $defaults['accrual_mode'])) ?? AccrualMode::from($defaults['accrual_mode']),
-            monthlyCapDays: (float) Setting::get('pto.monthly_cap_days', $defaults['monthly_cap_days']),        );
+            monthlyCapDays: (float) Setting::get('pto.monthly_cap_days', $defaults['monthly_cap_days']),
+        );
     }
 }
