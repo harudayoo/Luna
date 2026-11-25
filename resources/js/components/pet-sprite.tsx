@@ -18,21 +18,26 @@ const CARD_SIZE = 'size-24 min-[390px]:size-30 lg:size-20';
 
 /**
  * `locked` draws a flat silhouette (every part in --color-surface-hover, no glow, no shadow): a stage
- * still ahead on the panel's growth path. `className` replaces the card sizes.
+ * still ahead on the panel's growth path. `crown`: last week's Moon Cup champion. `className` replaces
+ * the card sizes.
  */
 export function PetSprite({
     stage,
     title,
     locked = false,
+    crown = false,
     className = CARD_SIZE,
 }: {
     stage: number;
     title: string;
     locked?: boolean;
+    crown?: boolean;
     className?: string;
 }) {
     const r = SIZE[stage] ?? 40;
     const cy = 96 - r - 4;
+    // The top of the head (the egg's tip), where the crown sits.
+    const top = stage === 0 ? 32 : cy - r;
 
     return (
         <svg
@@ -69,6 +74,7 @@ export function PetSprite({
                 }}
             >
                 {stage === 0 ? <Egg /> : <Body stage={stage} r={r} cy={cy} />}
+                {crown && !locked && <Crown base={top + 4} />}
             </g>
             {!locked && stage === 4 && <Sparkles />}
         </svg>
@@ -221,6 +227,19 @@ function Body({ stage, r, cy }: { stage: number; r: number; cy: number }) {
                 />
             )}
         </>
+    );
+}
+
+/** The Moon Cup crown: three points and a gem, tipped a little, its base on the head. */
+function Crown({ base }: { base: number }) {
+    return (
+        <g data-pet-crown transform={`rotate(-8 60 ${base})`}>
+            <path
+                d={`M47 ${base} V${base - 9} L53.5 ${base - 4} L60 ${base - 13} L66.5 ${base - 4} L73 ${base - 9} V${base} Z`}
+                fill={ACCENT}
+            />
+            <circle cx="60" cy={base - 3} r="2" fill={FACE} />
+        </g>
     );
 }
 

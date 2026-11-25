@@ -6,13 +6,15 @@ import InputError from '@/components/input-error';
 import { PetSprite } from '@/components/pet-sprite';
 import { Button } from '@/components/ui/button';
 import type { DuelPick, Pet, PetBoardData, PetDuelsData } from '@/lib/pet';
-import { canChallenge, DUEL_PICKS } from '@/lib/pet';
+import { canChallenge, cupRecord, DUEL_PICKS } from '@/lib/pet';
 
 type Row = PetBoardData['rows'][number];
+type CupRow = PetBoardData['cup'][number];
 
 /**
- * The office board (spec 2026-11-25-luna-pet-social, slices 2–3): pets of people who chose to show theirs, ranked
+ * The office board (spec 2026-11-25-luna-pet-social, slices 2–4): pets of people who chose to show theirs, ranked
  * by stage, then streak. No XP and no last place. Joining is a switch here; from a row you can send a moon duel.
+ * The Moon Cup view ranks this week's duel wins; last week's champion wears a crown everywhere.
  * The board and your duels load when the tab opens.
  */
 export function PetBoard({ pet }: { pet: Pet }) {
@@ -28,6 +30,7 @@ export function PetBoard({ pet }: { pet: Pet }) {
     const [saving, setSaving] = useState(false);
     const [picking, setPicking] = useState<number | null>(null);
     const [sentTo, setSentTo] = useState<string | null>(null);
+    const [view, setView] = useState<'stage' | 'cup'>('stage');
 
     const setJoined = (joined: boolean) =>
         router.patch(
@@ -99,8 +102,34 @@ export function PetBoard({ pet }: { pet: Pet }) {
             )}
             <InputError message={errors.opponent_id} />
 
+            <div
+                role="radiogroup"
+                aria-label="Rank by"
+                className="grid grid-cols-2 gap-1 bg-bg p-1"
+            >
+                {(
+                    [
+                        ['stage', 'Stage & streak'],
+                        ['cup', 'Moon Cup'],
+                    ] as const
+                ).map(([key, label]) => (
+                    <button
+                        key={key}
+                        type="button"
+                        role="radio"
+                        aria-checked={view === key}
+                        onClick={() => setView(key)}
+                        className="min-h-10 px-3 text-sm font-semibold text-muted aria-checked:bg-surface-hover aria-checked:text-primary focus-visible:shadow-lift focus-visible:outline-none"
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
+
             {!board ? (
                 <p className="text-sm text-muted">Loading&hellip;</p>
+            ) : view === 'cup' ? (
+                <MoonCup cup={board.cup} />
             ) : rows.length === 0 ? (
                 <p className="text-sm text-muted">
                     Nobody&rsquo;s on the board yet. Be the first.
@@ -118,10 +147,75 @@ export function PetBoard({ pet }: { pet: Pet }) {
                     )}
                 </ol>
             )}
-            <p className="text-xs text-muted">
-                Ranked by stage, then streak. Only people who joined are shown.
-            </p>
+            {view === 'stage' && (
+                <p className="text-xs text-muted">
+                    Ranked by stage, then streak. Only people who joined are
+                    shown.
+                </p>
+            )}
         </section>
+    );
+}
+
+/** This office week's duel wins. Nobody with no wins is listed, so there is no last place. */
+function MoonCup({ cup }: { cup: CupRow[] }) {
+    const top = cup.filter((r) => r.rank <= 10);
+    const mine = cup.find((r) => r.rank > 10);
+    const row = (r: CupRow) => (
+        <li
+            key={r.rank}
+            aria-current={r.me ? 'true' : undefined}
+            className={`flex items-center gap-3 px-3 py-2 ${r.me ? 'bg-surface-hover' : 'bg-bg'}`}
+        >
+            <span className="w-6 shrink-0 text-right font-mono text-sm text-muted">
+                {r.rank}
+            </span>
+            <PetSprite
+                stage={r.stage}
+                title={r.stage_name}
+                crown={r.crown}
+                className="size-10"
+            />
+            <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold">
+                    {r.pet_name ?? `${r.first_name}’s moonling`}
+                </span>
+                <span className="block truncate text-xs text-muted">
+                    {r.first_name}
+                    {r.me ? ' · you' : ''}
+                </span>
+            </span>
+            <span className="shrink-0 font-mono text-xs">
+                {cupRecord(r.wins, r.losses)}
+            </span>
+        </li>
+    );
+
+    return (
+        <>
+            {cup.length === 0 ? (
+                <p className="text-sm text-muted">
+                    No wins yet this week. Win a moon duel to take the lead.
+                </p>
+            ) : (
+                <ol className="grid gap-1">
+                    {top.map(row)}
+                    {mine && (
+                        <>
+                            <li aria-hidden className="text-center text-muted">
+                                &hellip;
+                            </li>
+                            {row(mine)}
+                        </>
+                    )}
+                </ol>
+            )}
+            <p className="text-xs text-muted">
+                Wins this week, Monday to Sunday; fewer losses breaks a tie. It
+                starts over every Monday, and last week&rsquo;s champion wears
+                the crown 👑.
+            </p>
+        </>
     );
 }
 
@@ -152,6 +246,7 @@ function BoardRow({
                 <PetSprite
                     stage={row.stage}
                     title={row.stage_name}
+                    crown={row.crown}
                     className="size-10"
                 />
                 <span className="min-w-0 flex-1">

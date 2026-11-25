@@ -47,7 +47,8 @@ final class Pet
             'xp' => $xp ?? self::XP[$kind], 'created_at' => now(),
         ]) > 0;
 
-        if ($new && self::stageFor(self::xp($user)) > self::stageFor($before)) {
+        // Only for the person on this request: a duel also pays the challenger, who isn't here to see it.
+        if ($new && $user->is(auth()->user()) && self::stageFor(self::xp($user)) > self::stageFor($before)) {
             session()->put(self::GREW, true);
         }
 
@@ -124,8 +125,9 @@ final class Pet
         $ids = $people->pluck('id')->all();
         $stages = self::stages($ids);
         $streaks = self::streaks($ids);
+        $champions = PetDuels::champions();
 
-        $ranked = $people->map(function (User $u) use ($stages, $streaks, $me) {
+        $ranked = $people->map(function (User $u) use ($stages, $streaks, $champions, $me) {
             $stage = $stages[$u->id];
 
             return [
@@ -137,6 +139,8 @@ final class Pet
                 'stage_name' => self::STAGE_NAMES[$stage],
                 'streak' => $streaks[$u->id],
                 'me' => $u->is($me),
+                // Last week's Moon Cup champion (slice 4).
+                'crown' => in_array($u->id, $champions, true),
                 'sort_name' => $u->name,
             ];
         })->sort(fn ($a, $b) => [$b['stage'], $b['streak'], $a['sort_name']] <=> [$a['stage'], $a['streak'], $b['sort_name']])
@@ -149,10 +153,10 @@ final class Pet
             $rows->push($mine);
         }
 
-        return ['joined' => (bool) $me->pet_public, 'rows' => $rows->values()->all()];
+        return ['joined' => (bool) $me->pet_public, 'rows' => $rows->values()->all(), 'cup' => PetDuels::cup($me)];
     }
 
-    /** @return array{xp: int, stage: int, stage_name: string, next_at: int|null, streak: int, fed_today: bool} */
+    /** @return array{name: string|null, public: bool, xp: int, stage: int, stage_name: string, next_at: int|null, streak: int, fed_today: bool, crown: bool} */
     public static function state(User $user): array
     {
         $xp = self::xp($user);
@@ -167,6 +171,7 @@ final class Pet
             'next_at' => self::STAGES[$stage + 1] ?? null,
             'streak' => self::streak($user),
             'fed_today' => PetEvent::query()->where('user_id', $user->id)->where('kind', 'visit')->where('ref', self::today())->exists(),
+            'crown' => in_array($user->id, PetDuels::champions(), true),
         ];
     }
 
@@ -181,6 +186,7 @@ final class Pet
         return [
             'xp' => self::XP,
             'streak_bonus_max' => self::STREAK_BONUS_MAX,
+            'duel_xp' => PetDuels::XP,
             'week' => self::week($user),
             'recent' => self::recent($user),
         ];
@@ -233,6 +239,7 @@ final class Pet
                 'payslip' => ($slip = $slips[(int) $e->ref] ?? null)
                     ? 'Opened your payslip for '.self::period($slip->period_start, $slip->period_end)
                     : 'Opened your payslip',
+                'duel' => $e->xp >= PetDuels::XP['win'] ? 'Won a moon duel' : 'Played a moon duel',
                 default => ucfirst(str_replace('_', ' ', $e->kind)),
             },
             'at' => $e->created_at?->timezone($tz)->toDateString() ?? $e->ref,

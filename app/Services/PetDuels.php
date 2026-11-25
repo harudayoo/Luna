@@ -5,13 +5,19 @@ namespace App\Services;
 use App\Models\PetDuel;
 use App\Models\User;
 use App\Notifications\LunaNotice;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Moon duels (spec 2026-11-25-luna-pet-social, slice 3): rock-paper-scissors between two pets on the office board.
- * Moon outshines Star, Star outlasts Comet, Comet eclipses Moon; the same pick is a draw. A pet's stage plays no part,
- * and no XP moves here. One open duel per pair, at most 3 open sent, and an open duel expires after 7 days (closed
- * lazily, when duels are next read or answered; there is no scheduler).
+ * Moon outshines Star, Star outlasts Comet, Comet eclipses Moon; the same pick is a draw. A pet's stage plays no part.
+ * One open duel per pair, at most 3 open sent, and an open duel expires after 7 days (closed lazily, when duels are
+ * next read or answered; there is no scheduler).
+ *
+ * Stakes (slice 4): the house pays both sides of an answered duel (XP below, through Pet::award with the office date
+ * as ref, so only each person's first answered duel of the day pays; nobody ever loses XP), and the weekly Moon Cup
+ * ranks this office week's wins; last week's champion (ties: all) wears a crown. Both read pet_duels, no extra table.
  */
 final class PetDuels
 {
@@ -23,6 +29,9 @@ final class PetDuels
     public const OPEN_SENT_MAX = 3;
 
     public const EXPIRE_DAYS = 7;
+
+    /** House XP for an answered duel, for each side. */
+    public const XP = ['win' => 3, 'draw' => 1, 'loss' => 1];
 
     public static function challenge(User $from, User $to, string $pick): PetDuel
     {
@@ -68,6 +77,15 @@ final class PetDuels
             default => $duel->opponent_id,
         };
         $duel->update(['opponent_pick' => $pick, 'winner_id' => $winner, 'status' => 'done', 'answered_at' => now()]);
+
+        $today = Pet::today();
+        foreach ([$duel->challenger, $opponent] as $side) {
+            Pet::award($side, 'duel', $today, self::XP[match ($winner) {
+                null => 'draw',
+                $side->id => 'win',
+                default => 'loss',
+            }]);
+        }
 
         $result = match ($winner) {
             null => 'it’s a draw',
@@ -157,6 +175,88 @@ final class PetDuels
             'tally' => $tally,
             'open_sent_max' => self::OPEN_SENT_MAX,
         ];
+    }
+
+    /**
+     * The Moon Cup: this office week's wins (Mon–Sun, Manila) among people on the board, ranked by wins, then fewer
+     * losses, then the earliest last win. Nobody with 0 wins. The top 10, plus your own row under them when lower.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function cup(User $me): array
+    {
+        $standings = self::standings(0);
+        $people = User::query()->whereIn('id', $standings->keys())->where('pet_public', true)
+            ->whereNull('deactivated_at')->whereNotNull('password')->get(['id', 'name', 'pet_name']);
+        $stages = Pet::stages($people->pluck('id')->all());
+        $champions = self::champions();
+
+        $ranked = $people->map(fn (User $u) => [
+            'user_id' => $u->id,
+            'first_name' => self::first($u),
+            'pet_name' => $u->pet_name,
+            'stage' => $stages[$u->id],
+            'stage_name' => Pet::STAGE_NAMES[$stages[$u->id]],
+            'wins' => $standings[$u->id]['wins'],
+            'losses' => $standings[$u->id]['losses'],
+            'me' => $u->is($me),
+            'crown' => in_array($u->id, $champions, true),
+            'sort' => [-$standings[$u->id]['wins'], $standings[$u->id]['losses'], $standings[$u->id]['last_win'], $u->name],
+        ])->filter(fn (array $row) => $row['wins'] > 0)
+            ->sort(fn (array $a, array $b) => $a['sort'] <=> $b['sort'])->values()
+            ->map(fn (array $row, int $i) => ['rank' => $i + 1] + collect($row)->except('sort')->all());
+
+        $rows = $ranked->take(10);
+        $mine = $ranked->firstWhere('me', true);
+        if ($mine && $mine['rank'] > 10) {
+            $rows->push($mine);
+        }
+
+        return $rows->values()->all();
+    }
+
+    /**
+     * Last office week's Moon Cup champions: the most wins, everyone tied for it; nobody when nobody won.
+     *
+     * @return list<int>
+     */
+    public static function champions(): array
+    {
+        $standings = self::standings(1);
+        $most = $standings->max('wins') ?? 0;
+
+        return $most > 0 ? $standings->where('wins', $most)->keys()->all() : [];
+    }
+
+    /**
+     * Wins, losses and the time of the last win per person, over duels answered in an office week (0: this one,
+     * 1: the one before). A draw counts for nobody.
+     *
+     * @return Collection<int, array{wins: int, losses: int, last_win: string}>
+     */
+    private static function standings(int $weeksBack): Collection
+    {
+        $start = CarbonImmutable::parse(Pet::today(), config('luna.office.timezone'))
+            ->startOfWeek(CarbonImmutable::MONDAY)->subWeeks($weeksBack);
+
+        $table = collect();
+        $add = function (int $id, string $what, string $at = '') use ($table) {
+            $row = $table->get($id, ['wins' => 0, 'losses' => 0, 'last_win' => '']);
+            $row[$what]++;
+            $row['last_win'] = max($row['last_win'], $at);
+            $table->put($id, $row);
+        };
+
+        PetDuel::query()->where('status', 'done')->whereNotNull('winner_id')
+            ->where('answered_at', '>=', $start->utc()->toDateTimeString())
+            ->where('answered_at', '<', $start->addWeek()->utc()->toDateTimeString())
+            ->toBase()->get(['challenger_id', 'opponent_id', 'winner_id', 'answered_at'])
+            ->each(function ($d) use ($add) {
+                $add((int) $d->winner_id, 'wins', (string) $d->answered_at);
+                $add((int) ((int) $d->winner_id === (int) $d->challenger_id ? $d->opponent_id : $d->challenger_id), 'losses');
+            });
+
+        return $table;
     }
 
     /** Closes open duels nobody answered within EXPIRE_DAYS. */

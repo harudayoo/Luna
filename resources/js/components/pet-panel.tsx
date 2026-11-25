@@ -245,10 +245,16 @@ export function PetPanel({
                                 <PetSprite
                                     stage={progress.stage}
                                     title={`${title}: ${progress.name}`}
+                                    crown={pet.crown}
                                     className="size-50 min-[390px]:size-60"
                                 />
                             </span>
                         </button>
+                        {pet.crown && (
+                            <p className="-mt-2 text-center text-sm font-semibold">
+                                👑 Last week&rsquo;s Moon Cup champion
+                            </p>
+                        )}
 
                         <section aria-label="Progress">
                             <p className="text-lg leading-6 font-semibold">
@@ -363,6 +369,10 @@ export function PetPanel({
                                     <Source
                                         what="Open your released payslip"
                                         xp={`${detail.xp.payslip} XP, once each`}
+                                    />
+                                    <Source
+                                        what="Finish a moon duel"
+                                        xp={`${detail.duel_xp.win} XP a win, ${detail.duel_xp.loss} otherwise, first a day`}
                                     />
                                 </ul>
                             )}

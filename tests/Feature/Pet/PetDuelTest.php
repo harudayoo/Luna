@@ -105,7 +105,7 @@ class PetDuelTest extends TestCase
         $this->assertStringNotContainsString('comet', $props);
     }
 
-    public function test_every_pick_pair_gives_the_right_result_and_no_xp_moves()
+    public function test_every_pick_pair_gives_the_right_result_and_only_house_xp_is_written()
     {
         $beats = ['moon' => 'star', 'star' => 'comet', 'comet' => 'moon'];
 
@@ -122,7 +122,8 @@ class PetDuelTest extends TestCase
             }
         }
 
-        $this->assertSame(0, PetEvent::query()->count());
+        // Slice 4: the house pays duel XP (PetDuelStakesTest); nothing else is written, and nothing is taken.
+        $this->assertSame(0, PetEvent::query()->where('kind', '!=', 'duel')->orWhere('xp', '<', 0)->count());
     }
 
     public function test_only_the_opponent_answers_or_declines_and_only_once()

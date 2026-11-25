@@ -1,11 +1,43 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
+import { PetSprite } from '../../resources/js/components/pet-sprite';
 import {
+    cupRecord,
     petTitle,
     stagePath,
     stageProgress,
     streakLabel,
 } from '../../resources/js/lib/pet';
+
+describe('cupRecord', () => {
+    it('counts wins, and losses only when there are some', () => {
+        expect(cupRecord(1, 0)).toBe('1 win');
+        expect(cupRecord(3, 1)).toBe('3 wins · 1 loss');
+        expect(cupRecord(2, 2)).toBe('2 wins · 2 losses');
+    });
+});
+
+describe('PetSprite crown', () => {
+    const sprite = (stage: number, crown?: boolean) =>
+        renderToStaticMarkup(
+            createElement(PetSprite, { stage, title: 'x', crown }),
+        );
+
+    it('draws the Moon Cup crown at every stage, the egg included, in token colours', () => {
+        for (const stage of [0, 1, 2, 3, 4]) {
+            const svg = sprite(stage, true);
+            expect(svg).toContain('data-pet-crown');
+            expect(svg).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+        }
+    });
+
+    it('draws no crown unless asked', () => {
+        expect(sprite(2)).not.toContain('data-pet-crown');
+        expect(sprite(2, false)).not.toContain('data-pet-crown');
+    });
+});
 
 describe('stagePath', () => {
     it('marks stages reached, the current one, and the ones still locked', () => {

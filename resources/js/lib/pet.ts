@@ -8,6 +8,8 @@ export type Pet = {
     next_at: number | null;
     streak: number;
     fed_today: boolean;
+    /** Last week's Moon Cup champion (App\Services\PetDuels::champions). */
+    crown: boolean;
 };
 
 /** The office board (App\Services\Pet::board): opted-in people only, no XP. */
@@ -22,8 +24,32 @@ export type PetBoardData = {
         stage_name: string;
         streak: number;
         me: boolean;
+        crown: boolean;
+    }[];
+    /** The Moon Cup (App\Services\PetDuels::cup): this office week's wins, nobody with 0. */
+    cup: {
+        rank: number;
+        user_id: number;
+        first_name: string;
+        pet_name: string | null;
+        stage: number;
+        stage_name: string;
+        wins: number;
+        losses: number;
+        me: boolean;
+        crown: boolean;
     }[];
 };
+
+/** "3 wins · 1 loss", or just "1 win" with no losses. */
+export function cupRecord(wins: number, losses: number): string {
+    const plural = (n: number, one: string, many: string) =>
+        `${n} ${n === 1 ? one : many}`;
+
+    return losses > 0
+        ? `${plural(wins, 'win', 'wins')} · ${plural(losses, 'loss', 'losses')}`
+        : plural(wins, 'win', 'wins');
+}
 
 export type PetMoment = 'fed' | 'grew' | null;
 
@@ -95,6 +121,8 @@ export function canChallenge(
 export type PetDetail = {
     xp: Record<'visit' | 'item_time' | 'leave' | 'payslip', number>;
     streak_bonus_max: number;
+    /** House XP for an answered duel (only the first of each office day pays). */
+    duel_xp: Record<'win' | 'draw' | 'loss', number>;
     week: {
         date: string;
         day: string;

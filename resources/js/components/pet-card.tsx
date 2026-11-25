@@ -69,7 +69,8 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
                 <span ref={sprite} className="inline-block">
                     <PetSprite
                         stage={progress.stage}
-                        title={`Your moonling: ${progress.name}`}
+                        title={`Your moonling: ${progress.name}${pet.crown ? ', Moon Cup champion' : ''}`}
+                        crown={pet.crown}
                     />
                 </span>
                 <div className="min-w-0 flex-1">
