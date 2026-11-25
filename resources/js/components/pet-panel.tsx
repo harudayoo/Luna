@@ -3,6 +3,7 @@ import { Check, Pencil, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import PetController from '@/actions/App/Http/Controllers/PetController';
 import InputError from '@/components/input-error';
+import { PetBoard } from '@/components/pet-board';
 import { PetSprite } from '@/components/pet-sprite';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,18 +56,20 @@ export function PetPanel({
     const [editing, setEditing] = useState(false);
     const [name, setName] = useState(pet.name ?? '');
     const [saving, setSaving] = useState(false);
+    const [tab, setTab] = useState<'pet' | 'board'>('pet');
 
     useEffect(() => {
         if (open) {
             router.reload({ only: ['pet_detail'] });
         } else {
             setEditing(false);
+            setTab('pet');
         }
     }, [open]);
 
     // The idle bob, once the dialog has put the sprite on the page.
     useEffect(() => {
-        if (!open) {
+        if (!open || tab !== 'pet') {
             return;
         }
 
@@ -81,7 +84,7 @@ export function PetPanel({
             cancelAnimationFrame(frame);
             stop();
         };
-    }, [open, pet.stage]);
+    }, [open, tab, pet.stage]);
 
     const save = () =>
         router.patch(
@@ -177,158 +180,203 @@ export function PetPanel({
                     </DialogDescription>
                 </div>
 
-                {/* The pet, large. Tapping is just for fun: no XP. */}
-                <button
-                    type="button"
-                    aria-label={`Say hi to ${title}`}
-                    onClick={() => sprite.current && petPoke(sprite.current)}
-                    className="mx-auto block cursor-pointer p-2 focus-visible:bg-surface-hover focus-visible:outline-none"
+                <div
+                    role="tablist"
+                    aria-label="Pet views"
+                    className="grid grid-cols-2 gap-1 bg-surface-hover p-1"
                 >
-                    <span ref={sprite} className="inline-block">
-                        <PetSprite
-                            stage={progress.stage}
-                            title={`${title}: ${progress.name}`}
-                            className="size-50 min-[390px]:size-60"
-                        />
-                    </span>
-                </button>
+                    {(
+                        [
+                            ['pet', 'Your pet'],
+                            ['board', 'Office board'],
+                        ] as const
+                    ).map(([key, label]) => (
+                        <button
+                            key={key}
+                            type="button"
+                            role="tab"
+                            aria-selected={tab === key}
+                            onClick={() => setTab(key)}
+                            className="min-h-10 px-3 text-sm font-semibold text-muted aria-selected:bg-primary aria-selected:text-on-primary focus-visible:shadow-lift focus-visible:outline-none"
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
 
-                <section aria-label="Progress">
-                    <p className="text-lg leading-6 font-semibold">
-                        {progress.name}
-                    </p>
-                    <div
-                        role="progressbar"
-                        aria-label="Growth to the next stage"
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={Math.round(progress.fraction * 100)}
-                        className="mt-2 h-2 bg-surface-hover"
-                    >
-                        <div
-                            className="h-full bg-primary"
-                            style={{ width: `${progress.fraction * 100}%` }}
-                        />
-                    </div>
-                    <p className="mt-1 flex justify-between gap-2 text-xs text-muted">
-                        <span className="font-mono">{progress.label}</span>
-                        <span>{streakLabel(pet.streak)}</span>
-                    </p>
-                </section>
-
-                <section aria-label="Growth path">
-                    <p className="ocs-eyebrow">Growth path</p>
-                    <ol className="grid grid-cols-5 gap-1">
-                        {stagePath(progress.stage).map((s) => (
-                            <li
-                                key={s.stage}
-                                aria-current={
-                                    s.state === 'current' ? 'step' : undefined
-                                }
-                                className={`flex flex-col items-center gap-1 py-2 ${s.state === 'current' ? 'bg-surface-hover' : ''}`}
-                            >
+                {tab === 'board' ? (
+                    <PetBoard pet={pet} />
+                ) : (
+                    <>
+                        {/* The pet, large. Tapping is just for fun: no XP. */}
+                        <button
+                            type="button"
+                            aria-label={`Say hi to ${title}`}
+                            onClick={() =>
+                                sprite.current && petPoke(sprite.current)
+                            }
+                            className="mx-auto block cursor-pointer p-2 focus-visible:bg-surface-hover focus-visible:outline-none"
+                        >
+                            <span ref={sprite} className="inline-block">
                                 <PetSprite
-                                    stage={s.stage}
-                                    title={
-                                        s.state === 'locked'
-                                            ? `${s.name}, still to come`
-                                            : s.name
-                                    }
-                                    locked={s.state === 'locked'}
-                                    className="size-12"
+                                    stage={progress.stage}
+                                    title={`${title}: ${progress.name}`}
+                                    className="size-50 min-[390px]:size-60"
                                 />
-                                <span
-                                    className={`text-center text-[11px] leading-tight ${s.state === 'locked' ? 'text-muted' : 'font-semibold'}`}
-                                >
-                                    {s.name}
+                            </span>
+                        </button>
+
+                        <section aria-label="Progress">
+                            <p className="text-lg leading-6 font-semibold">
+                                {progress.name}
+                            </p>
+                            <div
+                                role="progressbar"
+                                aria-label="Growth to the next stage"
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-valuenow={Math.round(
+                                    progress.fraction * 100,
+                                )}
+                                className="mt-2 h-2 bg-surface-hover"
+                            >
+                                <div
+                                    className="h-full bg-primary"
+                                    style={{
+                                        width: `${progress.fraction * 100}%`,
+                                    }}
+                                />
+                            </div>
+                            <p className="mt-1 flex justify-between gap-2 text-xs text-muted">
+                                <span className="font-mono">
+                                    {progress.label}
                                 </span>
-                            </li>
-                        ))}
-                    </ol>
-                </section>
+                                <span>{streakLabel(pet.streak)}</span>
+                            </p>
+                        </section>
 
-                <section aria-label="This week">
-                    <p className="ocs-eyebrow">This week</p>
-                    {detail ? (
-                        <ol className="grid grid-cols-5 gap-1">
-                            {detail.week.map((d) => (
-                                <li
-                                    key={d.date}
-                                    className="flex flex-col items-center gap-1"
-                                >
-                                    <span
-                                        aria-hidden
-                                        className={`h-8 w-full ${DAY_SHADE[d.status]}`}
-                                    />
-                                    <span className="text-xs text-muted">
-                                        {d.day}
-                                        <span className="sr-only">
-                                            : {DAY_WORD[d.status]}
+                        <section aria-label="Growth path">
+                            <p className="ocs-eyebrow">Growth path</p>
+                            <ol className="grid grid-cols-5 gap-1">
+                                {stagePath(progress.stage).map((s) => (
+                                    <li
+                                        key={s.stage}
+                                        aria-current={
+                                            s.state === 'current'
+                                                ? 'step'
+                                                : undefined
+                                        }
+                                        className={`flex flex-col items-center gap-1 py-2 ${s.state === 'current' ? 'bg-surface-hover' : ''}`}
+                                    >
+                                        <PetSprite
+                                            stage={s.stage}
+                                            title={
+                                                s.state === 'locked'
+                                                    ? `${s.name}, still to come`
+                                                    : s.name
+                                            }
+                                            locked={s.state === 'locked'}
+                                            className="size-12"
+                                        />
+                                        <span
+                                            className={`text-center text-[11px] leading-tight ${s.state === 'locked' ? 'text-muted' : 'font-semibold'}`}
+                                        >
+                                            {s.name}
                                         </span>
-                                    </span>
-                                </li>
-                            ))}
-                        </ol>
-                    ) : (
-                        <div aria-hidden className="h-13 bg-bg" />
-                    )}
-                    <p className="mt-2 text-xs text-muted">
-                        Filled: visited. Shaded: missed. Striped: holiday or
-                        your leave (it doesn&rsquo;t break your streak).
-                    </p>
-                </section>
+                                    </li>
+                                ))}
+                            </ol>
+                        </section>
 
-                <section aria-label="How it grows">
-                    <p className="ocs-eyebrow">How it grows</p>
-                    {detail && (
-                        <ul className="grid gap-1 text-sm">
-                            <Source
-                                what="Open Luna on an office day"
-                                xp={`${detail.xp.visit} XP + 1 a streak day (up to +${detail.streak_bonus_max})`}
-                            />
-                            <Source
-                                what="Log time on an item"
-                                xp={`${detail.xp.item_time} XP, once per item a day`}
-                            />
-                            <Source
-                                what="File leave"
-                                xp={`${detail.xp.leave} XP`}
-                            />
-                            <Source
-                                what="Open your released payslip"
-                                xp={`${detail.xp.payslip} XP, once each`}
-                            />
-                        </ul>
-                    )}
-                </section>
+                        <section aria-label="This week">
+                            <p className="ocs-eyebrow">This week</p>
+                            {detail ? (
+                                <ol className="grid grid-cols-5 gap-1">
+                                    {detail.week.map((d) => (
+                                        <li
+                                            key={d.date}
+                                            className="flex flex-col items-center gap-1"
+                                        >
+                                            <span
+                                                aria-hidden
+                                                className={`h-8 w-full ${DAY_SHADE[d.status]}`}
+                                            />
+                                            <span className="text-xs text-muted">
+                                                {d.day}
+                                                <span className="sr-only">
+                                                    : {DAY_WORD[d.status]}
+                                                </span>
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ol>
+                            ) : (
+                                <div aria-hidden className="h-13 bg-bg" />
+                            )}
+                            <p className="mt-2 text-xs text-muted">
+                                Filled: visited. Shaded: missed. Striped:
+                                holiday or your leave (it doesn&rsquo;t break
+                                your streak).
+                            </p>
+                        </section>
 
-                <section aria-label="Recent XP">
-                    <p className="ocs-eyebrow">Recent XP</p>
-                    {!detail ? (
-                        <p className="text-sm text-muted">Loading&hellip;</p>
-                    ) : detail.recent.length === 0 ? (
-                        <p className="text-sm text-muted">Nothing yet.</p>
-                    ) : (
-                        <ul className="grid gap-1">
-                            {detail.recent.map((r, i) => (
-                                <li
-                                    key={`${r.at}-${i}`}
-                                    className="flex items-baseline gap-3 bg-bg px-3 py-2 text-sm"
-                                >
-                                    <span className="w-9 shrink-0 font-mono font-semibold text-primary">
-                                        +{r.xp}
-                                    </span>
-                                    <span className="min-w-0 flex-1">
-                                        {r.label}
-                                    </span>
-                                    <span className="shrink-0 text-xs text-muted">
-                                        {short(r.at)}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </section>
+                        <section aria-label="How it grows">
+                            <p className="ocs-eyebrow">How it grows</p>
+                            {detail && (
+                                <ul className="grid gap-1 text-sm">
+                                    <Source
+                                        what="Open Luna on an office day"
+                                        xp={`${detail.xp.visit} XP + 1 a streak day (up to +${detail.streak_bonus_max})`}
+                                    />
+                                    <Source
+                                        what="Log time on an item"
+                                        xp={`${detail.xp.item_time} XP, once per item a day`}
+                                    />
+                                    <Source
+                                        what="File leave"
+                                        xp={`${detail.xp.leave} XP`}
+                                    />
+                                    <Source
+                                        what="Open your released payslip"
+                                        xp={`${detail.xp.payslip} XP, once each`}
+                                    />
+                                </ul>
+                            )}
+                        </section>
+
+                        <section aria-label="Recent XP">
+                            <p className="ocs-eyebrow">Recent XP</p>
+                            {!detail ? (
+                                <p className="text-sm text-muted">
+                                    Loading&hellip;
+                                </p>
+                            ) : detail.recent.length === 0 ? (
+                                <p className="text-sm text-muted">
+                                    Nothing yet.
+                                </p>
+                            ) : (
+                                <ul className="grid gap-1">
+                                    {detail.recent.map((r, i) => (
+                                        <li
+                                            key={`${r.at}-${i}`}
+                                            className="flex items-baseline gap-3 bg-bg px-3 py-2 text-sm"
+                                        >
+                                            <span className="w-9 shrink-0 font-mono font-semibold text-primary">
+                                                +{r.xp}
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                {r.label}
+                                            </span>
+                                            <span className="shrink-0 text-xs text-muted">
+                                                {short(r.at)}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
+                    </>
+                )}
             </DialogContent>
         </Dialog>
     );

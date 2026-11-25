@@ -1,12 +1,27 @@
 /** The pet on Home (spec 2026-11-24-luna-pet). Stages match App\Services\Pet::STAGES. */
 export type Pet = {
     name: string | null;
+    public: boolean;
     xp: number;
     stage: number;
     stage_name: string;
     next_at: number | null;
     streak: number;
     fed_today: boolean;
+};
+
+/** The office board (App\Services\Pet::board): opted-in people only, no XP. */
+export type PetBoardData = {
+    joined: boolean;
+    rows: {
+        rank: number;
+        first_name: string;
+        pet_name: string | null;
+        stage: number;
+        stage_name: string;
+        streak: number;
+        me: boolean;
+    }[];
 };
 
 export type PetMoment = 'fed' | 'grew' | null;

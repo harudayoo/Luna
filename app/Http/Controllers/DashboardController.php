@@ -52,6 +52,8 @@ class DashboardController extends Controller
             'pet_moment' => $grew ? 'grew' : ($fed ? 'fed' : null),
             // The pet panel's extras: only on its partial reload (only: ['pet_detail']), so Home loads no slower.
             'pet_detail' => Inertia::optional(fn () => Pet::detail($user)),
+            // The office board, when the panel's board tab opens.
+            'pet_board' => Inertia::optional(fn () => Pet::board($user)),
         ]);
     }
 }

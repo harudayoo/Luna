@@ -68,27 +68,87 @@ final class Pet
      */
     public static function streak(User $user): int
     {
+        return self::streaks([$user->id])[$user->id];
+    }
+
+    /**
+     * `streak` for many people at once (the office board): three queries however many there are.
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, int> streak by user id
+     */
+    public static function streaks(array $userIds): array
+    {
         $today = CarbonImmutable::parse(self::today());
         $from = $today->subDays(self::STREAK_WINDOW_DAYS)->toDateString();
         $to = $today->toDateString();
 
-        $visits = PetEvent::query()->where('user_id', $user->id)->where('kind', 'visit')
-            ->whereBetween('ref', [$from, $to])->pluck('ref')->flip();
-        $closed = Holiday::query()->whereBetween('date', [$from, $to])->toBase()->pluck('date')
-            ->merge(Leave::query()->where('user_id', $user->id)->whereBetween('date', [$from, $to])->toBase()->pluck('date'))
-            ->flip();
+        $visits = PetEvent::query()->whereIn('user_id', $userIds)->where('kind', 'visit')
+            ->whereBetween('ref', [$from, $to])->toBase()->get(['user_id', 'ref'])
+            ->groupBy('user_id')->map(fn ($rows) => $rows->pluck('ref')->flip());
+        $holidays = Holiday::query()->whereBetween('date', [$from, $to])->toBase()->pluck('date')->flip();
+        $leaves = Leave::query()->whereIn('user_id', $userIds)->whereBetween('date', [$from, $to])
+            ->toBase()->get(['user_id', 'date'])
+            ->groupBy('user_id')->map(fn ($rows) => $rows->pluck('date')->flip());
 
-        $streak = 0;
-        for ($day = $today; $day->toDateString() >= $from; $day = $day->subDay()) {
-            $date = $day->toDateString();
-            if ($visits->has($date)) {
-                $streak++;
-            } elseif (! ($date === $to || $day->isWeekend() || $closed->has($date))) {
-                break;
+        $streaks = [];
+        foreach ($userIds as $id) {
+            $mine = $visits[$id] ?? collect();
+            $off = $leaves[$id] ?? collect();
+            $streak = 0;
+            for ($day = $today; $day->toDateString() >= $from; $day = $day->subDay()) {
+                $date = $day->toDateString();
+                if ($mine->has($date)) {
+                    $streak++;
+                } elseif (! ($date === $to || $day->isWeekend() || $holidays->has($date) || $off->has($date))) {
+                    break;
+                }
             }
+            $streaks[$id] = $streak;
         }
 
-        return $streak;
+        return $streaks;
+    }
+
+    /**
+     * The office board (spec 2026-11-25-luna-pet-social, slice 2): active people who joined, ranked by stage, then
+     * streak, then name. The top 10, plus your own row under them when you're on it but lower. No XP for anyone.
+     *
+     * @return array{joined: bool, rows: list<array{rank: int, first_name: string, pet_name: string|null, stage: int, stage_name: string, streak: int, me: bool}>}
+     */
+    public static function board(User $me): array
+    {
+        $people = User::query()->where('pet_public', true)
+            ->whereNull('deactivated_at')->whereNotNull('password')
+            ->get(['id', 'name', 'pet_name']);
+        $ids = $people->pluck('id')->all();
+        $xp = PetEvent::query()->whereIn('user_id', $ids)->groupBy('user_id')
+            ->selectRaw('user_id, sum(xp) as total')->toBase()->pluck('total', 'user_id');
+        $streaks = self::streaks($ids);
+
+        $ranked = $people->map(function (User $u) use ($xp, $streaks, $me) {
+            $stage = self::stageFor((int) ($xp[$u->id] ?? 0));
+
+            return [
+                'first_name' => strtok($u->name, ' ') ?: $u->name,
+                'pet_name' => $u->pet_name,
+                'stage' => $stage,
+                'stage_name' => self::STAGE_NAMES[$stage],
+                'streak' => $streaks[$u->id],
+                'me' => $u->is($me),
+                'sort_name' => $u->name,
+            ];
+        })->sort(fn ($a, $b) => [$b['stage'], $b['streak'], $a['sort_name']] <=> [$a['stage'], $a['streak'], $b['sort_name']])
+            ->values()
+            ->map(fn ($row, $i) => ['rank' => $i + 1] + collect($row)->except('sort_name')->all());
+
+        $rows = $ranked->take(10);
+        $mine = $ranked->firstWhere('me', true);
+        if ($mine && $mine['rank'] > 10) {
+            $rows->push($mine);
+        }
+
+        return ['joined' => (bool) $me->pet_public, 'rows' => $rows->values()->all()];
     }
 
     /** @return array{xp: int, stage: int, stage_name: string, next_at: int|null, streak: int, fed_today: bool} */
@@ -99,6 +159,7 @@ final class Pet
 
         return [
             'name' => $user->pet_name,
+            'public' => (bool) $user->pet_public,
             'xp' => $xp,
             'stage' => $stage,
             'stage_name' => self::STAGE_NAMES[$stage],
