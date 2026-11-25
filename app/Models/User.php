@@ -39,6 +39,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
+ * @property string|null $pet_name the pet's name on Home (App\Services\Pet)
+ * @property bool $pet_public whether the pet shows on the office board
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -75,6 +77,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'pet_public' => 'boolean',
         ];
     }
 

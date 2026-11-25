@@ -586,3 +586,52 @@ export function petGrow(el: HTMLElement): void {
         ],
     });
 }
+
+/*
+ * petPoke: the pet was tapped in its panel (cosmetic, no XP). Moves the wrapper, like petFed.
+ *   LIGHT (paper): a quick squish and a side-to-side wobble that settles hard.
+ *   DARK  (code):  a springy jump while its glow flares.
+ */
+export function petPoke(el: HTMLElement): void {
+    const { animate, spring } = anime;
+    const glow = el.querySelectorAll<SVGElement>('[data-pet-glow]');
+
+    if (ocs().reduced()) {
+        return;
+    }
+
+    if (ocs().isDark()) {
+        animate(el, {
+            y: [
+                { to: -18, duration: 220, ease: 'outQuad' },
+                { to: 0, ease: spring({ bounce: 0.6, duration: 800 }) },
+            ],
+        });
+        if (glow.length) {
+            animate(glow, {
+                opacity: [
+                    { to: 0.5, duration: 200 },
+                    { to: 0.2, duration: 700, ease: 'outQuad' },
+                ],
+            });
+        }
+
+        return;
+    }
+
+    animate(el, {
+        scaleX: [
+            { to: 1.12, duration: 80 },
+            { to: 1, duration: 160, ease: 'outBack(3)' },
+        ],
+        scaleY: [
+            { to: 0.86, duration: 80 },
+            { to: 1, duration: 160, ease: 'outBack(3)' },
+        ],
+        rotate: [
+            { to: -8, duration: 90, delay: 80 },
+            { to: 6, duration: 90 },
+            { to: 0, duration: 140, ease: 'outBack(3)' },
+        ],
+    });
+}

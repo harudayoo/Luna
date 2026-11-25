@@ -1,6 +1,40 @@
 import { describe, expect, it } from 'vitest';
 
-import { stageProgress, streakLabel } from '../../resources/js/lib/pet';
+import {
+    petTitle,
+    stagePath,
+    stageProgress,
+    streakLabel,
+} from '../../resources/js/lib/pet';
+
+describe('stagePath', () => {
+    it('marks stages reached, the current one, and the ones still locked', () => {
+        expect(stagePath(2).map((s) => s.state)).toEqual([
+            'reached',
+            'reached',
+            'current',
+            'locked',
+            'locked',
+        ]);
+        expect(stagePath(0)[0]).toEqual({
+            stage: 0,
+            name: 'Egg',
+            state: 'current',
+        });
+        expect(
+            stagePath(4)
+                .map((s) => s.state)
+                .at(-1),
+        ).toBe('current');
+    });
+});
+
+describe('petTitle', () => {
+    it('puts the name before the stage when the pet has one', () => {
+        expect(petTitle('Mochi', 'Full Moon')).toBe('Mochi · Full Moon');
+        expect(petTitle(null, 'Egg')).toBe('Egg');
+    });
+});
 
 describe('stageProgress', () => {
     it('fills the bar across the current stage and labels total over next', () => {

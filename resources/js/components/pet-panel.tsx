@@ -1,0 +1,351 @@
+import { router, usePage } from '@inertiajs/react';
+import { Check, Pencil, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import PetController from '@/actions/App/Http/Controllers/PetController';
+import InputError from '@/components/input-error';
+import { PetSprite } from '@/components/pet-sprite';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { petIdle, petPoke } from '@/lib/ocs';
+import type { Pet, PetDetail } from '@/lib/pet';
+import { stagePath, stageProgress, streakLabel } from '@/lib/pet';
+
+/** One square per office day this week (pet_detail.week). */
+const DAY_SHADE: Record<PetDetail['week'][number]['status'], string> = {
+    visited: 'bg-primary',
+    missed: 'bg-surface-hover',
+    // Hatched: a weekend-like day off (holiday or own leave) that doesn't break the streak.
+    skipped:
+        'bg-[repeating-linear-gradient(45deg,var(--color-surface-hover)_0_4px,transparent_4px_8px)]',
+    upcoming: 'bg-bg',
+};
+
+const DAY_WORD: Record<PetDetail['week'][number]['status'], string> = {
+    visited: 'visited',
+    missed: 'missed',
+    skipped: 'day off',
+    upcoming: 'to come',
+};
+
+/**
+ * The pet up close (spec 2026-11-25-luna-pet-social, slice 1): tap it, name it, see the stages ahead, this week's
+ * visits, what gives XP and what gave it lately. The extras (pet_detail) load when it opens; full screen on phones.
+ */
+export function PetPanel({
+    pet,
+    open,
+    onOpenChange,
+}: {
+    pet: Pet;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
+    const { pet_detail: detail, errors } = usePage<{
+        pet_detail?: PetDetail;
+        errors: Record<string, string>;
+    }>().props;
+    const progress = stageProgress(pet.xp);
+    const sprite = useRef<HTMLSpanElement>(null);
+    const [editing, setEditing] = useState(false);
+    const [name, setName] = useState(pet.name ?? '');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (open) {
+            router.reload({ only: ['pet_detail'] });
+        } else {
+            setEditing(false);
+        }
+    }, [open]);
+
+    // The idle bob, once the dialog has put the sprite on the page.
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        let stop = () => {};
+        const frame = requestAnimationFrame(() => {
+            if (sprite.current) {
+                stop = petIdle(sprite.current);
+            }
+        });
+
+        return () => {
+            cancelAnimationFrame(frame);
+            stop();
+        };
+    }, [open, pet.stage]);
+
+    const save = () =>
+        router.patch(
+            PetController.update(),
+            { name },
+            {
+                preserveScroll: true,
+                only: ['pet', 'errors'],
+                onStart: () => setSaving(true),
+                onFinish: () => setSaving(false),
+                onSuccess: () => setEditing(false),
+            },
+        );
+
+    const title = pet.name ?? 'Your moonling';
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="h-dvh max-h-dvh w-full max-w-none content-start overflow-y-auto sm:h-auto sm:max-h-[90dvh] sm:max-w-lg">
+                <div>
+                    <p className="ocs-eyebrow mb-0">Your moonling</p>
+                    {editing ? (
+                        <form
+                            className="mt-1 flex items-center gap-2 pr-8"
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                save();
+                            }}
+                        >
+                            <DialogTitle className="sr-only">
+                                Name your moonling
+                            </DialogTitle>
+                            <Input
+                                autoFocus
+                                maxLength={20}
+                                aria-label="Pet name"
+                                placeholder="Give it a name"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                        // Esc cancels the edit, not the whole panel.
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        setName(pet.name ?? '');
+                                        setEditing(false);
+                                    }
+                                }}
+                            />
+                            <Button
+                                type="submit"
+                                size="icon"
+                                disabled={saving}
+                                aria-label="Save name"
+                            >
+                                <Check />
+                            </Button>
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                aria-label="Cancel"
+                                onClick={() => {
+                                    setName(pet.name ?? '');
+                                    setEditing(false);
+                                }}
+                            >
+                                <X />
+                            </Button>
+                        </form>
+                    ) : (
+                        <div className="mt-1 flex items-center gap-1 pr-8">
+                            <DialogTitle className="text-2xl font-semibold">
+                                {title}
+                            </DialogTitle>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label={
+                                    pet.name
+                                        ? 'Rename your pet'
+                                        : 'Name your pet'
+                                }
+                                onClick={() => setEditing(true)}
+                            >
+                                <Pencil />
+                            </Button>
+                        </div>
+                    )}
+                    <InputError message={errors.name} />
+                    <DialogDescription className="text-sm text-muted">
+                        It grows as you use Luna. Tap it to say hi.
+                    </DialogDescription>
+                </div>
+
+                {/* The pet, large. Tapping is just for fun: no XP. */}
+                <button
+                    type="button"
+                    aria-label={`Say hi to ${title}`}
+                    onClick={() => sprite.current && petPoke(sprite.current)}
+                    className="mx-auto block cursor-pointer p-2 focus-visible:bg-surface-hover focus-visible:outline-none"
+                >
+                    <span ref={sprite} className="inline-block">
+                        <PetSprite
+                            stage={progress.stage}
+                            title={`${title}: ${progress.name}`}
+                            className="size-50 min-[390px]:size-60"
+                        />
+                    </span>
+                </button>
+
+                <section aria-label="Progress">
+                    <p className="text-lg leading-6 font-semibold">
+                        {progress.name}
+                    </p>
+                    <div
+                        role="progressbar"
+                        aria-label="Growth to the next stage"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(progress.fraction * 100)}
+                        className="mt-2 h-2 bg-surface-hover"
+                    >
+                        <div
+                            className="h-full bg-primary"
+                            style={{ width: `${progress.fraction * 100}%` }}
+                        />
+                    </div>
+                    <p className="mt-1 flex justify-between gap-2 text-xs text-muted">
+                        <span className="font-mono">{progress.label}</span>
+                        <span>{streakLabel(pet.streak)}</span>
+                    </p>
+                </section>
+
+                <section aria-label="Growth path">
+                    <p className="ocs-eyebrow">Growth path</p>
+                    <ol className="grid grid-cols-5 gap-1">
+                        {stagePath(progress.stage).map((s) => (
+                            <li
+                                key={s.stage}
+                                aria-current={
+                                    s.state === 'current' ? 'step' : undefined
+                                }
+                                className={`flex flex-col items-center gap-1 py-2 ${s.state === 'current' ? 'bg-surface-hover' : ''}`}
+                            >
+                                <PetSprite
+                                    stage={s.stage}
+                                    title={
+                                        s.state === 'locked'
+                                            ? `${s.name}, still to come`
+                                            : s.name
+                                    }
+                                    locked={s.state === 'locked'}
+                                    className="size-12"
+                                />
+                                <span
+                                    className={`text-center text-[11px] leading-tight ${s.state === 'locked' ? 'text-muted' : 'font-semibold'}`}
+                                >
+                                    {s.name}
+                                </span>
+                            </li>
+                        ))}
+                    </ol>
+                </section>
+
+                <section aria-label="This week">
+                    <p className="ocs-eyebrow">This week</p>
+                    {detail ? (
+                        <ol className="grid grid-cols-5 gap-1">
+                            {detail.week.map((d) => (
+                                <li
+                                    key={d.date}
+                                    className="flex flex-col items-center gap-1"
+                                >
+                                    <span
+                                        aria-hidden
+                                        className={`h-8 w-full ${DAY_SHADE[d.status]}`}
+                                    />
+                                    <span className="text-xs text-muted">
+                                        {d.day}
+                                        <span className="sr-only">
+                                            : {DAY_WORD[d.status]}
+                                        </span>
+                                    </span>
+                                </li>
+                            ))}
+                        </ol>
+                    ) : (
+                        <div aria-hidden className="h-13 bg-bg" />
+                    )}
+                    <p className="mt-2 text-xs text-muted">
+                        Filled: visited. Shaded: missed. Striped: holiday or
+                        your leave (it doesn&rsquo;t break your streak).
+                    </p>
+                </section>
+
+                <section aria-label="How it grows">
+                    <p className="ocs-eyebrow">How it grows</p>
+                    {detail && (
+                        <ul className="grid gap-1 text-sm">
+                            <Source
+                                what="Open Luna on an office day"
+                                xp={`${detail.xp.visit} XP + 1 a streak day (up to +${detail.streak_bonus_max})`}
+                            />
+                            <Source
+                                what="Log time on an item"
+                                xp={`${detail.xp.item_time} XP, once per item a day`}
+                            />
+                            <Source
+                                what="File leave"
+                                xp={`${detail.xp.leave} XP`}
+                            />
+                            <Source
+                                what="Open your released payslip"
+                                xp={`${detail.xp.payslip} XP, once each`}
+                            />
+                        </ul>
+                    )}
+                </section>
+
+                <section aria-label="Recent XP">
+                    <p className="ocs-eyebrow">Recent XP</p>
+                    {!detail ? (
+                        <p className="text-sm text-muted">Loading&hellip;</p>
+                    ) : detail.recent.length === 0 ? (
+                        <p className="text-sm text-muted">Nothing yet.</p>
+                    ) : (
+                        <ul className="grid gap-1">
+                            {detail.recent.map((r, i) => (
+                                <li
+                                    key={`${r.at}-${i}`}
+                                    className="flex items-baseline gap-3 bg-bg px-3 py-2 text-sm"
+                                >
+                                    <span className="w-9 shrink-0 font-mono font-semibold text-primary">
+                                        +{r.xp}
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        {r.label}
+                                    </span>
+                                    <span className="shrink-0 text-xs text-muted">
+                                        {short(r.at)}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </section>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function Source({ what, xp }: { what: string; xp: string }) {
+    return (
+        <li className="flex flex-wrap justify-between gap-x-3 bg-bg px-3 py-2">
+            <span>{what}</span>
+            <span className="font-mono text-xs text-muted">{xp}</span>
+        </li>
+    );
+}
+
+const short = (iso: string) =>
+    new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'UTC',
+        month: 'short',
+        day: 'numeric',
+    }).format(new Date(`${iso}T00:00:00Z`));

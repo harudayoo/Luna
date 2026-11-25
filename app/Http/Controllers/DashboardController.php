@@ -50,6 +50,8 @@ class DashboardController extends Controller
             // The person's pet, and what just happened to it on this load (for the card's motion).
             'pet' => Pet::state($user),
             'pet_moment' => $grew ? 'grew' : ($fed ? 'fed' : null),
+            // The pet panel's extras: only on its partial reload (only: ['pet_detail']), so Home loads no slower.
+            'pet_detail' => Inertia::optional(fn () => Pet::detail($user)),
         ]);
     }
 }

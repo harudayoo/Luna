@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PetController;
 use App\Http\Controllers\WipTileController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +18,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('wip-tiles', [WipTileController::class, 'store'])->name('wip-tiles.store');
     Route::put('wip-tiles/{tile}', [WipTileController::class, 'update'])->name('wip-tiles.update');
     Route::delete('wip-tiles/{tile}', [WipTileController::class, 'destroy'])->name('wip-tiles.destroy');
+
+    // Your pet on Home (spec 2026-11-25-luna-pet-social).
+    Route::patch('pet', [PetController::class, 'update'])->name('pet.update');
 
     // The bell in the top bar (components/notification-bell.tsx): part of the shell, not a module.
     Route::get('notifications/{id}', [NotificationController::class, 'open'])->name('notifications.open');

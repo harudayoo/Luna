@@ -13,7 +13,24 @@ const EYE = { transformBox: 'fill-box', transformOrigin: '50% 50%' } as const;
 const SIZE = [0, 24, 32, 36, 40];
 const GLOW = [0, 0, 0, 48, 56];
 
-export function PetSprite({ stage, title }: { stage: number; title: string }) {
+/** Sizes for the Home card (smaller in the desktop rail, so the rail fits on screen). */
+const CARD_SIZE = 'size-24 min-[390px]:size-30 lg:size-20';
+
+/**
+ * `locked` draws a flat silhouette (every part in --color-surface-hover, no glow, no shadow): a stage
+ * still ahead on the panel's growth path. `className` replaces the card sizes.
+ */
+export function PetSprite({
+    stage,
+    title,
+    locked = false,
+    className = CARD_SIZE,
+}: {
+    stage: number;
+    title: string;
+    locked?: boolean;
+    className?: string;
+}) {
     const r = SIZE[stage] ?? 40;
     const cy = 96 - r - 4;
 
@@ -22,9 +39,9 @@ export function PetSprite({ stage, title }: { stage: number; title: string }) {
             viewBox="0 0 120 120"
             role="img"
             aria-label={title}
-            className="size-24 shrink-0 overflow-visible min-[390px]:size-30 lg:size-20"
+            className={`shrink-0 overflow-visible ${className} ${locked ? '[&_[data-pet-body]_*]:fill-surface-hover [&_[data-pet-body]_*]:stroke-none' : ''}`}
         >
-            {GLOW[stage] > 0 && (
+            {!locked && GLOW[stage] > 0 && (
                 <circle
                     data-pet-glow
                     cx="60"
@@ -34,14 +51,16 @@ export function PetSprite({ stage, title }: { stage: number; title: string }) {
                     opacity={stage === 4 ? 0.22 : 0.16}
                 />
             )}
-            <ellipse
-                cx="60"
-                cy="104"
-                rx={stage === 0 ? 22 : r * 0.8}
-                ry="4"
-                fill={ACCENT}
-                opacity="0.25"
-            />
+            {!locked && (
+                <ellipse
+                    cx="60"
+                    cy="104"
+                    rx={stage === 0 ? 22 : r * 0.8}
+                    ry="4"
+                    fill={ACCENT}
+                    opacity="0.25"
+                />
+            )}
             <g
                 data-pet-body
                 style={{
@@ -51,7 +70,7 @@ export function PetSprite({ stage, title }: { stage: number; title: string }) {
             >
                 {stage === 0 ? <Egg /> : <Body stage={stage} r={r} cy={cy} />}
             </g>
-            {stage === 4 && <Sparkles />}
+            {!locked && stage === 4 && <Sparkles />}
         </svg>
     );
 }

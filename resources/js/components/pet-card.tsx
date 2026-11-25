@@ -1,16 +1,20 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { PetPanel } from '@/components/pet-panel';
 import { PetSprite } from '@/components/pet-sprite';
-import { petFed, petGrow, petIdle } from '@/lib/ocs';
+import { ocsRef, petFed, petGrow, petIdle } from '@/lib/ocs';
 import type { Pet, PetMoment } from '@/lib/pet';
-import { stageProgress, streakLabel } from '@/lib/pet';
+import { petTitle, stageProgress, streakLabel } from '@/lib/pet';
 
 /**
  * The person's pet on Home (spec 2026-11-24-luna-pet): it grows from visits, item time, leave and
- * payslips. Nothing to tap; it hops when today's visit feeds it and pops when it grows a stage.
+ * payslips. It hops when today's visit feeds it and pops when it grows a stage; opening it shows the
+ * pet up close (PetPanel, spec 2026-11-25-luna-pet-social).
  */
 export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
     const sprite = useRef<HTMLSpanElement>(null);
     const progress = stageProgress(pet.xp);
+    const [open, setOpen] = useState(false);
+    const tilt = useRef(ocsRef(['tilt'])).current;
 
     useEffect(() => {
         const el = sprite.current;
@@ -29,45 +33,60 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
     }, [moment, pet.stage]);
 
     return (
-        <section
-            aria-label="Your moonling"
-            className="ocs-card flex items-center gap-4 p-4! sm:p-5! lg:gap-3 lg:p-4!"
-        >
-            {/* Beside the text everywhere; smaller in the desktop rail so the whole rail fits on screen and stays put. */}
-            <span ref={sprite} className="inline-block">
-                <PetSprite
-                    stage={progress.stage}
-                    title={`Your moonling: ${progress.name}`}
-                />
-            </span>
-            <div className="min-w-0 flex-1">
-                <p className="ocs-eyebrow mb-0">Your moonling</p>
-                <p className="mt-1 text-lg leading-6 font-semibold">
-                    {progress.name}
-                </p>
-                <div
-                    role="progressbar"
-                    aria-label="Growth to the next stage"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.round(progress.fraction * 100)}
-                    className="mt-2 h-2 bg-surface-hover"
-                >
-                    <div
-                        className="h-full bg-primary"
-                        style={{ width: `${progress.fraction * 100}%` }}
+        <>
+            <div
+                ref={tilt}
+                role="button"
+                tabIndex={0}
+                data-ocs="tilt"
+                aria-label={`Open ${pet.name ?? 'your moonling'}`}
+                aria-haspopup="dialog"
+                onClick={() => setOpen(true)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setOpen(true);
+                    }
+                }}
+                className="ocs-card flex cursor-pointer items-center gap-4 p-4! sm:p-5! lg:gap-3 lg:p-4!"
+            >
+                {/* Beside the text everywhere; smaller in the desktop rail so the whole rail fits on screen and stays put. */}
+                <span ref={sprite} className="inline-block">
+                    <PetSprite
+                        stage={progress.stage}
+                        title={`Your moonling: ${progress.name}`}
                     />
+                </span>
+                <div className="min-w-0 flex-1">
+                    <p className="ocs-eyebrow mb-0">Your moonling</p>
+                    <p className="mt-1 text-lg leading-6 font-semibold">
+                        {petTitle(pet.name, progress.name)}
+                    </p>
+                    <div
+                        role="progressbar"
+                        aria-label="Growth to the next stage"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(progress.fraction * 100)}
+                        className="mt-2 h-2 bg-surface-hover"
+                    >
+                        <div
+                            className="h-full bg-primary"
+                            style={{ width: `${progress.fraction * 100}%` }}
+                        />
+                    </div>
+                    <p className="mt-1 font-mono text-xs text-muted">
+                        {progress.label}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                        {streakLabel(pet.streak)}
+                    </p>
+                    <p className="mt-2 text-xs text-muted">
+                        Tap to see it up close.
+                    </p>
                 </div>
-                <p className="mt-1 font-mono text-xs text-muted">
-                    {progress.label}
-                </p>
-                <p className="mt-1 text-xs text-muted">
-                    {streakLabel(pet.streak)}
-                </p>
-                <p className="mt-2 text-xs text-muted">
-                    Log time, file leave, or check a payslip to help it grow.
-                </p>
             </div>
-        </section>
+            <PetPanel pet={pet} open={open} onOpenChange={setOpen} />
+        </>
     );
 }
