@@ -9,6 +9,7 @@ import {
     DYE_NAMES,
     dyeColor,
     knownItem,
+    lockNote,
     PALETTE_NAMES,
     paletteStyle,
     SLOT_NAMES,
@@ -26,9 +27,12 @@ import {
 export function PetWardrobe({
     pet,
     wardrobe,
+    onWorn,
 }: {
     pet: Pet;
     wardrobe: PetDetail['wardrobe'];
+    /** An item went on (slice 8: the moonling says something about its new look). */
+    onWorn?: () => void;
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const [saving, setSaving] = useState(false);
@@ -124,7 +128,7 @@ export function PetWardrobe({
                 <span className="font-semibold text-ink">
                     {PALETTE_NAMES[peeked.key]}
                 </span>
-                {peeked.how ? ` · 🔒 ${peeked.how}` : ''}
+                {lockNote(peeked) ? ` · 🔒 ${lockNote(peeked)}` : ''}
             </p>
 
             {/* Items, one slot at a time, so a phone sees one short row instead of a long page. */}
@@ -177,6 +181,9 @@ export function PetWardrobe({
                                     save({
                                         wear: toggleWear(pet.wear, item.key),
                                     });
+                                    if (!on) {
+                                        onWorn?.();
+                                    }
                                 }}
                                 className="flex size-full min-h-24 cursor-pointer flex-col items-center gap-1 bg-bg px-2 py-2 text-center aria-pressed:bg-surface-hover focus-visible:shadow-lift focus-visible:outline-none disabled:cursor-default"
                             >
@@ -273,7 +280,9 @@ export function PetWardrobe({
                                 ]
                             }
                         </span>
-                        {peekedDye?.how ? ` · 🔒 ${peekedDye.how}` : ''}
+                        {lockNote(peekedDye)
+                            ? ` · 🔒 ${lockNote(peekedDye)}`
+                            : ''}
                     </p>
                 </>
             )}

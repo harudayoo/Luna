@@ -86,6 +86,8 @@ export function PetPanel({
     // Where the last press started: a press on a worn item plays that item and says a line about it (slice 10).
     const pressed = useRef<Element | null>(null);
     const lastItemLine = useRef<string | undefined>(undefined);
+    const lastLine = useRef<string | undefined>(undefined);
+    const taps = useRef<number[]>([]);
 
     // A tap or a tug: it wobbles, says something, and the first one each office day is its pat (no XP).
     const tap = useCallback(() => {
@@ -103,7 +105,21 @@ export function PetPanel({
             if (sprite.current) {
                 petPoke(sprite.current);
             }
-            say(voiceLine('tap', pet.mood.level));
+            // Three quick taps in a row get their own giggle (slice 8); never the same line twice in a row.
+            const now = Date.now();
+            taps.current = [...taps.current.filter((t) => now - t < 1500), now];
+            const combo = taps.current.length >= 3;
+            if (combo) {
+                taps.current = [];
+            }
+            lastLine.current = voiceLine(
+                combo ? 'combo' : 'tap',
+                pet.mood.level,
+                Math.random,
+                lastLine.current,
+                pet.kind,
+            );
+            say(lastLine.current);
         }
         if (!pet.mood.patted) {
             router.post(
@@ -112,7 +128,7 @@ export function PetPanel({
                 { preserveScroll: true, preserveState: true, only: ['pet'] },
             );
         }
-    }, [pet.mood.level, pet.mood.patted, say]);
+    }, [pet.mood.level, pet.mood.patted, pet.kind, say]);
 
     usePetPlay(pat, {
         area,
@@ -376,7 +392,19 @@ export function PetPanel({
                         </section>
 
                         {detail && (
-                            <PetWardrobe pet={pet} wardrobe={detail.wardrobe} />
+                            <PetWardrobe
+                                pet={pet}
+                                wardrobe={detail.wardrobe}
+                                onWorn={() => {
+                                    lastLine.current = voiceLine(
+                                        'outfit',
+                                        pet.mood.level,
+                                        Math.random,
+                                        lastLine.current,
+                                    );
+                                    say(lastLine.current);
+                                }}
+                            />
                         )}
 
                         <section aria-label="Growth path">

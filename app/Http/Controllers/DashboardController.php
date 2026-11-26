@@ -23,9 +23,10 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request): Response|RedirectResponse
     {
-        // A duel notice links to ?pet=duels, an egg notice to ?pet=nest, a quest notice to ?pet=quests. Swap that for a one-time note and the plain
-        // address, so the panel opens on that tab once and a refresh of Home doesn't open it again.
-        if (in_array($request->query('pet'), ['duels', 'nest', 'quests'], true)) {
+        // A duel notice links to ?pet=duels, an egg notice to ?pet=nest, a quest notice to ?pet=quests, an unlock
+        // notice to ?pet=pet. Swap that for a one-time note and the plain address, so the panel opens on that tab
+        // once and a refresh of Home doesn't open it again.
+        if (in_array($request->query('pet'), ['pet', 'duels', 'nest', 'quests'], true)) {
             return to_route('dashboard')->with('pet_open', $request->query('pet'));
         }
 
@@ -72,7 +73,7 @@ class DashboardController extends Controller
             // Moon quests (spec 2026-11-26-luna-moonling-style, slice 12), when the panel's Quests tab opens.
             'pet_quests' => Inertia::optional(fn () => MoonQuests::list($user)),
             // Which panel tab to open straight away (once, after a duel or egg notice), or null.
-            'pet_open' => in_array($openTab, ['duels', 'nest', 'quests'], true) ? $openTab : null,
+            'pet_open' => in_array($openTab, ['pet', 'duels', 'nest', 'quests'], true) ? $openTab : null,
         ]);
     }
 }

@@ -281,11 +281,23 @@ final class Pet
         $kinds = PetEvent::query()->where('user_id', $user->id)->whereIn('kind', ['item_time', 'leave'])
             ->where('created_at', '>=', $start)->distinct()->pluck('kind');
 
+        // What else it can talk about (slice 8), on the office clock: the next weekday off, payday, the part of the day.
+        $now = TimeLog::officeNow();
+        $next = CarbonImmutable::parse(self::today())->addDay();
+        while ($next->isWeekend()) {
+            $next = $next->addDay();
+        }
+
         return [
             'time_logged' => $kinds->contains('item_time'),
             'leave_filed' => $kinds->contains('leave'),
             'duel_waiting' => PetDuel::query()->where('status', 'open')->where('opponent_id', $user->id)
                 ->where('created_at', '>', now()->subDays(PetDuels::EXPIRE_DAYS))->exists(),
+            'payday' => Payslip::query()->where('user_id', $user->id)->whereDate('released_on', self::today())->exists(),
+            'day_off_tomorrow' => Holiday::query()->whereDate('date', $next->toDateString())->exists()
+                || Leave::query()->where('user_id', $user->id)->whereDate('date', $next->toDateString())->exists(),
+            'weekday' => $now->isoWeekday(),
+            'part' => $now->hour < 12 ? 'morning' : ($now->hour < 15 ? 'afternoon' : 'evening'),
         ];
     }
 

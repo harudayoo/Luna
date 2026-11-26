@@ -8,6 +8,7 @@ import {
     DYE_NAMES,
     DYES,
     KINDS,
+    lockNote,
     PALETTE_NAMES,
     PALETTES,
     paletteStyle,
@@ -296,5 +297,18 @@ describe('PetSprite wardrobe', () => {
         expect(s).toContain('data-pet-crown');
         expect(s).not.toContain('data-pet-wear="bow"');
         expect(s).toContain('data-pet-wear="scarf"');
+    });
+});
+
+describe('lockNote', () => {
+    it('shows what unlocks a swatch only while it is locked', () => {
+        expect(
+            lockNote({ unlocked: false, how: 'Reach a 20-day visit streak' }),
+        ).toBe('Reach a 20-day visit streak');
+        expect(
+            lockNote({ unlocked: true, how: 'Reach a 20-day visit streak' }),
+        ).toBeNull();
+        expect(lockNote({ unlocked: true, how: null })).toBeNull();
+        expect(lockNote(undefined)).toBeNull();
     });
 });

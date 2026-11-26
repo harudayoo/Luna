@@ -25,6 +25,12 @@ export type Pet = {
         time_logged: boolean;
         leave_filed: boolean;
         duel_waiting: boolean;
+        /** Slice 8: a payslip of yours released today; the next weekday is a holiday or your leave. */
+        payday: boolean;
+        day_off_tomorrow: boolean;
+        /** Office clock: 1 = Monday … 7 = Sunday, and the part of the day. */
+        weekday: number;
+        part: 'morning' | 'afternoon' | 'evening';
     };
 };
 
@@ -251,6 +257,13 @@ export type PetQuest = {
     dye: Dye;
     seasonal: boolean;
 };
+
+/** What unlocks a shade or dye, shown only while it's still locked (null once it's yours, or for an open one). */
+export function lockNote(
+    swatch: { unlocked: boolean; how: string | null } | undefined,
+): string | null {
+    return swatch && !swatch.unlocked ? swatch.how : null;
+}
 
 /** Puts an item on (swapping out whatever was in its slot), or takes it off when it's already on. */
 export function toggleWear(wear: WearItem[], item: WearItem): WearItem[] {

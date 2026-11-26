@@ -182,14 +182,14 @@ class PetMoodTest extends TestCase
         $this->travelTo('2026-11-18 02:00:00');
         PetEvent::query()->create(['user_id' => $this->ana->id, 'kind' => 'leave', 'ref' => '2026-11-30', 'xp' => 5]);
         $this->travelTo('2026-11-19 02:00:00');
-        $this->assertSame(['time_logged' => false, 'leave_filed' => false, 'duel_waiting' => false], Pet::state($this->ana)['today']);
+        $this->assertSame(['time_logged' => false, 'leave_filed' => false, 'duel_waiting' => false], array_intersect_key(Pet::state($this->ana)['today'], array_flip(['time_logged', 'leave_filed', 'duel_waiting'])));
 
         PetEvent::query()->create(['user_id' => $this->ana->id, 'kind' => 'item_time', 'ref' => '7:2026-11-19', 'xp' => 10]);
         PetEvent::query()->create(['user_id' => $this->ana->id, 'kind' => 'leave', 'ref' => '2026-11-27', 'xp' => 5]);
         $ben = User::factory()->create();
         PetDuel::query()->create(['challenger_id' => $ben->id, 'opponent_id' => $this->ana->id, 'challenger_pick' => 'moon', 'status' => 'open']);
 
-        $this->assertSame(['time_logged' => true, 'leave_filed' => true, 'duel_waiting' => true], Pet::state($this->ana)['today']);
+        $this->assertSame(['time_logged' => true, 'leave_filed' => true, 'duel_waiting' => true], array_intersect_key(Pet::state($this->ana)['today'], array_flip(['time_logged', 'leave_filed', 'duel_waiting'])));
     }
 
     public function test_patting_needs_a_sign_in()

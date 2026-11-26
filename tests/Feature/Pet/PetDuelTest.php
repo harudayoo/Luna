@@ -162,8 +162,9 @@ class PetDuelTest extends TestCase
         $this->assertSame(route('dashboard', ['pet' => 'duels'], false), $notice->data['url']);
 
         $this->answer($this->ben, PetDuel::query()->sole(), 'star');
-        // Ana's first finished duel also completes her "First duel" quest (slice 12), with its own notice.
-        $this->assertSame(['pet_quest', 'pet_duel_result'], $this->kinds($this->ana));
+        // Ana's first finished duel also completes her "First duel" quest (slice 12), and her first win unlocks the
+        // wand (slice 13), each with its own notice.
+        $this->assertSame(['pet_unlock', 'pet_quest', 'pet_duel_result'], $this->kinds($this->ana));
 
         $cy = $this->onBoard('Cy Lim');
         $this->challenge($cy, $this->ben);

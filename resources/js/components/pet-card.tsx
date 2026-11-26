@@ -8,7 +8,10 @@ import { ocsRef, petFed, petGrow, petIdle } from '@/lib/ocs';
 import type { Pet, PetMoment } from '@/lib/pet';
 import { petTitle, stageProgress, streakLabel } from '@/lib/pet';
 import { usePetPlay } from '@/lib/pet-play';
-import { homeCue, voiceLine } from '@/lib/pet-voice';
+import { homeCue, shouldSpeak, voiceLine } from '@/lib/pet-voice';
+
+/** Where Home remembers the last part of the day the moonling spoke in ("date:part"). */
+const SAID_KEY = 'luna-pet-said';
 
 /**
  * The person's pet on Home (spec 2026-11-24-luna-pet): it grows from visits, item time, leave and
@@ -56,19 +59,31 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
     // Its eyes follow a mouse over the card (slice 5); the card itself opens the panel, so no tug here.
     usePetPlay(sprite, { area: card });
 
-    // Something to say about this visit, once Home has settled.
+    // Something to say about this visit, once Home has settled: "now and then" (slice 8), once in each part of the
+    // office day, remembered in this browser; growing a stage always speaks.
     useEffect(() => {
         const cue = homeCue(pet, moment);
-        if (!cue) {
+        const key = `${new Date().toDateString()}:${pet.today.part}`;
+        let said: string | null = null;
+        try {
+            said = window.localStorage.getItem(SAID_KEY);
+        } catch {
+            // Storage blocked: speak as before, once per load.
+        }
+        if (!cue || !shouldSpeak(cue, key, said)) {
             return;
         }
-        const t = window.setTimeout(
-            () => say(voiceLine(cue, pet.mood.level)),
-            900,
-        );
+        const t = window.setTimeout(() => {
+            say(voiceLine(cue, pet.mood.level));
+            try {
+                window.localStorage.setItem(SAID_KEY, key);
+            } catch {
+                // Nothing to remember it in.
+            }
+        }, 900);
 
         return () => window.clearTimeout(t);
-        // Only on mount: one line per Home load.
+        // Only on mount: at most one line per Home load.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

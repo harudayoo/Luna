@@ -54,22 +54,22 @@ final class Moonlings
     public const SLOTS = ['head', 'face', 'neck', 'back', 'hand'];
 
     /**
-     * The wardrobe's items: slot and what unlocks each (`how` null: open from the start). The Moon Cup crown is worn
+     * The wardrobe's items: name (as the wardrobe shows it), slot and what unlocks each (`how` null: open from the start). The Moon Cup crown is worn
      * automatically, not picked.
      */
     public const WEAR = [
-        'star_clip' => ['slot' => 'head', 'how' => 'Win 5 moon duels'],
-        'comet_trail' => ['slot' => 'neck', 'how' => 'Win 15 moon duels'],
-        'halo' => ['slot' => 'head', 'how' => 'Win 30 moon duels'],
-        'scarf' => ['slot' => 'neck', 'how' => 'Reach a 10-day visit streak'],
-        'bow' => ['slot' => 'head', 'how' => 'Give your moonling a name'],
-        'propeller' => ['slot' => 'head', 'how' => 'Reach a 5-day visit streak'],
-        'glasses' => ['slot' => 'face', 'how' => null],
-        'wings' => ['slot' => 'back', 'how' => 'Hatch a moonling'],
-        'cape' => ['slot' => 'back', 'how' => 'Earn 200 XP across your moonlings'],
-        'balloon' => ['slot' => 'hand', 'how' => null],
-        'wand' => ['slot' => 'hand', 'how' => 'Win a moon duel'],
-        'lantern' => ['slot' => 'hand', 'how' => 'Raise a moonling to Bright'],
+        'star_clip' => ['name' => 'Star clip', 'slot' => 'head', 'how' => 'Win 5 moon duels'],
+        'comet_trail' => ['name' => 'Comet trail', 'slot' => 'neck', 'how' => 'Win 15 moon duels'],
+        'halo' => ['name' => 'Halo', 'slot' => 'head', 'how' => 'Win 30 moon duels'],
+        'scarf' => ['name' => 'Scarf', 'slot' => 'neck', 'how' => 'Reach a 10-day visit streak'],
+        'bow' => ['name' => 'Bow', 'slot' => 'head', 'how' => 'Give your moonling a name'],
+        'propeller' => ['name' => 'Propeller cap', 'slot' => 'head', 'how' => 'Reach a 5-day visit streak'],
+        'glasses' => ['name' => 'Round glasses', 'slot' => 'face', 'how' => null],
+        'wings' => ['name' => 'Wings', 'slot' => 'back', 'how' => 'Hatch a moonling'],
+        'cape' => ['name' => 'Cape', 'slot' => 'back', 'how' => 'Earn 200 XP across your moonlings'],
+        'balloon' => ['name' => 'Balloon', 'slot' => 'hand', 'how' => null],
+        'wand' => ['name' => 'Wand', 'slot' => 'hand', 'how' => 'Win a moon duel'],
+        'lantern' => ['name' => 'Lantern', 'slot' => 'hand', 'how' => 'Raise a moonling to Bright'],
     ];
 
     /**
@@ -192,17 +192,45 @@ final class Moonlings
             },
         ];
 
+        $new = [];
         foreach ($rules as $ref => $earned) {
             if (! in_array($ref, $have, true) && $earned()) {
-                PetEvent::query()->insertOrIgnore([
+                if (PetEvent::query()->insertOrIgnore([
                     'user_id' => $user->id, 'kind' => 'unlock', 'ref' => $ref, 'xp' => 0, 'created_at' => now(),
-                ]);
+                ]) > 0) {
+                    $new[] = $ref;
+                }
                 $have[] = $ref;
             }
         }
+        self::tellUnlocked($user, $new);
 
         // Dyes come from moon quests (slice 12).
         MoonQuests::check($user, $have);
+    }
+
+    /**
+     * One bell notice for everything a check just unlocked (slice 13), so a check that unlocks several things at once
+     * (the first one after a deploy, say) sends one notice, not a burst: "The Star clip and the Frost shade are ready
+     * to wear." Links to the panel's "Your pet" tab, where the wardrobe is.
+     *
+     * @param  list<string>  $refs  item keys and `shade:{key}`
+     */
+    private static function tellUnlocked(User $user, array $refs): void
+    {
+        if ($refs === []) {
+            return;
+        }
+        $names = array_map(fn (string $ref) => str_starts_with($ref, 'shade:')
+            ? 'the '.ucfirst(substr($ref, 6)).' shade'
+            : 'the '.self::WEAR[$ref]['name'], $refs);
+        $list = count($names) === 1 ? $names[0] : implode(', ', array_slice($names, 0, -1)).' and '.end($names);
+
+        Notify::user($user, null, new LunaNotice(
+            'pet_unlock', 'New in your wardrobe',
+            ucfirst($list).(count($names) === 1 ? ' is' : ' are').' ready to wear.',
+            route('dashboard', ['pet' => 'pet'], false), 'home',
+        ));
     }
 
     /** Whether a dye can be used: open from the start, or unlocked (by its quest). */
