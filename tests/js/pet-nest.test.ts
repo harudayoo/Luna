@@ -29,7 +29,7 @@ const nest = (moonlings: PetNest['moonlings'], can_switch = true): PetNest => ({
 });
 
 describe('KINDS', () => {
-    it('names the six kinds', () => {
+    it('names the thirteen kinds', () => {
         expect(kinds).toEqual([
             'moon',
             'star',
@@ -37,6 +37,13 @@ describe('KINDS', () => {
             'eclipse',
             'aurora',
             'nova',
+            'sun',
+            'planet',
+            'meteor',
+            'galaxy',
+            'orchid',
+            'moonflower',
+            'citylight',
         ]);
         for (const k of kinds) {
             expect(KINDS[k].length).toBeGreaterThan(0);

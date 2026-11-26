@@ -54,7 +54,7 @@ class UnlockNoticeTest extends TestCase
 
     public function test_one_notice_names_everything_that_unlocked_together()
     {
-        // 10 wins at once: the wand (1), the star clip (5) and the Frost shade (10).
+        // 10 wins at once: the wand (1), the star clip (5), the kite (10, slice 16) and the Frost shade (10).
         $this->wins(10);
         $this->check();
 
@@ -63,7 +63,7 @@ class UnlockNoticeTest extends TestCase
         $this->assertSame('New in your wardrobe', $notice->data['title']);
         $this->assertSame('home', $notice->data['module']);
         $this->assertSame(route('dashboard', ['pet' => 'pet'], false), $notice->data['url']);
-        $this->assertSame('The Star clip, the Wand and the Frost shade are ready to wear.', $notice->data['body']);
+        $this->assertSame('The Star clip, the Wand, the Kite and the Frost shade are ready to wear.', $notice->data['body']);
     }
 
     public function test_one_unlock_reads_simply_and_nothing_new_sends_nothing()

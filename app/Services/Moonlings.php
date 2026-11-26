@@ -18,7 +18,12 @@ use Illuminate\Validation\ValidationException;
  */
 final class Moonlings
 {
-    public const KINDS = ['moon' => 'Moon', 'star' => 'Star', 'comet' => 'Comet', 'eclipse' => 'Eclipse', 'aurora' => 'Aurora', 'nova' => 'Nova'];
+    public const KINDS = [
+        'moon' => 'Moon', 'star' => 'Star', 'comet' => 'Comet', 'eclipse' => 'Eclipse', 'aurora' => 'Aurora', 'nova' => 'Nova',
+        // Spec 2026-11-26-luna-moonling-collection, slice 15; the last three for Luna Orchid and Orchid City.
+        'sun' => 'Sun', 'planet' => 'Planet', 'meteor' => 'Meteor', 'galaxy' => 'Galaxy',
+        'orchid' => 'Orchid', 'moonflower' => 'Moonflower', 'citylight' => 'Citylight',
+    ];
 
     /** The eggs, in the order the nest lists them, and what earns each. */
     public const EGGS = [
@@ -27,6 +32,13 @@ final class Moonlings
         'eclipse' => 'Raise a moonling to Full Moon',
         'aurora' => 'Work on 20 different days',
         'nova' => 'Win a weekly Moon Cup',
+        'sun' => 'Visit Luna on 100 office days',
+        'planet' => 'Raise 3 moonlings to Bright',
+        'meteor' => 'Win 50 moon duels',
+        'galaxy' => 'Finish every moon quest (not the seasonal ones)',
+        'orchid' => 'Pat your moonling on 30 days',
+        'moonflower' => 'Have 5 moonlings',
+        'citylight' => 'Visit Luna in 6 different months',
     ];
 
     /**
@@ -34,8 +46,8 @@ final class Moonlings
      * slice 9; drawn in lib/pet.ts paletteStyle). The open ones first; SHADE_UNLOCKS says what unlocks the rest.
      */
     public const PALETTES = [
-        'classic', 'dusk', 'dawn', 'tide', 'mist', 'mint',
-        'sakura', 'ember', 'frost', 'cocoa', 'midnight', 'gold', 'nebula', 'prism',
+        'classic', 'dusk', 'dawn', 'tide', 'mist', 'mint', 'coral', 'lilac',
+        'sakura', 'ember', 'frost', 'cocoa', 'midnight', 'gold', 'nebula', 'ocean', 'peach', 'prism',
     ];
 
     /** Shades that are unlocked (recorded as `shade:{key}`), and how. Reachable in every role. */
@@ -47,6 +59,9 @@ final class Moonlings
         'midnight' => 'Hatch 3 moonlings',
         'gold' => 'Raise a moonling to Full Moon',
         'nebula' => 'Win a weekly Moon Cup',
+        // Slice 17; paid by moon quests in slice 18 (spec 2026-11-26-luna-moonling-collection).
+        'ocean' => 'Wear something in every spot (a moon quest)',
+        'peach' => 'Duel 5 different people (a moon quest)',
         'prism' => 'Unlock every other shade',
     ];
 
@@ -70,6 +85,16 @@ final class Moonlings
         'balloon' => ['name' => 'Balloon', 'slot' => 'hand', 'how' => null],
         'wand' => ['name' => 'Wand', 'slot' => 'hand', 'how' => 'Win a moon duel'],
         'lantern' => ['name' => 'Lantern', 'slot' => 'hand', 'how' => 'Raise a moonling to Bright'],
+        // Spec 2026-11-26-luna-moonling-collection, slice 16.
+        'jetpack' => ['name' => 'Jetpack', 'slot' => 'back', 'how' => 'Reach a 15-day visit streak'],
+        'umbrella' => ['name' => 'Umbrella', 'slot' => 'hand', 'how' => 'Visit on 5 office days in the rainy season (June–October)'],
+        'flower_crown' => ['name' => 'Flower crown', 'slot' => 'head', 'how' => null],
+        'bowtie' => ['name' => 'Bowtie', 'slot' => 'neck', 'how' => 'Finish 3 moon quests'],
+        'orchid_pin' => ['name' => 'Orchid pin', 'slot' => 'head', 'how' => null],
+        'coffee' => ['name' => 'Coffee mug', 'slot' => 'hand', 'how' => 'Visit before 9:00 on 10 office days'],
+        'headphones' => ['name' => 'Headphones', 'slot' => 'head', 'how' => 'Finish 5 weekly quests'],
+        'kite' => ['name' => 'Kite', 'slot' => 'hand', 'how' => 'Win 10 moon duels'],
+        'monocle' => ['name' => 'Monocle', 'slot' => 'face', 'how' => 'Raise a moonling to Full Moon'],
     ];
 
     /**
@@ -77,7 +102,17 @@ final class Moonlings
      * shade never changes (slice 12). The open ones first; the rest are paid by moon quests (MoonQuests), the
      * seasonal ones last.
      */
-    public const DYES = ['default', 'sun', 'ruby', 'leaf', 'sky', 'rose', 'night', 'starlight', 'fiesta', 'parol'];
+    public const DYES = [
+        'default', 'sun', 'ruby', 'leaf', 'sky', 'rose', 'night', 'starlight', 'cloud', 'berry',
+        'gold', 'silver', 'bronze', 'fiesta', 'parol', 'pumpkin', 'pine', 'heart',
+    ];
+
+    /** Dyes earned by placing in a weekly Moon Cup (slice 17), not by a quest. */
+    public const DYE_UNLOCKS = [
+        'gold' => 'Win a weekly Moon Cup',
+        'silver' => 'Place 2nd in a weekly Moon Cup',
+        'bronze' => 'Place 3rd in a weekly Moon Cup',
+    ];
 
     public const OPEN_DYES = ['default', 'sun'];
 
@@ -165,6 +200,8 @@ final class Moonlings
             ->map(fn ($xp) => (int) $xp));
         $stages = fn () => $xps()->map(fn (int $xp) => Pet::stageFor($xp));
         $hatched = fn () => $stages()->filter(fn (int $s) => $s >= 1)->count();
+        $placing = fn () => $m('placing', fn () => PetDuels::placing($user->id) ?? 0);
+        $visits = fn () => $m('visits', fn () => PetEvent::query()->where('user_id', $user->id)->where('kind', 'visit')->pluck('ref'));
         $pats = fn () => $m('pats', fn () => PetEvent::query()->where('user_id', $user->id)->where('kind', 'pat')->count());
 
         $rules = [
@@ -178,6 +215,21 @@ final class Moonlings
             'cape' => fn () => $xps()->sum() >= 200,
             'wand' => fn () => $wins() >= 1,
             'lantern' => fn () => $stages()->contains(fn (int $s) => $s >= 3),
+            'jetpack' => fn () => $streak() >= 15,
+            // Visit refs are office dates; the rainy season is June to October.
+            'umbrella' => fn () => $visits()->filter(fn (string $d) => in_array((int) substr($d, 5, 2), [6, 7, 8, 9, 10], true))->count() >= 5,
+            'bowtie' => function () use (&$have) {
+                return collect(MoonQuests::QUESTS)->filter(fn (array $q) => in_array(MoonQuests::ref($q), $have, true))->count() >= 3;
+            },
+            // Visits made before 9:00 on the office clock.
+            'coffee' => fn () => PetEvent::query()->where('user_id', $user->id)->where('kind', 'visit')->get(['created_at'])
+                ->filter(fn (PetEvent $e) => $e->created_at?->timezone(config('luna.office.timezone'))->hour < 9)->count() >= 10,
+            'headphones' => fn () => PetEvent::query()->where('user_id', $user->id)->where('kind', 'weekly')->count() >= 5,
+            'kite' => fn () => $wins() >= 10,
+            'monocle' => fn () => $stages()->contains(4),
+            'dye:gold' => fn () => $placing() === 1,
+            'dye:silver' => fn () => $placing() === 2,
+            'dye:bronze' => fn () => $placing() === 3,
             'shade:sakura' => fn () => $pats() >= 10,
             'shade:ember' => fn () => $streak() >= 20,
             'shade:frost' => fn () => $wins() >= 10,
@@ -214,16 +266,18 @@ final class Moonlings
      * (the first one after a deploy, say) sends one notice, not a burst: "The Star clip and the Frost shade are ready
      * to wear." Links to the panel's "Your pet" tab, where the wardrobe is.
      *
-     * @param  list<string>  $refs  item keys and `shade:{key}`
+     * @param  list<string>  $refs  item keys, `shade:{key}` and `dye:{key}` (the Moon Cup's metallic dyes)
      */
     private static function tellUnlocked(User $user, array $refs): void
     {
         if ($refs === []) {
             return;
         }
-        $names = array_map(fn (string $ref) => str_starts_with($ref, 'shade:')
-            ? 'the '.ucfirst(substr($ref, 6)).' shade'
-            : 'the '.self::WEAR[$ref]['name'], $refs);
+        $names = array_map(fn (string $ref) => match (true) {
+            str_starts_with($ref, 'shade:') => 'the '.ucfirst(substr($ref, 6)).' shade',
+            str_starts_with($ref, 'dye:') => 'the '.ucfirst(substr($ref, 4)).' dye',
+            default => 'the '.self::WEAR[$ref]['name'],
+        }, $refs);
         $list = count($names) === 1 ? $names[0] : implode(', ', array_slice($names, 0, -1)).' and '.end($names);
 
         Notify::user($user, null, new LunaNotice(
@@ -244,6 +298,9 @@ final class Moonlings
     {
         if (in_array($dye, self::OPEN_DYES, true)) {
             return null;
+        }
+        if (isset(self::DYE_UNLOCKS[$dye])) {
+            return self::DYE_UNLOCKS[$dye];
         }
         $quest = MoonQuests::forDye($dye);
 
@@ -310,6 +367,8 @@ final class Moonlings
         }
 
         $moonling->update(array_intersect_key($data, ['palette' => 1, 'wear' => 1, 'dyes' => 1]));
+        // What it wears can finish a quest ("Dressed up", slice 18 of the collection spec).
+        self::checkUnlocks($user);
     }
 
     /**
@@ -349,6 +408,19 @@ final class Moonlings
             'aurora' => PetEvent::query()->where('user_id', $user->id)->whereIn('kind', ['item_time', 'duty'])->pluck('ref')
                 ->map(fn (string $ref) => substr($ref, strrpos($ref, ':') + 1))->unique()->count() >= 20,
             'nova' => in_array($user->id, PetDuels::champions(), true),
+            'sun' => PetEvent::query()->where('user_id', $user->id)->where('kind', 'visit')->count() >= 100,
+            'planet' => PetEvent::query()->where('user_id', $user->id)->whereNotNull('moonling_id')
+                ->select('moonling_id')->groupBy('moonling_id')->havingRaw('sum(xp) >= ?', [Pet::STAGES[3]])
+                ->toBase()->get()->count() >= 3,
+            'meteor' => PetDuel::query()->where('status', 'done')->where('winner_id', $user->id)->count() >= 50,
+            'galaxy' => collect(MoonQuests::QUESTS)->reject(fn (array $q) => $q['seasonal'])
+                ->every(fn (array $q) => PetEvent::query()->where('user_id', $user->id)->where('kind', 'unlock')
+                    ->where('ref', MoonQuests::ref($q))->exists()),
+            'orchid' => PetEvent::query()->where('user_id', $user->id)->where('kind', 'pat')->count() >= 30,
+            'moonflower' => Moonling::query()->where('user_id', $user->id)->count() >= 5,
+            // Visit refs are office dates: count the distinct months.
+            'citylight' => PetEvent::query()->where('user_id', $user->id)->where('kind', 'visit')->pluck('ref')
+                ->map(fn (string $d) => substr($d, 0, 7))->unique()->count() >= 6,
         };
     }
 

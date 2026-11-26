@@ -245,6 +245,22 @@ final class PetDuels
     }
 
     /**
+     * Where a person placed in last week's Moon Cup (slice 17 of spec 2026-11-26-luna-moonling-collection): 1, 2 or 3
+     * by wins (people tied share a place, and the next place follows on), or null without a win or below third.
+     */
+    public static function placing(int $userId): ?int
+    {
+        $standings = self::standings(1)->filter(fn (array $row) => $row['wins'] > 0);
+        $mine = $standings->get($userId);
+        if (! $mine) {
+            return null;
+        }
+        $place = $standings->pluck('wins')->unique()->sortDesc()->values()->search($mine['wins']) + 1;
+
+        return $place <= 3 ? $place : null;
+    }
+
+    /**
      * Wins, losses and the time of the last win per person, over duels answered in an office week (0: this one,
      * 1: the one before). A draw counts for nobody.
      *

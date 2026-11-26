@@ -164,8 +164,8 @@ class WardrobeTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->missing('pet_detail')
                 ->reloadOnly('pet_detail', fn (AssertableInertia $reload) => $reload
                     // The shades (slice 9) are listed in ShadeTest.
-                    ->has('pet_detail.wardrobe.palettes', 14)
-                    ->has('pet_detail.wardrobe.items', 12)
+                    ->has('pet_detail.wardrobe.palettes', 18)
+                    ->has('pet_detail.wardrobe.items', 21)
                     ->where('pet_detail.wardrobe.items.0.key', 'star_clip')
                     ->where('pet_detail.wardrobe.items.0.slot', 'head')
                     ->where('pet_detail.wardrobe.items.0.unlocked', false)

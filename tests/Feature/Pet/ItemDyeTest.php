@@ -201,12 +201,18 @@ class ItemDyeTest extends TestCase
                         'star_clip' => 'head', 'comet_trail' => 'neck', 'halo' => 'head', 'scarf' => 'neck', 'bow' => 'head',
                         'propeller' => 'head', 'glasses' => 'face', 'wings' => 'back', 'cape' => 'back',
                         'balloon' => 'hand', 'wand' => 'hand', 'lantern' => 'hand',
+                        // Slice 16 (spec 2026-11-26-luna-moonling-collection).
+                        'jetpack' => 'back', 'umbrella' => 'hand', 'flower_crown' => 'head', 'bowtie' => 'neck',
+                        'orchid_pin' => 'head', 'coffee' => 'hand', 'headphones' => 'head', 'kite' => 'hand', 'monocle' => 'face',
                     ] && collect($items)->firstWhere('key', 'glasses')['unlocked'] === true
                       && collect($items)->firstWhere('key', 'glasses')['how'] === null
                       && collect($items)->firstWhere('key', 'wings')['how'] === 'Hatch a moonling')
                     ->where('pet_detail.wardrobe.dyes', fn ($dyes) => collect($dyes)->pluck('unlocked', 'key')->all() === [
                         'default' => true, 'sun' => true, 'ruby' => false, 'leaf' => false, 'sky' => true,
-                        'rose' => false, 'night' => false, 'starlight' => false, 'fiesta' => false, 'parol' => false,
+                        'rose' => false, 'night' => false, 'starlight' => false, 'cloud' => false, 'berry' => false,
+                        // Slice 17 (spec 2026-11-26-luna-moonling-collection): metallic and holiday dyes.
+                        'gold' => false, 'silver' => false, 'bronze' => false, 'fiesta' => false, 'parol' => false,
+                        'pumpkin' => false, 'pine' => false, 'heart' => false,
                     ])));
     }
 

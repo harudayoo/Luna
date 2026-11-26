@@ -150,10 +150,12 @@ final class Pet
         $stages = self::stages($ids);
         $streaks = self::streaks($ids);
         $champions = PetDuels::champions();
+        // Weeks in a row with every weekly quest done (slice 18 of the collection spec): a badge from 2.
+        $questStreaks = MoonQuests::streaks($ids);
         // Each person's active moonling (slice 6): its name and kind.
         $pets = Moonlings::activeOf($ids);
 
-        $ranked = $people->map(function (User $u) use ($stages, $streaks, $champions, $pets, $me) {
+        $ranked = $people->map(function (User $u) use ($stages, $streaks, $champions, $questStreaks, $pets, $me) {
             $stage = $stages[$u->id];
 
             return [
@@ -171,6 +173,7 @@ final class Pet
                 'me' => $u->is($me),
                 // Last week's Moon Cup champion (slice 4).
                 'crown' => in_array($u->id, $champions, true),
+                'quest_streak' => $questStreaks[$u->id],
                 'sort_name' => $u->name,
             ];
         })->sort(fn ($a, $b) => [$b['stage'], $b['streak'], $a['sort_name']] <=> [$a['stage'], $a['streak'], $b['sort_name']])
@@ -371,6 +374,7 @@ final class Pet
                     : 'Opened your payslip',
                 'duel' => $e->xp >= PetDuels::XP['win'] ? 'Won a moon duel' : 'Played a moon duel',
                 'duty' => self::DUTIES[strtok($e->ref, ':')] ?? 'HR work',
+                'weekly' => 'Weekly quest: '.lcfirst(MoonQuests::WEEKLY[strtok($e->ref, ':')]['title'] ?? 'done'),
                 default => ucfirst(str_replace('_', ' ', $e->kind)),
             },
             'at' => $e->created_at?->timezone($tz)->toDateString() ?? $e->ref,

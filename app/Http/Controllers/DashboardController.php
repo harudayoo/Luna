@@ -72,6 +72,8 @@ class DashboardController extends Controller
             'pet_nest' => Inertia::optional(fn () => Moonlings::nest($user)),
             // Moon quests (spec 2026-11-26-luna-moonling-style, slice 12), when the panel's Quests tab opens.
             'pet_quests' => Inertia::optional(fn () => MoonQuests::list($user)),
+            // This week's quests and the quest streak (slice 18 of the collection spec), with the Quests tab.
+            'pet_weekly' => Inertia::optional(fn () => MoonQuests::weekly($user)),
             // Which panel tab to open straight away (once, after a duel or egg notice), or null.
             'pet_open' => in_array($openTab, ['pet', 'duels', 'nest', 'quests'], true) ? $openTab : null,
         ]);

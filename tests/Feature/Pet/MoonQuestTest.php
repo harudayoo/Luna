@@ -149,7 +149,12 @@ class MoonQuestTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->missing('pet_quests')
                 ->reloadOnly('pet_quests', fn (AssertableInertia $reload) => $reload
                     ->where('pet_quests', fn ($quests) => collect($quests)->pluck('key')->all() === [
-                        'say_hi', 'full_week', 'first_duel', 'name_day', 'nest_builder', 'shine', 'fiesta', 'parol',
+                        'say_hi', 'full_week', 'first_duel', 'name_day', 'nest_builder', 'shine',
+                        // Slice 18: more one-time quests.
+                        'social', 'full_outfit', 'patter', 'mondays',
+                        'fiesta', 'parol',
+                        // Slice 17: holiday dyes.
+                        'pumpkin', 'pine', 'heart',
                     ])
                     ->where('pet_quests.0.title', 'Say hi')
                     ->where('pet_quests.0.progress', 2)
@@ -158,7 +163,7 @@ class MoonQuestTest extends TestCase
                     ->where('pet_quests.0.dye', 'leaf')
                     ->where('pet_quests.0.seasonal', false)
                     ->has('pet_quests.0.goal')
-                    ->where('pet_quests.6.seasonal', true)));
+                    ->where('pet_quests.10.seasonal', true)));
 
         // A bell notice links straight to the tab.
         $this->actingAs($this->ana)->get('/dashboard?pet=quests')->assertRedirect(route('dashboard'));

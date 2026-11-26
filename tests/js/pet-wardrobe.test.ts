@@ -28,7 +28,7 @@ import type {
 const HEX = /^#[0-9a-f]{6}$/;
 
 describe('paletteStyle', () => {
-    it('has the fourteen shades, the open ones first', () => {
+    it('has the eighteen shades, the open ones first', () => {
         expect(PALETTES).toEqual([
             'classic',
             'dusk',
@@ -36,6 +36,8 @@ describe('paletteStyle', () => {
             'tide',
             'mist',
             'mint',
+            'coral',
+            'lilac',
             'sakura',
             'ember',
             'frost',
@@ -43,6 +45,8 @@ describe('paletteStyle', () => {
             'midnight',
             'gold',
             'nebula',
+            'ocean',
+            'peach',
             'prism',
         ]);
     });
@@ -104,6 +108,16 @@ describe('toggleWear', () => {
             balloon: 'hand',
             wand: 'hand',
             lantern: 'hand',
+            // Slice 15–18 collection, slice 16.
+            jetpack: 'back',
+            umbrella: 'hand',
+            flower_crown: 'head',
+            bowtie: 'neck',
+            orchid_pin: 'head',
+            coffee: 'hand',
+            headphones: 'head',
+            kite: 'hand',
+            monocle: 'face',
         });
         expect(SLOTS).toEqual(['head', 'face', 'neck', 'back', 'hand']);
     });
@@ -148,8 +162,16 @@ describe('dyes', () => {
             'rose',
             'night',
             'starlight',
+            'cloud',
+            'berry',
+            'gold',
+            'silver',
+            'bronze',
             'fiesta',
             'parol',
+            'pumpkin',
+            'pine',
+            'heart',
         ]);
     });
 

@@ -662,6 +662,8 @@ const WEAR_IDLE: Record<string, { to: AnimationParams; duration: number }> = {
     sway: { to: { rotate: { from: -4, to: 4 } }, duration: 1600 },
     flicker: { to: { opacity: { from: 0.35, to: 0.85 } }, duration: 900 },
     float: { to: { y: -2 }, duration: 1500 },
+    // Slice 16 (collection): a mug's steam rises and fades.
+    steam: { to: { y: -4, opacity: { from: 0.2, to: 0.8 } }, duration: 1300 },
 };
 
 /*
@@ -715,6 +717,17 @@ export function petWearTap(part: Element): void {
         burst: {
             scale: [{ to: 1.6, duration: 140 }, back(300)],
             rotate: { from: 0, to: 180, duration: 440 },
+        },
+        // Slice 16 (collection): the umbrella's raindrops fall away and come back.
+        drip: {
+            y: [
+                { to: 9, duration: 420, ease: 'inQuad' },
+                { to: 0, duration: 0 },
+            ],
+            opacity: [
+                { to: 0, duration: 420 },
+                { to: 1, duration: 0 },
+            ],
         },
         flare: {
             opacity: [

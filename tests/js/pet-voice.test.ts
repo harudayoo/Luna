@@ -8,6 +8,7 @@ import {
     MOODS,
     shouldSpeak,
     TRIGGERS,
+    unseenEggs,
     VOICE,
     voiceLine,
 } from '../../resources/js/lib/pet-voice';
@@ -121,6 +122,12 @@ describe('more voice lines', () => {
             'crown',
             'combo',
             'outfit',
+            'egg',
+            'hatched',
+            'switch',
+            'win',
+            'draw',
+            'loss',
         ]);
     });
 
@@ -218,5 +225,34 @@ describe('shouldSpeak (now and then)', () => {
             shouldSpeak('grew', '2026-11-19:morning', '2026-11-19:morning'),
         ).toBe(true);
         expect(shouldSpeak(null, '2026-11-19:morning', null)).toBe(false);
+    });
+});
+
+// The moments trimmed from slice 8, added after it: a new egg, hatching, switching, duel results.
+describe('collection and duel moments', () => {
+    const pet = (stage: number) => ({
+        days_away: 3,
+        stage,
+        today: {
+            time_logged: false,
+            leave_filed: false,
+            duel_waiting: true,
+            payday: false,
+            day_off_tomorrow: false,
+            weekday: 3,
+            part: 'afternoon' as const,
+        },
+    });
+
+    it('says it hatched when growing out of the egg, and grew for later stages', () => {
+        expect(homeCue(pet(1), 'grew')).toBe('hatched');
+        expect(homeCue(pet(2), 'grew')).toBe('grew');
+        expect(homeCue(pet(1), 'fed')).toBe('away');
+    });
+
+    it('finds the eggs this browser hasn’t seen yet', () => {
+        expect(unseenEggs([4, 7], [])).toEqual([4, 7]);
+        expect(unseenEggs([4, 7], [4])).toEqual([7]);
+        expect(unseenEggs([4], [4, 9])).toEqual([]);
     });
 });

@@ -2,10 +2,15 @@ import { router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import PetController from '@/actions/App/Http/Controllers/PetController';
 import InputError from '@/components/input-error';
+import { PetBubble, useBubble } from '@/components/pet-bubble';
 import { PetSprite } from '@/components/pet-sprite';
 import { Button } from '@/components/ui/button';
 import type { PetNest as PetNestData } from '@/lib/pet';
 import { KINDS, nestGroups, raiseState } from '@/lib/pet';
+import { unseenEggs, voiceLine } from '@/lib/pet-voice';
+
+/** Where the Nest remembers the eggs it has already greeted (moonling ids). */
+const EGGS_SEEN = 'luna-nest-eggs-seen';
 
 type Moonling = PetNestData['moonlings'][number];
 
@@ -38,6 +43,37 @@ export function PetNest() {
     const [picked, setPicked] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
     const scene = useRef<HTMLDivElement>(null);
+    const [line, say] = useBubble();
+
+    // A new egg in the nest gets a line, once per egg in this browser.
+    useEffect(() => {
+        if (!nest) {
+            return;
+        }
+        const eggIds = nest.moonlings
+            .filter((m) => m.stage === 0)
+            .map((m) => m.id);
+        let seen: number[] = [];
+        try {
+            seen = JSON.parse(window.localStorage.getItem(EGGS_SEEN) ?? '[]');
+        } catch {
+            // Nothing remembered: every egg is new.
+        }
+        if (unseenEggs(eggIds, seen).length === 0) {
+            return;
+        }
+        const t = window.setTimeout(() => say(voiceLine('egg', 'happy')), 500);
+        try {
+            window.localStorage.setItem(
+                EGGS_SEEN,
+                JSON.stringify([...new Set([...seen, ...eggIds])]),
+            );
+        } catch {
+            // Can't remember: it may say it again next time, which is fine.
+        }
+
+        return () => window.clearTimeout(t);
+    }, [nest, say]);
 
     // Each resting moonling bobs at its own pace.
     useEffect(() => {
@@ -86,6 +122,7 @@ export function PetNest() {
                 only: ['pet', 'pet_nest', 'errors'],
                 onStart: () => setSaving(true),
                 onFinish: () => setSaving(false),
+                onSuccess: () => say(voiceLine('switch', 'happy')),
             },
         );
 
@@ -150,6 +187,7 @@ export function PetNest() {
                         opacity="0.35"
                     />
                 </svg>
+                <PetBubble text={line} place="top" />
                 <div className="relative flex min-w-max items-end gap-1 px-3 pt-10 pb-4">
                     {cradle.map((m) => tile(m, 'size-18 min-[390px]:size-20'))}
                     {eggs.length > 0 && (
@@ -196,12 +234,12 @@ export function PetNest() {
                             key={e.kind}
                             className="flex items-center gap-3 bg-bg px-3 py-2 text-sm"
                         >
+                            {/* Not found yet: faded, but in colour, so its mark shows what will hatch. */}
                             <PetSprite
                                 stage={0}
                                 kind={e.kind}
-                                title={`${KINDS[e.kind]} egg`}
-                                locked={!e.earned}
-                                className="size-8"
+                                title={`${KINDS[e.kind]} egg${e.earned ? '' : ', not found yet'}`}
+                                className={`size-11 ${e.earned ? '' : 'opacity-60 grayscale-50'}`}
                             />
                             <span className="min-w-0 flex-1">
                                 <span className="block font-semibold">

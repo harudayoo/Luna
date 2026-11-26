@@ -123,8 +123,9 @@ class PetDuelTest extends TestCase
         }
 
         // Slice 4: the house pays duel XP (PetDuelStakesTest); nothing else is written, and nothing is taken.
-        // (0-XP unlock rows are allowed: finishing a duel completes the "First duel" quest, slice 12.)
-        $this->assertSame(0, PetEvent::query()->whereNotIn('kind', ['duel', 'unlock'])->orWhere('xp', '<', 0)->count());
+        // (0-XP unlock rows are allowed: finishing a duel completes the "First duel" quest, slice 12; and the week's
+        // duel quest pays a `weekly` award, slice 18 of the collection spec.)
+        $this->assertSame(0, PetEvent::query()->whereNotIn('kind', ['duel', 'unlock', 'weekly'])->orWhere('xp', '<', 0)->count());
     }
 
     public function test_only_the_opponent_answers_or_declines_and_only_once()

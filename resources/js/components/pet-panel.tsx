@@ -54,7 +54,7 @@ const TAB_PROPS: Record<PetTab, string[]> = {
     board: ['pet_board', 'pet_duels'],
     duels: ['pet_duels'],
     nest: ['pet_nest'],
-    quests: ['pet_quests'],
+    quests: ['pet_quests', 'pet_weekly'],
 };
 
 export function PetPanel({

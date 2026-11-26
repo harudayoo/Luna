@@ -171,8 +171,11 @@ function Egg({ kind }: { kind: MoonlingKind }) {
                 strokeLinejoin="miter"
             />
             {/* What will hatch: every kind but the moon shows its mark on the shell. */}
+            {/* Drawn half again as big, so it still reads on a small egg (the Nest's list). */}
             {kind !== 'moon' && (
-                <KindMark kind={kind} x={58} y={84} fill={FACE} />
+                <g transform="translate(58 82) scale(1.5) translate(-58 -82)">
+                    <KindMark kind={kind} x={58} y={82} fill={FACE} />
+                </g>
             )}
         </>
     );
@@ -238,6 +241,116 @@ function KindMark({
             );
         case 'nova':
             return <path d={starPath(x, y, 7, 8, 0.4)} fill={fill} />;
+        case 'sun':
+            // A small sun: a disc and eight rays.
+            return (
+                <>
+                    <circle cx={x} cy={y} r="3.6" fill={fill} />
+                    {Array.from({ length: 8 }, (_, i) => {
+                        const a = (Math.PI * i) / 4;
+                        return (
+                            <path
+                                key={i}
+                                d={`M${x + 5 * Math.cos(a)} ${y + 5 * Math.sin(a)} L${x + 7.5 * Math.cos(a)} ${y + 7.5 * Math.sin(a)}`}
+                                stroke={fill}
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                            />
+                        );
+                    })}
+                </>
+            );
+        case 'planet':
+            // A ball with a tilted ring.
+            return (
+                <>
+                    <circle cx={x} cy={y} r="3.8" fill={fill} />
+                    <ellipse
+                        cx={x}
+                        cy={y}
+                        rx="7.5"
+                        ry="2.2"
+                        fill="none"
+                        stroke={fill}
+                        strokeWidth="1.6"
+                        transform={`rotate(-20 ${x} ${y})`}
+                    />
+                </>
+            );
+        case 'meteor':
+            // A rock with three streaks behind it.
+            return (
+                <>
+                    {[-3, 0, 3].map((dy) => (
+                        <path
+                            key={dy}
+                            d={`M${x + 1} ${y + dy * 0.6} l7 ${-4 + dy * 0.3}`}
+                            stroke={fill}
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                            opacity="0.7"
+                        />
+                    ))}
+                    <circle cx={x - 1} cy={y + 1} r="3.6" fill={fill} />
+                </>
+            );
+        case 'galaxy':
+            // A two-armed swirl.
+            return (
+                <path
+                    d={`M${x} ${y} m-1 0 a1.5 1.5 0 1 1 3 0 a3 3 0 1 1 -6 0 a4.5 4.5 0 1 1 9 0 a6 6 0 1 1 -12 0`}
+                    fill="none"
+                    stroke={fill}
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                />
+            );
+        case 'orchid':
+            // Three petals and a lip.
+            return (
+                <>
+                    {[-55, 0, 55].map((deg) => (
+                        <ellipse
+                            key={deg}
+                            cx={x}
+                            cy={y - 4}
+                            rx="2.4"
+                            ry="4.2"
+                            fill={fill}
+                            transform={`rotate(${deg} ${x} ${y})`}
+                        />
+                    ))}
+                    <circle cx={x} cy={y + 1.5} r="2.2" fill={fill} />
+                </>
+            );
+        case 'moonflower':
+            // Five round petals around a centre.
+            return (
+                <>
+                    {Array.from({ length: 5 }, (_, i) => {
+                        const a = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+                        return (
+                            <circle
+                                key={i}
+                                cx={x + 4 * Math.cos(a)}
+                                cy={y + 4 * Math.sin(a)}
+                                r="2.4"
+                                fill={fill}
+                                opacity="0.85"
+                            />
+                        );
+                    })}
+                    <circle cx={x} cy={y} r="1.8" fill={fill} />
+                </>
+            );
+        case 'citylight':
+            // A tiny skyline of three towers.
+            return (
+                <path
+                    d={`M${x - 7} ${y + 4} v-5 h3 v-3 h3 v8 h1 v-10 h3 v10 h1 v-6 h3 v6 Z`}
+                    fill={fill}
+                />
+            );
         default:
             // The moon's crescent.
             return (
@@ -323,6 +436,142 @@ function KindBack({
                     fill={ACCENT}
                     opacity="0.8"
                 />
+            );
+        case 'sun':
+            // Many short rays all round.
+            return (
+                <path
+                    {...INK}
+                    d={starPath(60, cy, r + 7, 16, (r + 1) / (r + 7))}
+                    fill={ACCENT}
+                />
+            );
+        case 'planet':
+            // A tilted ring behind it.
+            return (
+                <ellipse
+                    cx="60"
+                    cy={cy + r * 0.1}
+                    rx={r + 15}
+                    ry={r * 0.32}
+                    fill="none"
+                    stroke={ACCENT}
+                    strokeWidth="5"
+                    transform={`rotate(-14 60 ${cy})`}
+                    opacity="0.9"
+                />
+            );
+        case 'meteor':
+            // A fiery streak trailing up and right.
+            return (
+                <>
+                    {[0, 1, 2].map((i) => (
+                        <path
+                            key={i}
+                            {...(i === 0 ? INK : {})}
+                            d={`M${60 + r * 0.3} ${cy - r * (0.2 + i * 0.25)} Q${60 + r + 10} ${cy - r * (0.9 + i * 0.2)} ${60 + r + 22 - i * 4} ${cy - r - 12 + i * 3} Q${60 + r * 0.8} ${cy - r * (0.4 + i * 0.25)} ${60 + r * 0.1} ${cy + r * (0.1 - i * 0.25)} Z`}
+                            fill={ACCENT}
+                            opacity={1 - i * 0.25}
+                        />
+                    ))}
+                </>
+            );
+        case 'galaxy':
+            // Two swirling arms of stars.
+            return (
+                <g opacity="0.75">
+                    {[0, 180].map((deg) => (
+                        <path
+                            key={deg}
+                            d={`M60 ${cy} m${-r - 6} 0 a${r + 6} ${r * 0.7} 0 0 1 ${r + 6} ${-r * 0.7} a${r * 0.9} ${r * 0.6} 0 0 1 ${r * 0.9} ${r * 0.6}`}
+                            fill="none"
+                            stroke={ACCENT}
+                            strokeWidth="4"
+                            strokeLinecap="round"
+                            transform={`rotate(${deg} 60 ${cy})`}
+                        />
+                    ))}
+                    {[
+                        [-r - 10, -4],
+                        [r + 9, 6],
+                        [-6, -r - 9],
+                        [8, r + 6],
+                    ].map(([dx, dy]) => (
+                        <path
+                            key={`${dx}${dy}`}
+                            d={starPath(60 + dx, cy + dy, 3.5, 4, 0.4)}
+                            fill={ACCENT}
+                        />
+                    ))}
+                </g>
+            );
+        case 'orchid':
+            // An orchid's petals as a crest on top of the head.
+            return (
+                <>
+                    {[-38, 0, 38].map((deg) => (
+                        <ellipse
+                            key={deg}
+                            {...INK}
+                            cx="60"
+                            cy={cy - r - 2}
+                            rx={r * 0.22}
+                            ry={r * 0.42}
+                            fill={ACCENT}
+                            transform={`rotate(${deg} 60 ${cy - r * 0.7})`}
+                        />
+                    ))}
+                </>
+            );
+        case 'moonflower':
+            // A ring of round petals, the moonling as the flower's heart.
+            return (
+                <>
+                    {Array.from({ length: 8 }, (_, i) => {
+                        const a = (Math.PI * 2 * i) / 8;
+                        return (
+                            <circle
+                                key={i}
+                                {...INK}
+                                cx={60 + r * 0.92 * Math.cos(a)}
+                                cy={cy + r * 0.92 * Math.sin(a)}
+                                r={r * 0.42}
+                                fill={ACCENT}
+                            />
+                        );
+                    })}
+                </>
+            );
+        case 'citylight':
+            // A little Orchid City skyline on the head, its windows lit.
+            return (
+                <>
+                    {[
+                        [-0.62, 0.35, 0.26],
+                        [-0.3, 0.7, 0.24],
+                        [0.02, 0.5, 0.26],
+                        [0.34, 0.85, 0.22],
+                    ].map(([dx, h, w]) => (
+                        <g key={dx}>
+                            <rect
+                                {...INK}
+                                x={60 + r * dx}
+                                y={cy - r * 0.55 - r * h}
+                                width={r * w}
+                                height={r * h + 4}
+                                fill={ACCENT}
+                            />
+                            <rect
+                                x={60 + r * dx + r * w * 0.3}
+                                y={cy - r * 0.55 - r * h + 3}
+                                width={r * w * 0.4}
+                                height="2.5"
+                                fill="#ffffff"
+                                opacity="0.85"
+                            />
+                        </g>
+                    ))}
+                </>
             );
         default:
             return null;
@@ -939,6 +1188,265 @@ function Wear({
                                     width="6"
                                     height="9"
                                     fill="#fff3b0"
+                                />
+                            </g>
+                        );
+                    }
+                    case 'jetpack':
+                        return (
+                            <g key={item} {...root('jump')}>
+                                {[-1, 1].map((side) => (
+                                    <g key={side}>
+                                        <rect
+                                            {...INK_THIN}
+                                            x={60 + side * r * 0.62 - r * 0.17}
+                                            y={cy - r * 0.45}
+                                            width={r * 0.34}
+                                            height={r * 0.85}
+                                            rx="3"
+                                            fill={c}
+                                        />
+                                        <path
+                                            data-pet-wear-idle="flicker"
+                                            style={box('50% 0%')}
+                                            d={`M${60 + side * r * 0.62 - 4} ${cy + r * 0.42} q4 14 8 0 q-4 5 -8 0 Z`}
+                                            fill="#ffb347"
+                                        />
+                                    </g>
+                                ))}
+                            </g>
+                        );
+                    case 'umbrella': {
+                        const hx = 60 + handDx;
+                        const ux = hx + 4;
+                        const uy = Math.max(18, handY - 30);
+                        return (
+                            <g key={item} data-pet-wear={item}>
+                                <path
+                                    d={`M${hx} ${handY + 2} L${ux} ${uy}`}
+                                    stroke={LINE}
+                                    strokeWidth="2"
+                                />
+                                <g
+                                    data-pet-wear-idle="sway"
+                                    style={box('50% 100%')}
+                                >
+                                    <path
+                                        {...INK_THIN}
+                                        d={`M${ux - 15} ${uy} a15 12 0 0 1 30 0 q-5 -3 -10 0 q-5 -3 -10 0 q-5 -3 -10 0 Z`}
+                                        fill={c}
+                                    />
+                                </g>
+                                <g data-pet-wear-tap="drip" style={box()}>
+                                    {[-10, 0, 10].map((dx) => (
+                                        <path
+                                            key={dx}
+                                            d={`M${ux + dx} ${uy + 4} q-2 3 0 4 q2 -1 0 -4 Z`}
+                                            fill="#9fd3ff"
+                                        />
+                                    ))}
+                                </g>
+                            </g>
+                        );
+                    }
+                    case 'flower_crown':
+                        return (
+                            <g key={item} {...root('wiggle')}>
+                                <g
+                                    data-pet-wear-idle="sway"
+                                    style={box('50% 100%')}
+                                >
+                                    {[-2, -1, 0, 1, 2].map((i) => {
+                                        const fx = 60 + i * half * 0.32;
+                                        const fy = top + 3 + Math.abs(i) * 2.5;
+                                        return (
+                                            <g key={i}>
+                                                <circle
+                                                    {...INK_THIN}
+                                                    cx={fx}
+                                                    cy={fy}
+                                                    r="4.2"
+                                                    fill={c}
+                                                />
+                                                <circle
+                                                    cx={fx}
+                                                    cy={fy}
+                                                    r="1.6"
+                                                    fill="#fff6c2"
+                                                />
+                                            </g>
+                                        );
+                                    })}
+                                </g>
+                            </g>
+                        );
+                    case 'bowtie':
+                        return (
+                            <g key={item} {...root('spin')}>
+                                <path
+                                    {...INK_THIN}
+                                    d={`M60 ${neck + 1} L50 ${neck - 5} L50 ${neck + 7} Z M60 ${neck + 1} L70 ${neck - 5} L70 ${neck + 7} Z`}
+                                    fill={c}
+                                />
+                                <circle
+                                    cx="60"
+                                    cy={neck + 1}
+                                    r="2.8"
+                                    fill={c}
+                                    stroke={LINE}
+                                    strokeWidth="1.5"
+                                />
+                            </g>
+                        );
+                    case 'orchid_pin': {
+                        const x = 60 + half * 0.48;
+                        const y = top + 7;
+                        return (
+                            <g key={item} {...root('twinkle')}>
+                                {[-55, 0, 55].map((deg) => (
+                                    <ellipse
+                                        key={deg}
+                                        {...INK_THIN}
+                                        cx={x}
+                                        cy={y - 4}
+                                        rx="2.6"
+                                        ry="4.5"
+                                        fill={c}
+                                        transform={`rotate(${deg} ${x} ${y})`}
+                                    />
+                                ))}
+                                <circle
+                                    cx={x}
+                                    cy={y + 1}
+                                    r="2.4"
+                                    fill="#fff6c2"
+                                />
+                            </g>
+                        );
+                    }
+                    case 'coffee': {
+                        const hx = 60 + handDx;
+                        return (
+                            <g key={item} {...root('wiggle')}>
+                                <g data-pet-wear-idle="steam" style={box()}>
+                                    {[-3, 2].map((dx) => (
+                                        <path
+                                            key={dx}
+                                            d={`M${hx + dx} ${handY - 9} q-2 -3 0 -6 q2 -3 0 -6`}
+                                            fill="none"
+                                            stroke="#ffffff"
+                                            strokeWidth="1.6"
+                                            strokeLinecap="round"
+                                            opacity="0.7"
+                                        />
+                                    ))}
+                                </g>
+                                <path
+                                    d={`M${hx + 5} ${handY - 3} a4 4 0 0 1 0 7`}
+                                    fill="none"
+                                    stroke={LINE}
+                                    strokeWidth="2"
+                                />
+                                <rect
+                                    {...INK_THIN}
+                                    x={hx - 6}
+                                    y={handY - 6}
+                                    width="11"
+                                    height="12"
+                                    rx="2"
+                                    fill={c}
+                                />
+                            </g>
+                        );
+                    }
+                    case 'headphones':
+                        return (
+                            <g key={item} {...root('jump')}>
+                                <g data-pet-wear-idle="bob" style={box()}>
+                                    <path
+                                        d={`M${60 - r * 0.92} ${eyeY} A${r * 0.95} ${r * 1.05} 0 0 1 ${60 + r * 0.92} ${eyeY}`}
+                                        fill="none"
+                                        stroke={LINE}
+                                        strokeWidth="5.5"
+                                    />
+                                    <path
+                                        d={`M${60 - r * 0.92} ${eyeY} A${r * 0.95} ${r * 1.05} 0 0 1 ${60 + r * 0.92} ${eyeY}`}
+                                        fill="none"
+                                        stroke={c}
+                                        strokeWidth="3"
+                                    />
+                                    {[-1, 1].map((side) => (
+                                        <rect
+                                            key={side}
+                                            {...INK_THIN}
+                                            x={60 + side * r * 0.98 - 4}
+                                            y={eyeY - 6}
+                                            width="8"
+                                            height="12"
+                                            rx="3"
+                                            fill={c}
+                                        />
+                                    ))}
+                                </g>
+                            </g>
+                        );
+                    case 'kite': {
+                        const hx = 60 + handDx;
+                        const kx = Math.min(108, hx + 16);
+                        const ky = Math.max(14, top - 4);
+                        return (
+                            <g key={item} {...root('jump')}>
+                                <path
+                                    d={`M${hx} ${handY} Q${hx + 14} ${(handY + ky) / 2} ${kx} ${ky + 9}`}
+                                    fill="none"
+                                    stroke={LINE}
+                                    strokeWidth="1.2"
+                                />
+                                <g
+                                    data-pet-wear-idle="sway"
+                                    style={box('50% 100%')}
+                                >
+                                    <path
+                                        {...INK_THIN}
+                                        d={`M${kx} ${ky - 9} L${kx + 7} ${ky} L${kx} ${ky + 9} L${kx - 7} ${ky} Z`}
+                                        fill={c}
+                                    />
+                                    <path
+                                        d={`M${kx} ${ky - 9} V${ky + 9} M${kx - 7} ${ky} H${kx + 7}`}
+                                        stroke={LINE}
+                                        strokeWidth="1"
+                                    />
+                                </g>
+                            </g>
+                        );
+                    }
+                    case 'monocle': {
+                        const x = 60 + eyeDx;
+                        const lens = Math.max(5.5, eyeDx * 0.62);
+                        return (
+                            <g key={item} {...root('glint')}>
+                                <circle
+                                    cx={x}
+                                    cy={eyeY}
+                                    r={lens}
+                                    fill="#ffffff"
+                                    fillOpacity="0.18"
+                                    stroke={LINE}
+                                    strokeWidth="4.5"
+                                />
+                                <circle
+                                    cx={x}
+                                    cy={eyeY}
+                                    r={lens}
+                                    fill="none"
+                                    stroke={c}
+                                    strokeWidth="2.2"
+                                />
+                                <path
+                                    d={`M${x + lens * 0.7} ${eyeY + lens * 0.7} q4 10 -2 18`}
+                                    fill="none"
+                                    stroke={c}
+                                    strokeWidth="1.2"
                                 />
                             </g>
                         );

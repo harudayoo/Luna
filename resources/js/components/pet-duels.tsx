@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import PetDuelController from '@/actions/App/Http/Controllers/PetDuelController';
 import InputError from '@/components/input-error';
 import { PickTiles } from '@/components/pet-board';
+import { PetBubble, useBubble } from '@/components/pet-bubble';
 import { PetSprite } from '@/components/pet-sprite';
 import { Button } from '@/components/ui/button';
 import { duelReveal } from '@/lib/ocs';
@@ -16,6 +17,7 @@ import type {
     Dyes,
 } from '@/lib/pet';
 import { DUEL_PICKS } from '@/lib/pet';
+import { voiceLine } from '@/lib/pet-voice';
 
 type Result = PetDuelsData['results'][number];
 
@@ -302,11 +304,24 @@ function Reveal({
               ? { 'data-duel-winner': '' }
               : { 'data-duel-loser': '' };
 
+    const [line, say] = useBubble();
+
     useEffect(() => {
         if (ref.current) {
             duelReveal(ref.current);
         }
-    }, [result.id]);
+        // Your moonling has something to say once the moves have flipped (win, draw or loss).
+        const outcome = result.outcome;
+        if (outcome !== 'win' && outcome !== 'draw' && outcome !== 'loss') {
+            return;
+        }
+        const t = window.setTimeout(
+            () => say(voiceLine(outcome, 'happy')),
+            1400,
+        );
+
+        return () => window.clearTimeout(t);
+    }, [result.id, result.outcome, say]);
 
     return (
         <div
@@ -317,7 +332,8 @@ function Reveal({
         >
             <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
                 <div className="flex flex-col items-center gap-1">
-                    <span {...role('me')} className="inline-block">
+                    <span {...role('me')} className="relative inline-block">
+                        <PetBubble text={line} />
                         <PetSprite
                             stage={myStage}
                             kind={myKind}

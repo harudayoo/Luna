@@ -108,8 +108,8 @@ class PetTest extends TestCase
             $this->visit("2026-11-{$day} 02:00:00");
         }
 
-        // 5, 6, 7, 8, 9, 10, 10, 10
-        $this->assertSame(65, $this->xp($this->ana));
+        // 5, 6, 7, 8, 9, 10, 10, 10 (visit XP only: four visits in a week also pay a weekly quest, slice 18)
+        $this->assertSame(65, $this->xp($this->ana, 'visit'));
     }
 
     public function test_logging_item_time_feeds_the_pet_once_per_item_per_office_day()

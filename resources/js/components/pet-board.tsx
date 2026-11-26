@@ -275,6 +275,19 @@ function BoardRow({
                         🔥 {row.streak}
                     </span>
                 )}
+                {/* Weeks in a row with every weekly quest done (slice 18 of the collection spec). */}
+                {row.quest_streak > 1 && (
+                    <span
+                        className="shrink-0 text-xs text-muted"
+                        title={`${row.quest_streak} weeks of weekly quests in a row`}
+                    >
+                        <span aria-hidden>🏅</span> {row.quest_streak}
+                        <span className="sr-only">
+                            {' '}
+                            weeks of weekly quests in a row
+                        </span>
+                    </span>
+                )}
                 {can && (
                     <Button
                         variant="ghost"

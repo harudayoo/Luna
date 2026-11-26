@@ -192,12 +192,14 @@ class MoonlingTest extends TestCase
         ]);
 
         Moonlings::checkEggs($this->ana);
-        $this->assertSame(['aurora', 'comet', 'eclipse', 'moon', 'nova', 'star'], $this->kinds($this->ana));
+        // Five eggs and the first moonling make six, which also earns the moonflower egg (5 moonlings, slice 15).
+        $this->assertSame(['aurora', 'comet', 'eclipse', 'moon', 'moonflower', 'nova', 'star'], $this->kinds($this->ana));
         $this->assertSame(1, Moonling::query()->where('user_id', $this->ana->id)->where('active', true)->count());
-        $this->assertSame(5, $this->eggNotices($this->ana));
+        $this->assertSame(6, $this->eggNotices($this->ana));
         $bodies = $this->ana->notifications()->get()->pluck('data.body')->sort()->values()->all();
         $this->assertSame([
             'A comet egg appeared in your moon nest.',
+            'A moonflower egg appeared in your moon nest.',
             'A nova egg appeared in your moon nest.',
             'A star egg appeared in your moon nest.',
             'An aurora egg appeared in your moon nest.',
@@ -207,8 +209,8 @@ class MoonlingTest extends TestCase
         $this->assertSame(['home', route('dashboard', ['pet' => 'nest'], false)], [$notice->data['module'], $notice->data['url']]);
 
         Moonlings::checkEggs($this->ana);
-        $this->assertCount(6, $this->kinds($this->ana));
-        $this->assertSame(5, $this->eggNotices($this->ana));
+        $this->assertCount(7, $this->kinds($this->ana));
+        $this->assertSame(6, $this->eggNotices($this->ana));
     }
 
     public function test_attendance_leave_and_lates_never_earn_an_egg()
@@ -299,7 +301,7 @@ class MoonlingTest extends TestCase
                     ->where('pet_nest.moonlings.1.stage', 0)
                     ->hasAll(['pet_nest.moonlings.1.id', 'pet_nest.moonlings.1.name', 'pet_nest.moonlings.1.stage_name'])
                     ->where('pet_nest.can_switch', true)
-                    ->has('pet_nest.eggs', 5)
+                    ->has('pet_nest.eggs', 12)
                     ->where('pet_nest.eggs.0.kind', 'star')
                     ->where('pet_nest.eggs.0.earned', true)
                     ->where('pet_nest.eggs.1.earned', false)

@@ -185,15 +185,16 @@ class ShadeTest extends TestCase
             'challenger_id' => $this->ana->id, 'opponent_id' => $this->foe->id, 'challenger_pick' => 'moon',
             'opponent_pick' => 'star', 'winner_id' => $this->ana->id, 'status' => 'done', 'answered_at' => '2026-11-11 02:00:00',
         ]);
-        foreach (['sakura', 'ember', 'frost', 'cocoa', 'midnight', 'gold'] as $s) {
+        // (Ocean and peach, slice 17, come from quests: unlocked here directly.)
+        foreach (['sakura', 'ember', 'frost', 'cocoa', 'midnight', 'gold', 'ocean', 'peach'] as $s) {
             PetEvent::query()->create(['user_id' => $this->ana->id, 'kind' => 'unlock', 'ref' => "shade:{$s}", 'xp' => 0]);
         }
         $this->check();
-        $this->assertSame(['cocoa', 'ember', 'frost', 'gold', 'midnight', 'nebula', 'prism', 'sakura'], $this->shades());
+        $this->assertSame(['cocoa', 'ember', 'frost', 'gold', 'midnight', 'nebula', 'ocean', 'peach', 'prism', 'sakura'], $this->shades());
 
         // Nothing is doubled, and nothing gives XP.
         $this->check();
-        $this->assertSame(8, PetEvent::query()->where('ref', 'like', 'shade:%')->count());
+        $this->assertSame(10, PetEvent::query()->where('ref', 'like', 'shade:%')->count());
         $this->assertSame(0, (int) PetEvent::query()->where('kind', 'unlock')->sum('xp'));
     }
 
@@ -205,15 +206,16 @@ class ShadeTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->reloadOnly('pet_detail', fn (AssertableInertia $reload) => $reload
                     ->where('pet_detail.wardrobe.palettes', fn ($p) => collect($p)->pluck('key')->all() === [
-                        'classic', 'dusk', 'dawn', 'tide', 'mist', 'mint',
-                        'sakura', 'ember', 'frost', 'cocoa', 'midnight', 'gold', 'nebula', 'prism',
+                        'classic', 'dusk', 'dawn', 'tide', 'mist', 'mint', 'coral', 'lilac',
+                        'sakura', 'ember', 'frost', 'cocoa', 'midnight', 'gold', 'nebula', 'ocean', 'peach', 'prism',
                     ])
                     ->where('pet_detail.wardrobe.palettes.0.unlocked', true)
                     ->where('pet_detail.wardrobe.palettes.0.how', null)
-                    ->where('pet_detail.wardrobe.palettes.6.key', 'sakura')
-                    ->where('pet_detail.wardrobe.palettes.6.unlocked', false)
-                    ->where('pet_detail.wardrobe.palettes.6.how', 'Pat your moonling on 10 days')
-                    ->where('pet_detail.wardrobe.palettes.8.key', 'frost')
-                    ->where('pet_detail.wardrobe.palettes.8.unlocked', true)));
+                    // (Coral and lilac, slice 17, are open and listed before the locked ones.)
+                    ->where('pet_detail.wardrobe.palettes.8.key', 'sakura')
+                    ->where('pet_detail.wardrobe.palettes.8.unlocked', false)
+                    ->where('pet_detail.wardrobe.palettes.8.how', 'Pat your moonling on 10 days')
+                    ->where('pet_detail.wardrobe.palettes.10.key', 'frost')
+                    ->where('pet_detail.wardrobe.palettes.10.unlocked', true)));
     }
 }

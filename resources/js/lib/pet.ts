@@ -42,6 +42,14 @@ export const KINDS = {
     eclipse: 'Eclipse',
     aurora: 'Aurora',
     nova: 'Nova',
+    // Spec 2026-11-26-luna-moonling-collection, slice 15; the last three for Luna Orchid and Orchid City.
+    sun: 'Sun',
+    planet: 'Planet',
+    meteor: 'Meteor',
+    galaxy: 'Galaxy',
+    orchid: 'Orchid',
+    moonflower: 'Moonflower',
+    citylight: 'Citylight',
 } as const;
 
 export type MoonlingKind = keyof typeof KINDS;
@@ -111,6 +119,8 @@ export const PALETTES = [
     'tide',
     'mist',
     'mint',
+    'coral',
+    'lilac',
     'sakura',
     'ember',
     'frost',
@@ -118,6 +128,8 @@ export const PALETTES = [
     'midnight',
     'gold',
     'nebula',
+    'ocean',
+    'peach',
     'prism',
 ] as const;
 
@@ -131,6 +143,8 @@ const SHADES: Record<Palette, [string, string, string, string, string]> = {
     tide: ['Tide', '#4fc6c4', '#ffe08a', '#0b3438', '#0f4d55'],
     mist: ['Mist', '#d8dce8', '#8f9bbd', '#2b3247', '#4b5573'],
     mint: ['Mint', '#92e3b2', '#ff9f80', '#123b28', '#1f5e40'],
+    coral: ['Coral', '#ff8a7a', '#ffd1a1', '#4a1410', '#8a2e22'],
+    lilac: ['Lilac', '#dcc2ff', '#8fd6c4', '#32205a', '#5a3d8f'],
     sakura: ['Sakura', '#ffc4de', '#ff6fae', '#5a1636', '#a1386b'],
     ember: ['Ember', '#ff7550', '#ffd15c', '#3b0d04', '#7a1c08'],
     frost: ['Frost', '#bfe6ff', '#5aa9e6', '#0f2f4d', '#2f6a99'],
@@ -138,6 +152,8 @@ const SHADES: Record<Palette, [string, string, string, string, string]> = {
     midnight: ['Midnight', '#2e3270', '#9fb4ff', '#eef1ff', '#0e1035'],
     gold: ['Gold', '#ffd457', '#fff2b8', '#4a3200', '#8a5a00'],
     nebula: ['Nebula', '#7b3fb8', '#ff8de1', '#fdf0ff', '#2c0f4f'],
+    ocean: ['Ocean', '#2f80c9', '#9be7ff', '#eaf6ff', '#123c66'],
+    peach: ['Peach', '#ffcfa8', '#ff8f6b', '#4a2312', '#9a5532'],
     prism: ['Prism', '#f3f0ff', '#38d6c9', '#2a2350', '#7a5cff'],
 };
 
@@ -189,6 +205,16 @@ export const WEAR = {
     balloon: { slot: 'hand', label: 'Balloon', color: '#ff4d5e' },
     wand: { slot: 'hand', label: 'Wand', color: '#ffd23f' },
     lantern: { slot: 'hand', label: 'Lantern', color: '#c9963b' },
+    // Spec 2026-11-26-luna-moonling-collection, slice 16.
+    jetpack: { slot: 'back', label: 'Jetpack', color: '#9aa7b8' },
+    umbrella: { slot: 'hand', label: 'Umbrella', color: '#3f7fd9' },
+    flower_crown: { slot: 'head', label: 'Flower crown', color: '#ff8fb8' },
+    bowtie: { slot: 'neck', label: 'Bowtie', color: '#c2185b' },
+    orchid_pin: { slot: 'head', label: 'Orchid pin', color: '#b05fd6' },
+    coffee: { slot: 'hand', label: 'Coffee mug', color: '#f2efe8' },
+    headphones: { slot: 'head', label: 'Headphones', color: '#3b3f52' },
+    kite: { slot: 'hand', label: 'Kite', color: '#ff7043' },
+    monocle: { slot: 'face', label: 'Monocle', color: '#d4a537' },
 } as const satisfies Record<
     string,
     { slot: Slot; label: string; color: string }
@@ -212,8 +238,16 @@ export const DYES = [
     'rose',
     'night',
     'starlight',
+    'cloud',
+    'berry',
+    'gold',
+    'silver',
+    'bronze',
     'fiesta',
     'parol',
+    'pumpkin',
+    'pine',
+    'heart',
 ] as const;
 
 export type Dye = (typeof DYES)[number];
@@ -230,8 +264,16 @@ const DYE_TABLE: Record<Dye, [string, string | null]> = {
     rose: ['Rose', '#ff7eb6'],
     night: ['Night', '#2b2d5c'],
     starlight: ['Starlight', '#f5f0ff'],
+    cloud: ['Cloud', '#dfe9f5'],
+    berry: ['Berry', '#8e2d6b'],
     fiesta: ['Fiesta', '#ff7a1a'],
     parol: ['Parol', '#9b5cff'],
+    gold: ['Gold', '#e6b422'],
+    silver: ['Silver', '#c0c6d0'],
+    bronze: ['Bronze', '#c27c3e'],
+    pumpkin: ['Pumpkin', '#f57c00'],
+    pine: ['Pine', '#2e7d4f'],
+    heart: ['Heart', '#ff4f81'],
 };
 
 export const DYE_NAMES = Object.fromEntries(
@@ -254,8 +296,25 @@ export type PetQuest = {
     progress: number;
     target: number;
     done: boolean;
-    dye: Dye;
+    /** What it pays: a dye for items, or (slice 18 of the collection spec) a shade. */
+    dye: Dye | null;
+    shade: Palette | null;
     seasonal: boolean;
+};
+
+/** This week's quests and the quest streak (App\Services\MoonQuests::weekly). */
+export type PetWeekly = {
+    quests: {
+        key: string;
+        title: string;
+        progress: number;
+        target: number;
+        done: boolean;
+        xp: number;
+    }[];
+    streak: number;
+    /** The Monday they start again. */
+    resets: string;
 };
 
 /** What unlocks a shade or dye, shown only while it's still locked (null once it's yours, or for an open one). */
@@ -294,6 +353,8 @@ export type PetBoardData = {
         streak: number;
         me: boolean;
         crown: boolean;
+        /** Weeks in a row with every weekly quest done (a badge from 2). */
+        quest_streak: number;
     }[];
     /** The Moon Cup (App\Services\PetDuels::cup): this office week's wins, nobody with 0. */
     cup: {

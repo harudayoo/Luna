@@ -59,6 +59,13 @@ export const TRIGGERS = [
     'crown',
     'combo',
     'outfit',
+    // The collection and duel moments (after slice 8): a new egg, hatching, switching, a duel's result.
+    'egg',
+    'hatched',
+    'switch',
+    'win',
+    'draw',
+    'loss',
 ] as const;
 
 export type Trigger = (typeof TRIGGERS)[number];
@@ -281,6 +288,66 @@ export const VOICE: { tap: Record<MoodLevel, string[]> } & Record<
         'This is so me.',
         'Thank you! I feel fabulous.',
     ],
+    egg: [
+        'Ooh, a new egg!',
+        'Look, an egg! I wonder who’s inside.',
+        'A little sibling is on the way!',
+        'Shh, it’s sleeping.',
+        'I’ll keep it warm!',
+        'A new egg for the nest!',
+        'Who could it be?',
+        'Egg-cellent news!',
+    ],
+    hatched: [
+        'I hatched! Hello, world!',
+        'Out of the shell!',
+        'Peekaboo! It’s me!',
+        'Hi! Nice to meet you!',
+        'Cracked it!',
+        'So this is the outside!',
+        'Thanks for keeping me warm!',
+        'Look, I have feet!',
+    ],
+    switch: [
+        'My turn to grow!',
+        'Let’s do this together!',
+        'Hello! I’m so happy you picked me.',
+        'Ready when you are!',
+        'Out of the nest, into the day!',
+        'I’ll make you proud!',
+        'Yay, it’s me!',
+        'Hi again, friend!',
+    ],
+    win: [
+        'We won!',
+        'Victory dance!',
+        'Too easy!',
+        'Did you see that move?',
+        'Champions!',
+        'Good game, everyone!',
+        'Yes! Yes! Yes!',
+        'High five!',
+    ],
+    draw: [
+        'A tie! Great minds think alike.',
+        'Same move! Hehe.',
+        'Evenly matched!',
+        'Rematch?',
+        'Nobody wins, everybody smiles.',
+        'Twins!',
+        'So close!',
+        'Ha, we copied each other!',
+    ],
+    loss: [
+        'Good game!',
+        'Next time!',
+        'They were good!',
+        'I had fun anyway.',
+        'We’ll get them next round.',
+        'Shake it off!',
+        'Practice makes perfect.',
+        'Still proud of us!',
+    ],
 };
 
 /** A few lines of each kind's own, mixed into taps. */
@@ -298,6 +365,29 @@ export const KIND_LINES: Record<MoonlingKind, string[]> = {
         'Kaboom! Sparkles!',
         'Burst of joy!',
         'Bright, brighter, brightest!',
+    ],
+    sun: ['Sunny side up!', 'Warm hugs!', 'I bring the daylight.'],
+    planet: ['I have my own ring!', 'Round and round I go.', 'Orbiting you!'],
+    meteor: [
+        'Whoosh! Coming through!',
+        'Hot rock, cool friend.',
+        'Make a wish on me!',
+    ],
+    galaxy: ['I contain multitudes.', 'So many stars in here!', 'Swirly!'],
+    orchid: [
+        'Blooming at Orchid City!',
+        'A flower for the office.',
+        'Petal power!',
+    ],
+    moonflower: [
+        'I bloom at night, like Luna.',
+        'Moon and orchid, that’s me!',
+        'Smell my petals!',
+    ],
+    citylight: [
+        'Hello from Orchid City!',
+        'All my windows are lit.',
+        'City lights, moon nights.',
     ],
 };
 
@@ -322,17 +412,19 @@ export function voiceLine(
 }
 
 /**
- * What to say when Home loads: growing first, then coming back after 2+ office days away, then today's news (a duel
+ * What to say when Home loads: growing (or hatching) first, then coming back after 2+ office days away, then today's news (a duel
  * to answer, payday, a day off tomorrow, leave filed, time logged), then the crown week, Monday or Friday, being fed
  * by today's visit, and else the part of the day.
  */
 export function homeCue(
-    pet: Pick<Pet, 'days_away' | 'today'> & Partial<Pick<Pet, 'crown'>>,
+    pet: Pick<Pet, 'days_away' | 'today'> &
+        Partial<Pick<Pet, 'crown' | 'stage'>>,
     moment: PetMoment,
 ): Trigger | null {
     const t = pet.today;
     if (moment === 'grew') {
-        return 'grew';
+        // Out of the egg: the Hatchling's first line.
+        return pet.stage === 1 ? 'hatched' : 'grew';
     }
     if (pet.days_away >= 2) {
         return 'away';
@@ -368,9 +460,14 @@ export function homeCue(
     return t.part ?? null;
 }
 
+/** The eggs (by moonling id) this browser hasn't been shown yet, for the Nest's "new egg" line. */
+export function unseenEggs(ids: number[], seen: number[]): number[] {
+    return ids.filter((id) => !seen.includes(id));
+}
+
 /**
  * "Now and then" (the user, slice 8): Home speaks once in each part of the office day (`key` is "date:part"; `said`
- * is the last key it spoke in), but growing a stage always speaks.
+ * is the last key it spoke in), but growing a stage (or hatching) always speaks.
  */
 export function shouldSpeak(
     cue: Trigger | null,
@@ -381,7 +478,7 @@ export function shouldSpeak(
         return false;
     }
 
-    return cue === 'grew' || said !== key;
+    return cue === 'grew' || cue === 'hatched' || said !== key;
 }
 
 /**
@@ -401,6 +498,15 @@ export const ITEM_LINES: Record<WearItem, string[]> = {
     balloon: ['Don’t let go!', 'Up, up, up!'],
     wand: ['Abracadabra!', 'Sparkle magic!'],
     lantern: ['Lighting the way.', 'A little glow for you.'],
+    jetpack: ['Blast off!', 'To the moon! Oh wait.'],
+    umbrella: ['Pitter patter!', 'Rain can’t stop me.'],
+    flower_crown: ['Fresh flowers!', 'I feel like spring.'],
+    bowtie: ['Very dapper.', 'Business casual!'],
+    orchid_pin: ['An orchid for Orchid City!', 'Pinned and pretty.'],
+    coffee: ['First, coffee.', 'Mmm, warm!'],
+    headphones: ['Can’t hear you, vibing!', 'Great tune!'],
+    kite: ['Up it goes!', 'Catch the wind!'],
+    monocle: ['Indubitably.', 'How very curious.'],
 };
 
 /** A line for a tapped item, never the same as `last` twice in a row. */

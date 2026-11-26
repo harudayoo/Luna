@@ -134,16 +134,18 @@ class PetDuelStakesTest extends TestCase
     {
         $this->play($this->ana, $this->ben, 'moon', 'star');
 
-        // Loading Home records today's visit, so the duel is the second newest award.
+        // Loading Home records today's visit; the duel also finished this week's duel quest (slice 18 of the
+        // collection spec), so the duel itself is the third newest award.
         $this->actingAs($this->ana)->get(route('dashboard'))
             ->assertInertia(fn (AssertableInertia $page) => $page->reloadOnly('pet_detail', fn (AssertableInertia $reload) => $reload
                 ->where('pet_detail.duel_xp', ['win' => 3, 'draw' => 1, 'loss' => 1])
                 ->where('pet_detail.recent.0.label', 'Daily visit')
-                ->where('pet_detail.recent.1.label', 'Won a moon duel')
-                ->where('pet_detail.recent.1.xp', 3)));
+                ->where('pet_detail.recent.1.label', 'Weekly quest: finish a duel')
+                ->where('pet_detail.recent.2.label', 'Won a moon duel')
+                ->where('pet_detail.recent.2.xp', 3)));
         $this->actingAs($this->ben)->get(route('dashboard'))
             ->assertInertia(fn (AssertableInertia $page) => $page->reloadOnly('pet_detail', fn (AssertableInertia $reload) => $reload
-                ->where('pet_detail.recent.1.label', 'Played a moon duel')));
+                ->where('pet_detail.recent.2.label', 'Played a moon duel')));
     }
 
     public function test_the_moon_cup_ranks_this_office_weeks_wins()
