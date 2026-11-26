@@ -6,7 +6,7 @@ import { PickTiles } from '@/components/pet-board';
 import { PetSprite } from '@/components/pet-sprite';
 import { Button } from '@/components/ui/button';
 import { duelReveal } from '@/lib/ocs';
-import type { DuelPick, Pet, PetDuelsData } from '@/lib/pet';
+import type { DuelPick, MoonlingKind, Pet, PetDuelsData } from '@/lib/pet';
 import { DUEL_PICKS } from '@/lib/pet';
 
 type Result = PetDuelsData['results'][number];
@@ -100,7 +100,13 @@ export function PetDuels({
             </p>
             <InputError message={errors.duel} />
 
-            {revealed && <Reveal result={revealed} myStage={pet.stage} />}
+            {revealed && (
+                <Reveal
+                    result={revealed}
+                    myStage={pet.stage}
+                    myKind={pet.kind}
+                />
+            )}
 
             {duels.incoming.length > 0 && (
                 <div>
@@ -111,6 +117,7 @@ export function PetDuels({
                                 <div className="flex items-center gap-3">
                                     <PetSprite
                                         stage={d.stage}
+                                        kind={d.kind}
                                         title={
                                             d.from_pet ?? `${d.from}’s moonling`
                                         }
@@ -258,7 +265,15 @@ export function PetDuels({
 }
 
 /** Both pets face each other, the moves flip over, the winner hops and the other squishes (lib/ocs.ts duelReveal). */
-function Reveal({ result, myStage }: { result: Result; myStage: number }) {
+function Reveal({
+    result,
+    myStage,
+    myKind,
+}: {
+    result: Result;
+    myStage: number;
+    myKind: MoonlingKind;
+}) {
     const ref = useRef<HTMLDivElement>(null);
     const role = (who: 'me' | 'them') =>
         result.outcome === 'draw'
@@ -285,6 +300,7 @@ function Reveal({ result, myStage }: { result: Result; myStage: number }) {
                     <span {...role('me')} className="inline-block">
                         <PetSprite
                             stage={myStage}
+                            kind={myKind}
                             title="Your pet"
                             className="size-20"
                         />
@@ -301,6 +317,7 @@ function Reveal({ result, myStage }: { result: Result; myStage: number }) {
                         <span className="inline-block -scale-x-100">
                             <PetSprite
                                 stage={result.their_stage}
+                                kind={result.their_kind}
                                 title={`${result.against}’s pet`}
                                 className="size-20"
                             />

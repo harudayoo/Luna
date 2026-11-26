@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\Moonlings;
 use App\Services\Pet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,13 +23,23 @@ class PetController extends Controller
             'public' => ['sometimes', 'boolean'],
         ]);
 
+        // The name belongs to the moonling you're raising (slice 6).
         if (array_key_exists('name', $data)) {
-            $user->pet_name = $data['name'];
+            Moonlings::active($user)->update(['name' => $data['name']]);
         }
         if (array_key_exists('public', $data)) {
             $user->pet_public = (bool) $data['public'];
+            $user->save();
         }
-        $user->save();
+
+        return back();
+    }
+
+    /** Raise another moonling from your nest (spec 2026-11-25-luna-moonling-life, slice 6). */
+    public function active(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['moonling_id' => ['required', 'integer']]);
+        Moonlings::switchTo($request->user(), (int) $data['moonling_id']);
 
         return back();
     }

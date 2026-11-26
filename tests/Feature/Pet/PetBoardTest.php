@@ -4,6 +4,7 @@ namespace Tests\Feature\Pet;
 
 use App\Models\PetEvent;
 use App\Models\User;
+use App\Services\Moonlings;
 use App\Services\Pet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -42,17 +43,19 @@ class PetBoardTest extends TestCase
     public function test_people_join_and_leave_the_board_without_touching_the_name()
     {
         $ana = User::factory()->create();
-        $ana->forceFill(['pet_name' => 'Mochi'])->save();
+        // Since slice 6 (spec 2026-11-25-luna-moonling-life) the name belongs to the active moonling.
+        Moonlings::active($ana)->update(['name' => 'Mochi']);
+        $name = fn () => Moonlings::active($ana)->fresh()->name;
 
         $this->actingAs($ana)->patch(route('pet.update'), ['public' => true])->assertSessionHasNoErrors();
         $this->assertTrue($ana->fresh()->pet_public);
-        $this->assertSame('Mochi', $ana->fresh()->pet_name);
+        $this->assertSame('Mochi', $name());
 
         $this->actingAs($ana)->get(route('dashboard'))->assertInertia(fn ($page) => $page->where('pet.public', true));
 
         $this->actingAs($ana)->patch(route('pet.update'), ['public' => false])->assertSessionHasNoErrors();
         $this->assertFalse($ana->fresh()->pet_public);
-        $this->assertSame('Mochi', $ana->fresh()->pet_name);
+        $this->assertSame('Mochi', $name());
     }
 
     public function test_only_active_people_who_joined_are_on_the_board()

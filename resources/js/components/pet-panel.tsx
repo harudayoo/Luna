@@ -6,6 +6,7 @@ import InputError from '@/components/input-error';
 import { PetBoard } from '@/components/pet-board';
 import { PetBubble, useBubble } from '@/components/pet-bubble';
 import { PetDuels } from '@/components/pet-duels';
+import { PetNest } from '@/components/pet-nest';
 import { PetSprite } from '@/components/pet-sprite';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,13 +44,14 @@ const DAY_WORD: Record<PetDetail['week'][number]['status'], string> = {
  * visits, what gives XP and what gave it lately. The extras (pet_detail) load when it opens; full screen on phones.
  * Tabs: the pet, the office board (slice 2), moon duels (slice 3). `startTab` opens on a tab (the bell's ?pet=duels).
  */
-export type PetTab = 'pet' | 'board' | 'duels';
+export type PetTab = 'pet' | 'board' | 'duels' | 'nest';
 
 /** The optional props each tab needs (the board offers duels, so it loads those too). */
 const TAB_PROPS: Record<PetTab, string[]> = {
     pet: ['pet_detail'],
     board: ['pet_board', 'pet_duels'],
     duels: ['pet_duels'],
+    nest: ['pet_nest'],
 };
 
 export function PetPanel({
@@ -237,13 +239,14 @@ export function PetPanel({
                 <div
                     role="tablist"
                     aria-label="Pet views"
-                    className="grid grid-cols-3 gap-1 bg-surface-hover p-1"
+                    className="grid grid-cols-4 gap-1 bg-surface-hover p-1"
                 >
                     {(
                         [
                             ['pet', 'Your pet'],
                             ['board', 'Board'],
                             ['duels', 'Duels'],
+                            ['nest', 'Nest'],
                         ] as const
                     ).map(([key, label]) => (
                         <button
@@ -263,6 +266,8 @@ export function PetPanel({
                     <PetBoard pet={pet} />
                 ) : tab === 'duels' ? (
                     <PetDuels pet={pet} revealLatest={startTab === 'duels'} />
+                ) : tab === 'nest' ? (
+                    <PetNest />
                 ) : (
                     <>
                         {/* The pet, large. Tap or tug it (no XP; the first each day is its pat); arrows make it look. */}
@@ -283,6 +288,7 @@ export function PetPanel({
                                 <span ref={sprite} className="inline-block">
                                     <PetSprite
                                         stage={progress.stage}
+                                        kind={pet.kind}
                                         title={`${title}: ${progress.name}, ${mood.label.toLowerCase()}`}
                                         crown={pet.crown}
                                         mood={pet.mood.level}
@@ -356,6 +362,7 @@ export function PetPanel({
                                     >
                                         <PetSprite
                                             stage={s.stage}
+                                            kind={pet.kind}
                                             title={
                                                 s.state === 'locked'
                                                     ? `${s.name}, still to come`

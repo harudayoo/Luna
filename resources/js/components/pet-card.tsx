@@ -98,6 +98,7 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
                     <span ref={sprite} className="inline-block">
                         <PetSprite
                             stage={progress.stage}
+                            kind={pet.kind}
                             title={`Your moonling: ${progress.name}${pet.crown ? ', Moon Cup champion' : ''}`}
                             crown={pet.crown}
                             mood={pet.mood.level}

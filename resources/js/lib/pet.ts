@@ -1,6 +1,8 @@
 /** The pet on Home (spec 2026-11-24-luna-pet). Stages match App\Services\Pet::STAGES. */
 export type Pet = {
     name: string | null;
+    /** The kind of the moonling being raised (slice 6). */
+    kind: MoonlingKind;
     public: boolean;
     xp: number;
     stage: number;
@@ -22,6 +24,67 @@ export type Pet = {
     };
 };
 
+/** App\Services\Moonlings::KINDS: what a moonling is, and its name. */
+export const KINDS = {
+    moon: 'Moon',
+    star: 'Star',
+    comet: 'Comet',
+    eclipse: 'Eclipse',
+    aurora: 'Aurora',
+    nova: 'Nova',
+} as const;
+
+export type MoonlingKind = keyof typeof KINDS;
+
+/** The moon nest (App\Services\Moonlings::nest), loaded when its tab opens. */
+export type PetNest = {
+    moonlings: {
+        id: number;
+        kind: MoonlingKind;
+        name: string | null;
+        stage: number;
+        stage_name: string;
+        active: boolean;
+    }[];
+    can_switch: boolean;
+    eggs: { kind: MoonlingKind; how: string; earned: boolean }[];
+};
+
+type NestMoonling = PetNest['moonlings'][number];
+
+/** Whether "Raise this one" works for a moonling, and why not. The server checks the same. */
+export function raiseState(
+    nest: PetNest,
+    id: number,
+): { can: boolean; reason: string | null } {
+    if (nest.moonlings.find((m) => m.id === id)?.active) {
+        return { can: false, reason: 'You’re raising this one.' };
+    }
+    if (!nest.can_switch) {
+        return {
+            can: false,
+            reason: 'Your moonling has to hatch first (40 XP) before you raise another.',
+        };
+    }
+
+    return { can: true, reason: null };
+}
+
+/** The nest scene: hatched moonlings rest on the cradle, eggs sit in a pile; the one you're raising first. */
+export function nestGroups(moonlings: NestMoonling[]): {
+    cradle: NestMoonling[];
+    eggs: NestMoonling[];
+} {
+    const ordered = [...moonlings].sort(
+        (a, b) => Number(b.active) - Number(a.active) || a.id - b.id,
+    );
+
+    return {
+        cradle: ordered.filter((m) => m.stage >= 1),
+        eggs: ordered.filter((m) => m.stage === 0),
+    };
+}
+
 /** App\Services\Pet::MOOD_LEVELS, best first. */
 export type MoodLevel = 'glowing' | 'happy' | 'okay' | 'droopy' | 'gloomy';
 
@@ -33,6 +96,7 @@ export type PetBoardData = {
         user_id: number;
         first_name: string;
         pet_name: string | null;
+        kind: MoonlingKind;
         stage: number;
         stage_name: string;
         streak: number;
@@ -45,6 +109,7 @@ export type PetBoardData = {
         user_id: number;
         first_name: string;
         pet_name: string | null;
+        kind: MoonlingKind;
         stage: number;
         stage_name: string;
         wins: number;
@@ -87,6 +152,7 @@ export type PetDuelsData = {
         from_id: number;
         from: string;
         from_pet: string | null;
+        kind: MoonlingKind;
         stage: number;
         at: string;
     }[];
@@ -101,6 +167,7 @@ export type PetDuelsData = {
         id: number;
         against: string;
         their_stage: number;
+        their_kind: MoonlingKind;
         mine: DuelPick | null;
         theirs: DuelPick | null;
         outcome: 'win' | 'loss' | 'draw' | 'declined' | 'expired';

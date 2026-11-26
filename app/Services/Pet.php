@@ -48,14 +48,18 @@ final class Pet
     public static function award(User $user, string $kind, string $ref, ?int $xp = null): bool
     {
         $before = self::xp($user);
+        // To the active moonling (slice 6); the streak, mood and pats stay per person through user_id.
         $new = PetEvent::query()->insertOrIgnore([
-            'user_id' => $user->id, 'kind' => $kind, 'ref' => $ref,
+            'user_id' => $user->id, 'moonling_id' => Moonlings::active($user)->id, 'kind' => $kind, 'ref' => $ref,
             'xp' => $xp ?? self::XP[$kind], 'created_at' => now(),
         ]) > 0;
 
         // Only for the person on this request: a duel also pays the challenger, who isn't here to see it.
         if ($new && $user->is(auth()->user()) && self::stageFor(self::xp($user)) > self::stageFor($before)) {
             session()->put(self::GREW, true);
+        }
+        if ($new) {
+            Moonlings::checkEggs($user);
         }
 
         return $new;
@@ -121,26 +125,29 @@ final class Pet
      * The office board (spec 2026-11-25-luna-pet-social, slice 2): active people who joined, ranked by stage, then
      * streak, then name. The top 10, plus your own row under them when you're on it but lower. No XP for anyone.
      *
-     * @return array{joined: bool, rows: list<array{rank: int, user_id: int, first_name: string, pet_name: string|null, stage: int, stage_name: string, streak: int, me: bool}>}
+     * @return array{joined: bool, rows: list<array{rank: int, user_id: int, first_name: string, pet_name: string|null, kind: string, stage: int, stage_name: string, streak: int, me: bool}>}
      */
     public static function board(User $me): array
     {
         $people = User::query()->where('pet_public', true)
             ->whereNull('deactivated_at')->whereNotNull('password')
-            ->get(['id', 'name', 'pet_name']);
+            ->get(['id', 'name']);
         $ids = $people->pluck('id')->all();
         $stages = self::stages($ids);
         $streaks = self::streaks($ids);
         $champions = PetDuels::champions();
+        // Each person's active moonling (slice 6): its name and kind.
+        $pets = Moonlings::activeOf($ids);
 
-        $ranked = $people->map(function (User $u) use ($stages, $streaks, $champions, $me) {
+        $ranked = $people->map(function (User $u) use ($stages, $streaks, $champions, $pets, $me) {
             $stage = $stages[$u->id];
 
             return [
                 // The person, so a duel can be sent from their row (slice 3).
                 'user_id' => $u->id,
                 'first_name' => strtok($u->name, ' ') ?: $u->name,
-                'pet_name' => $u->pet_name,
+                'pet_name' => $pets[$u->id]->name ?? null,
+                'kind' => $pets[$u->id]->kind ?? 'moon',
                 'stage' => $stage,
                 'stage_name' => self::STAGE_NAMES[$stage],
                 'streak' => $streaks[$u->id],
@@ -162,14 +169,17 @@ final class Pet
         return ['joined' => (bool) $me->pet_public, 'rows' => $rows->values()->all(), 'cup' => PetDuels::cup($me)];
     }
 
-    /** @return array{name: string|null, public: bool, xp: int, stage: int, stage_name: string, next_at: int|null, streak: int, fed_today: bool, crown: bool} */
+    /** @return array{name: string|null, kind: string, public: bool, xp: int, stage: int, stage_name: string, next_at: int|null, streak: int, fed_today: bool, crown: bool} */
     public static function state(User $user): array
     {
-        $xp = self::xp($user);
+        $pet = Moonlings::active($user);
+        $xp = Moonlings::xp($pet);
         $stage = self::stageFor($xp);
 
         return [
-            'name' => $user->pet_name,
+            // The active moonling (slice 6).
+            'name' => $pet->name,
+            'kind' => $pet->kind,
             'public' => (bool) $user->pet_public,
             'xp' => $xp,
             'stage' => $stage,
@@ -339,25 +349,28 @@ final class Pet
     }
 
     /**
-     * The stage of many people's pets in one query (the board, duel challengers).
+     * The stage of many people's active moonlings in one query (the board, duel challengers).
      *
      * @param  list<int>  $userIds
      * @return array<int, int> stage by user id
      */
     public static function stages(array $userIds): array
     {
-        $xp = PetEvent::query()->whereIn('user_id', $userIds)->groupBy('user_id')
-            ->selectRaw('user_id, sum(xp) as total')->toBase()->pluck('total', 'user_id');
+        $xp = PetEvent::query()->join('moonlings', 'moonlings.id', '=', 'pet_events.moonling_id')
+            ->where('moonlings.active', true)->whereIn('pet_events.user_id', $userIds)
+            ->groupBy('pet_events.user_id')
+            ->selectRaw('pet_events.user_id as uid, sum(pet_events.xp) as total')->toBase()->pluck('total', 'uid');
 
         return collect($userIds)->mapWithKeys(fn (int $id) => [$id => self::stageFor((int) ($xp[$id] ?? 0))])->all();
     }
 
+    /** XP of the person's active moonling. */
     private static function xp(User $user): int
     {
-        return (int) PetEvent::query()->where('user_id', $user->id)->sum('xp');
+        return Moonlings::xp(Moonlings::active($user));
     }
 
-    private static function stageFor(int $xp): int
+    public static function stageFor(int $xp): int
     {
         return count(array_filter(self::STAGES, fn (int $at) => $xp >= $at)) - 1;
     }

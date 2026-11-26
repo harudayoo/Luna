@@ -4,7 +4,7 @@
  * both themes. Parts the motion (lib/ocs.ts petIdle / petFed / petGrow) moves: [data-pet-body],
  * [data-pet-eye], [data-pet-glow]. Swapping in commissioned art only changes this file.
  */
-import type { MoodLevel } from '@/lib/pet';
+import type { MoodLevel, MoonlingKind } from '@/lib/pet';
 
 const PRIMARY = 'var(--color-primary)';
 const ACCENT = 'var(--color-accent)';
@@ -30,6 +30,7 @@ export function PetSprite({
     locked = false,
     crown = false,
     mood,
+    kind = 'moon',
     className = CARD_SIZE,
 }: {
     stage: number;
@@ -37,6 +38,8 @@ export function PetSprite({
     locked?: boolean;
     crown?: boolean;
     mood?: MoodLevel;
+    /** Which kind of moonling (slice 6): its mark, and what it has around its body. */
+    kind?: MoonlingKind;
     className?: string;
 }) {
     const r = SIZE[stage] ?? 40;
@@ -49,6 +52,7 @@ export function PetSprite({
             viewBox="0 0 120 120"
             role="img"
             aria-label={title}
+            data-pet-kind={kind}
             className={`shrink-0 overflow-visible ${className} ${locked ? '[&_[data-pet-body]_*]:fill-surface-hover [&_[data-pet-body]_*]:stroke-none' : ''}`}
         >
             {!locked && GLOW[stage] > 0 && (
@@ -79,9 +83,9 @@ export function PetSprite({
                 }}
             >
                 {stage === 0 ? (
-                    <Egg />
+                    <Egg kind={kind} />
                 ) : (
-                    <Body stage={stage} r={r} cy={cy} mood={mood} />
+                    <Body stage={stage} r={r} cy={cy} mood={mood} kind={kind} />
                 )}
                 {crown && !locked && <Crown base={top + 4} />}
             </g>
@@ -90,7 +94,7 @@ export function PetSprite({
     );
 }
 
-function Egg() {
+function Egg({ kind }: { kind: MoonlingKind }) {
     return (
         <>
             <ellipse cx="60" cy="66" rx="26" ry="34" fill={PRIMARY} />
@@ -104,8 +108,159 @@ function Egg() {
                 strokeWidth="2.5"
                 strokeLinejoin="miter"
             />
+            {/* What will hatch: every kind but the moon shows its mark on the shell. */}
+            {kind !== 'moon' && (
+                <KindMark kind={kind} x={58} y={84} fill={FACE} />
+            )}
         </>
     );
+}
+
+/** An n-pointed star path around (x, y), outer radius `r`, inner `r * inner`. */
+const starPath = (x: number, y: number, r: number, n: number, inner: number) =>
+    Array.from({ length: n * 2 }, (_, i) => {
+        const a = (Math.PI * i) / n - Math.PI / 2;
+        const d = i % 2 === 0 ? r : r * inner;
+        return `${i === 0 ? 'M' : 'L'}${(x + d * Math.cos(a)).toFixed(2)} ${(y + d * Math.sin(a)).toFixed(2)}`;
+    }).join(' ') + ' Z';
+
+/** Each kind's small mark: on the forehead from the Moonling on, and on the egg's shell. */
+function KindMark({
+    kind,
+    x,
+    y,
+    fill,
+}: {
+    kind: MoonlingKind;
+    x: number;
+    y: number;
+    fill: string;
+}) {
+    switch (kind) {
+        case 'star':
+            return <path d={starPath(x, y, 7, 5, 0.45)} fill={fill} />;
+        case 'comet':
+            return (
+                <>
+                    <path
+                        d={`M${x + 2} ${y - 3} L${x - 9} ${y - 7} L${x - 6} ${y} Z`}
+                        fill={fill}
+                        opacity="0.7"
+                    />
+                    <circle cx={x + 2} cy={y} r="4" fill={fill} />
+                </>
+            );
+        case 'eclipse':
+            return (
+                <>
+                    <circle
+                        cx={x}
+                        cy={y}
+                        r="5.5"
+                        fill="none"
+                        stroke={fill}
+                        strokeWidth="2.5"
+                    />
+                    <circle cx={x + 1.5} cy={y - 1} r="3" fill={fill} />
+                </>
+            );
+        case 'aurora':
+            return (
+                <path
+                    d={`M${x - 8} ${y + 2} q4 -7 8 0 t8 0`}
+                    fill="none"
+                    stroke={fill}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                />
+            );
+        case 'nova':
+            return <path d={starPath(x, y, 7, 8, 0.4)} fill={fill} />;
+        default:
+            // The moon's crescent.
+            return (
+                <path
+                    d={`M${x - 5} ${y} a7 7 0 1 0 10 -1 a5.5 5.5 0 1 1 -10 1 z`}
+                    fill={fill}
+                />
+            );
+    }
+}
+
+/** What each kind has behind or around its body, from the Hatchling on. */
+function KindBack({
+    kind,
+    r,
+    cy,
+}: {
+    kind: MoonlingKind;
+    r: number;
+    cy: number;
+}) {
+    switch (kind) {
+        case 'star':
+            // Pointed ears.
+            return (
+                <>
+                    {[-1, 1].map((side) => (
+                        <path
+                            key={side}
+                            d={`M${60 + side * r * 0.8} ${cy - r * 0.35} L${60 + side * r * 0.6} ${cy - r - 10} L${60 + side * r * 0.15} ${cy - r * 0.85} Z`}
+                            fill={PRIMARY}
+                        />
+                    ))}
+                </>
+            );
+        case 'comet':
+            // A swept tail behind it.
+            return (
+                <path
+                    d={`M${60 - r * 0.5} ${cy + r * 0.3} Q${60 - r - 16} ${cy + r * 0.1} ${60 - r - 24} ${cy - r * 0.9} Q${60 - r - 4} ${cy - r * 0.1} ${60 - r * 0.2} ${cy - r * 0.55} Z`}
+                    fill={ACCENT}
+                    opacity="0.75"
+                />
+            );
+        case 'eclipse':
+            // A dark ring with a halo.
+            return (
+                <>
+                    <circle
+                        cx="60"
+                        cy={cy}
+                        r={r + 8}
+                        fill={ACCENT}
+                        opacity="0.18"
+                    />
+                    <circle
+                        cx="60"
+                        cy={cy}
+                        r={r + 3}
+                        fill="none"
+                        stroke={ACCENT}
+                        strokeWidth="3"
+                    />
+                </>
+            );
+        case 'aurora':
+            // A soft wavy crest.
+            return (
+                <path
+                    d={`M${60 - r * 0.6} ${cy - r * 0.7} q${r * 0.15} ${-r * 0.55} ${r * 0.3} ${-r * 0.2} q${r * 0.15} ${-r * 0.5} ${r * 0.3} ${-r * 0.2} q${r * 0.15} ${-r * 0.5} ${r * 0.3} ${-r * 0.15} q${r * 0.15} ${-r * 0.4} ${r * 0.3} ${r * 0.05} Z`}
+                    fill={ACCENT}
+                />
+            );
+        case 'nova':
+            // A burst crown of rays.
+            return (
+                <path
+                    d={starPath(60, cy, r + 9, 10, (r - 2) / (r + 9))}
+                    fill={ACCENT}
+                    opacity="0.8"
+                />
+            );
+        default:
+            return null;
+    }
 }
 
 function Body({
@@ -113,11 +268,13 @@ function Body({
     r,
     cy,
     mood,
+    kind,
 }: {
     stage: number;
     r: number;
     cy: number;
     mood?: MoodLevel;
+    kind: MoonlingKind;
 }) {
     const eyeY = cy - r * 0.1;
     const eyeDx = r * 0.36;
@@ -125,6 +282,7 @@ function Body({
 
     return (
         <>
+            <KindBack kind={kind} r={r} cy={cy} />
             {/* Arms from the Moonling on, feet on everything that hatched. */}
             {stage >= 2 && (
                 <>
@@ -187,12 +345,9 @@ function Body({
                     />
                 </>
             )}
-            {/* The crescent mark, from the Moonling on. */}
+            {/* The kind's mark on the forehead, from the Moonling on (the moon's crescent). */}
             {stage >= 2 && (
-                <path
-                    d={`M${60 - 5} ${cy - r * 0.62} a7 7 0 1 0 10 -1 a5.5 5.5 0 1 1 -10 1 z`}
-                    fill={ACCENT}
-                />
+                <KindMark kind={kind} x={60} y={cy - r * 0.62} fill={ACCENT} />
             )}
             {stage >= 3 && (
                 <>

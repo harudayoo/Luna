@@ -7,6 +7,7 @@ use App\Models\Leave;
 use App\Models\Payslip;
 use App\Models\PetEvent;
 use App\Models\User;
+use App\Services\Moonlings;
 use App\Services\Payroll\PayslipMath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
@@ -32,17 +33,20 @@ class PetPanelTest extends TestCase
 
     public function test_a_person_names_their_pet_and_can_clear_the_name()
     {
+        // Since slice 6 (spec 2026-11-25-luna-moonling-life) the name belongs to the active moonling.
+        $name = fn () => Moonlings::active($this->ana)->fresh()->name;
+
         $this->actingAs($this->ana)->patch(route('pet.update'), ['name' => '  Mochi  '])->assertSessionHasNoErrors();
-        $this->assertSame('Mochi', $this->ana->fresh()->pet_name);
+        $this->assertSame('Mochi', $name());
 
         $this->actingAs($this->ana)->get(route('dashboard'))
             ->assertInertia(fn ($page) => $page->where('pet.name', 'Mochi'));
 
         $this->actingAs($this->ana)->patch(route('pet.update'), ['name' => str_repeat('a', 21)])->assertSessionHasErrors('name');
-        $this->assertSame('Mochi', $this->ana->fresh()->pet_name);
+        $this->assertSame('Mochi', $name());
 
         $this->actingAs($this->ana)->patch(route('pet.update'), ['name' => ''])->assertSessionHasNoErrors();
-        $this->assertNull($this->ana->fresh()->pet_name);
+        $this->assertNull($name());
     }
 
     public function test_guests_cannot_name_a_pet()

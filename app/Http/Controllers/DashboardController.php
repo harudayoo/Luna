@@ -7,6 +7,7 @@ use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\User;
 use App\Models\WipTile;
+use App\Services\Moonlings;
 use App\Services\Pet;
 use App\Services\PetDuels;
 use App\Services\Pto\CutOff;
@@ -21,15 +22,15 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request): Response|RedirectResponse
     {
-        // A duel notice links to ?pet=duels. Swap that for a one-time note and the plain address, so the panel opens
-        // on the Duels tab once and a refresh of Home doesn't open it again.
-        if ($request->query('pet') === 'duels') {
-            return to_route('dashboard')->with('pet_open', 'duels');
+        // A duel notice links to ?pet=duels, an egg notice to ?pet=nest. Swap that for a one-time note and the plain
+        // address, so the panel opens on that tab once and a refresh of Home doesn't open it again.
+        if (in_array($request->query('pet'), ['duels', 'nest'], true)) {
+            return to_route('dashboard')->with('pet_open', $request->query('pet'));
         }
 
         /** @var User $user */
         $user = $request->user();
-        $openDuels = $request->session()->get('pet_open') === 'duels';
+        $openTab = $request->session()->get('pet_open');
         $policy = Policy::current();
         $today = CarbonImmutable::today();
         $current = collect($user->ptoLedger($policy, $today))->first(fn (CutOff $c) => $c->contains($today));
@@ -65,8 +66,10 @@ class DashboardController extends Controller
             'pet_board' => Inertia::optional(fn () => Pet::board($user)),
             // Moon duels, when the panel's duels or board tab opens.
             'pet_duels' => Inertia::optional(fn () => PetDuels::tab($user)),
-            // Which panel tab to open straight away (once, after a duel notice), or null.
-            'pet_open' => $openDuels ? 'duels' : null,
+            // The moon nest (slice 6), when the panel's Nest tab opens.
+            'pet_nest' => Inertia::optional(fn () => Moonlings::nest($user)),
+            // Which panel tab to open straight away (once, after a duel or egg notice), or null.
+            'pet_open' => in_array($openTab, ['duels', 'nest'], true) ? $openTab : null,
         ]);
     }
 }

@@ -120,12 +120,15 @@ final class PetDuels
 
         $mine = fn ($q) => $q->where('challenger_id', $me->id)->orWhere('opponent_id', $me->id);
         $other = fn (PetDuel $d) => $d->challenger_id === $me->id ? $d->opponent_id : $d->challenger_id;
-        $incoming = self::open()->where('opponent_id', $me->id)->with('challenger:id,name,pet_name')->latest('id')->get();
+        $incoming = self::open()->where('opponent_id', $me->id)->with('challenger:id,name')->latest('id')->get();
         $results = PetDuel::query()->where('status', '!=', 'open')->where($mine)
             ->with(['challenger:id,name', 'opponent:id,name'])
             ->orderByDesc('updated_at')->orderByDesc('id')->limit(5)->get();
-        // Stages of everyone shown, in one query: incoming challengers, and who each result was against.
-        $stages = Pet::stages($incoming->pluck('challenger_id')->merge($results->map($other))->unique()->values()->all());
+        // Stages and active moonlings of everyone shown, in one query each: incoming challengers, and who each
+        // result was against.
+        $shown = $incoming->pluck('challenger_id')->merge($results->map($other))->unique()->values()->all();
+        $stages = Pet::stages($shown);
+        $pets = Moonlings::activeOf($shown);
 
         $tally = ['win' => 0, 'loss' => 0, 'draw' => 0];
         foreach (PetDuel::query()->where('status', 'done')->where($mine)->pluck('winner_id') as $winner) {
@@ -141,7 +144,8 @@ final class PetDuels
                 'id' => $d->id,
                 'from_id' => $d->challenger_id,
                 'from' => self::first($d->challenger),
-                'from_pet' => $d->challenger->pet_name,
+                'from_pet' => $pets[$d->challenger_id]->name ?? null,
+                'kind' => $pets[$d->challenger_id]->kind ?? 'moon',
                 'stage' => $stages[$d->challenger_id],
                 'at' => $at($d),
             ])->values()->all(),
@@ -154,7 +158,7 @@ final class PetDuels
                     'at' => $at($d),
                 ])->values()->all(),
             'results' => $results
-                ->map(function (PetDuel $d) use ($me, $at, $stages, $other) {
+                ->map(function (PetDuel $d) use ($me, $at, $stages, $pets, $other) {
                     $challenged = $d->challenger_id === $me->id;
 
                     return [
@@ -162,6 +166,7 @@ final class PetDuels
                         'against' => self::first($challenged ? $d->opponent : $d->challenger),
                         // For the result reveal: both pets face each other.
                         'their_stage' => $stages[$other($d)],
+                        'their_kind' => $pets[$other($d)]->kind ?? 'moon',
                         'mine' => $challenged ? $d->challenger_pick : $d->opponent_pick,
                         'theirs' => $challenged ? $d->opponent_pick : $d->challenger_pick,
                         'outcome' => $d->status !== 'done' ? $d->status : match ($d->winner_id) {
@@ -187,14 +192,16 @@ final class PetDuels
     {
         $standings = self::standings(0);
         $people = User::query()->whereIn('id', $standings->keys())->where('pet_public', true)
-            ->whereNull('deactivated_at')->whereNotNull('password')->get(['id', 'name', 'pet_name']);
+            ->whereNull('deactivated_at')->whereNotNull('password')->get(['id', 'name']);
         $stages = Pet::stages($people->pluck('id')->all());
+        $pets = Moonlings::activeOf($people->pluck('id')->all());
         $champions = self::champions();
 
         $ranked = $people->map(fn (User $u) => [
             'user_id' => $u->id,
             'first_name' => self::first($u),
-            'pet_name' => $u->pet_name,
+            'pet_name' => $pets[$u->id]->name ?? null,
+            'kind' => $pets[$u->id]->kind ?? 'moon',
             'stage' => $stages[$u->id],
             'stage_name' => Pet::STAGE_NAMES[$stages[$u->id]],
             'wins' => $standings[$u->id]['wins'],

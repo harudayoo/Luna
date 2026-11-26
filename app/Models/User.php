@@ -39,7 +39,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
- * @property string|null $pet_name the pet's name on Home (App\Services\Pet)
+ * @property string|null $pet_name no longer read or written: each moonling has its own name since slice 6 (to drop)
  * @property bool $pet_public whether the pet shows on the office board
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -109,6 +109,12 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function leaves(): HasMany
     {
         return $this->hasMany(Leave::class);
+    }
+
+    /** Their moonlings (App\Services\Moonlings), oldest first. @return HasMany<Moonling, $this> */
+    public function moonlings(): HasMany
+    {
+        return $this->hasMany(Moonling::class)->orderBy('id');
     }
 
     /** @return HasMany<TimeLog, $this> */

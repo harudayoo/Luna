@@ -172,6 +172,7 @@ function MoonCup({ cup }: { cup: CupRow[] }) {
             </span>
             <PetSprite
                 stage={r.stage}
+                kind={r.kind}
                 title={r.stage_name}
                 crown={r.crown}
                 className="size-10"
@@ -245,6 +246,7 @@ function BoardRow({
                 </span>
                 <PetSprite
                     stage={row.stage}
+                    kind={row.kind}
                     title={row.stage_name}
                     crown={row.crown}
                     className="size-10"
