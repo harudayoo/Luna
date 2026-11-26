@@ -12,6 +12,7 @@ use App\Services\Moonlings;
 use App\Services\Pet;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
@@ -74,8 +75,10 @@ class MoonlingTest extends TestCase
 
     public function test_the_migration_gives_everyone_an_active_moon_moonling_with_their_name_and_xp_and_goes_down()
     {
+        // `pet_name` was dropped by 000031: bring it back first, as it was when 000029 ran.
+        (require database_path('migrations/2026_11_26_000031_drop_pet_name_from_users_table.php'))->down();
         $migration = require database_path('migrations/2026_11_26_000029_create_moonlings_table.php');
-        $this->ana->forceFill(['pet_name' => 'Mochi'])->save();
+        DB::table('users')->where('id', $this->ana->id)->update(['pet_name' => 'Mochi']);
         $ben = User::factory()->create();
 
         $migration->down();

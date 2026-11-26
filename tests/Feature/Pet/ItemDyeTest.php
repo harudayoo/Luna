@@ -100,7 +100,8 @@ class ItemDyeTest extends TestCase
         $moon = Moonlings::active($this->ana);
         $this->assertSame([], $moon->fresh()->dyes);
 
-        $this->artisan('migrate:rollback', ['--step' => 1])->assertSuccessful();
+        // The last two: 000031 (drop users.pet_name) and this one, 000030.
+        $this->artisan('migrate:rollback', ['--step' => 2])->assertSuccessful();
         $this->assertFalse(Schema::hasColumn('moonlings', 'dyes'));
         $this->assertTrue(Schema::hasColumn('moonlings', 'wear'));
 

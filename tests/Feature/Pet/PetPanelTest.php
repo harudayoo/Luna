@@ -117,6 +117,8 @@ class PetPanelTest extends TestCase
 
     public function test_the_migration_goes_up_and_down()
     {
+        // `pet_name` was dropped by 000031: bring it back first, so this older migration finds what it made.
+        (require database_path('migrations/2026_11_26_000031_drop_pet_name_from_users_table.php'))->down();
         $migration = require database_path('migrations/2026_11_25_000027_add_pet_fields_to_users_table.php');
 
         $migration->down();
