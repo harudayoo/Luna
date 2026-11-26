@@ -10,7 +10,20 @@ export type Pet = {
     fed_today: boolean;
     /** Last week's Moon Cup champion (App\Services\PetDuels::champions). */
     crown: boolean;
+    /** Private to the owner (App\Services\Pet::state): never on the board or in duels. */
+    mood: { score: number; level: MoodLevel; patted: boolean };
+    /** Office days missed in a row right before today. */
+    days_away: number;
+    /** What happened today, for the voice line on Home. */
+    today: {
+        time_logged: boolean;
+        leave_filed: boolean;
+        duel_waiting: boolean;
+    };
 };
+
+/** App\Services\Pet::MOOD_LEVELS, best first. */
+export type MoodLevel = 'glowing' | 'happy' | 'okay' | 'droopy' | 'gloomy';
 
 /** The office board (App\Services\Pet::board): opted-in people only, no XP. */
 export type PetBoardData = {

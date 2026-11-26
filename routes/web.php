@@ -22,6 +22,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Your pet on Home (spec 2026-11-25-luna-pet-social).
     Route::patch('pet', [PetController::class, 'update'])->name('pet.update');
+    Route::post('pet/pat', [PetController::class, 'pat'])->name('pet.pat');
     Route::post('pet/duels', [PetDuelController::class, 'store'])->name('pet.duels.store');
     Route::post('pet/duels/{duel}/answer', [PetDuelController::class, 'answer'])->name('pet.duels.answer');
     Route::post('pet/duels/{duel}/decline', [PetDuelController::class, 'decline'])->name('pet.duels.decline');

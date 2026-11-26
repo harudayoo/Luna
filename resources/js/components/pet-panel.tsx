@@ -1,9 +1,10 @@
 import { router, usePage } from '@inertiajs/react';
 import { Check, Pencil, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import PetController from '@/actions/App/Http/Controllers/PetController';
 import InputError from '@/components/input-error';
 import { PetBoard } from '@/components/pet-board';
+import { PetBubble, useBubble } from '@/components/pet-bubble';
 import { PetDuels } from '@/components/pet-duels';
 import { PetSprite } from '@/components/pet-sprite';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,8 @@ import { Input } from '@/components/ui/input';
 import { petIdle, petPoke } from '@/lib/ocs';
 import type { Pet, PetDetail } from '@/lib/pet';
 import { stagePath, stageProgress, streakLabel } from '@/lib/pet';
+import { usePetPlay } from '@/lib/pet-play';
+import { MOODS, voiceLine } from '@/lib/pet-voice';
 
 /** One square per office day this week (pet_detail.week). */
 const DAY_SHADE: Record<PetDetail['week'][number]['status'], string> = {
@@ -70,6 +73,32 @@ export function PetPanel({
     const [name, setName] = useState(pet.name ?? '');
     const [saving, setSaving] = useState(false);
     const [tab, setTab] = useState<PetTab>('pet');
+    const area = useRef<HTMLDivElement>(null);
+    const pat = useRef<HTMLButtonElement>(null);
+    const [line, say] = useBubble();
+    const mood = MOODS.find((m) => m.level === pet.mood.level) ?? MOODS[0];
+
+    // A tap or a tug: it wobbles, says something, and the first one each office day is its pat (no XP).
+    const tap = useCallback(() => {
+        if (sprite.current) {
+            petPoke(sprite.current);
+        }
+        say(voiceLine('tap', pet.mood.level));
+        if (!pet.mood.patted) {
+            router.post(
+                PetController.pat(),
+                {},
+                { preserveScroll: true, preserveState: true, only: ['pet'] },
+            );
+        }
+    }, [pet.mood.level, pet.mood.patted, say]);
+
+    usePetPlay(pat, {
+        area,
+        tug: true,
+        onTap: tap,
+        active: open && tab === 'pet',
+    });
 
     // The panel alone loads what the open tab shows: one partial reload per opening or tab change, so two
     // reloads never race each other.
@@ -105,7 +134,8 @@ export function PetPanel({
             cancelAnimationFrame(frame);
             stop();
         };
-    }, [open, tab, pet.stage]);
+        // The mood redraws the eyes, so the idle blink restarts on the new ones.
+    }, [open, tab, pet.stage, pet.mood.level]);
 
     const save = () =>
         router.patch(
@@ -124,7 +154,10 @@ export function PetPanel({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="h-dvh max-h-dvh w-full max-w-none content-start overflow-y-auto sm:h-auto sm:max-h-[90dvh] sm:max-w-lg">
+            <DialogContent
+                ref={area}
+                className="h-dvh max-h-dvh w-full max-w-none content-start overflow-y-auto sm:h-auto sm:max-h-[90dvh] sm:max-w-lg"
+            >
                 <div>
                     <p className="ocs-eyebrow mb-0">Your moonling</p>
                     {editing ? (
@@ -232,24 +265,36 @@ export function PetPanel({
                     <PetDuels pet={pet} revealLatest={startTab === 'duels'} />
                 ) : (
                     <>
-                        {/* The pet, large. Tapping is just for fun: no XP. */}
-                        <button
-                            type="button"
-                            aria-label={`Say hi to ${title}`}
-                            onClick={() =>
-                                sprite.current && petPoke(sprite.current)
-                            }
-                            className="mx-auto block cursor-pointer p-2 focus-visible:bg-surface-hover focus-visible:outline-none"
-                        >
-                            <span ref={sprite} className="inline-block">
-                                <PetSprite
-                                    stage={progress.stage}
-                                    title={`${title}: ${progress.name}`}
-                                    crown={pet.crown}
-                                    className="size-50 min-[390px]:size-60"
-                                />
+                        {/* The pet, large. Tap or tug it (no XP; the first each day is its pat); arrows make it look. */}
+                        <div className="relative mx-auto w-fit">
+                            <button
+                                ref={pat}
+                                type="button"
+                                aria-label={`Pat ${title}`}
+                                aria-describedby="pet-play-hint"
+                                onClick={(e) => {
+                                    // Pointer taps come through the tug on release; this is Enter or Space.
+                                    if (e.detail === 0) {
+                                        tap();
+                                    }
+                                }}
+                                className="block cursor-grab touch-none p-2 select-none focus-visible:bg-surface-hover focus-visible:outline-none active:cursor-grabbing"
+                            >
+                                <span ref={sprite} className="inline-block">
+                                    <PetSprite
+                                        stage={progress.stage}
+                                        title={`${title}: ${progress.name}, ${mood.label.toLowerCase()}`}
+                                        crown={pet.crown}
+                                        mood={pet.mood.level}
+                                        className="size-50 min-[390px]:size-60"
+                                    />
+                                </span>
+                            </button>
+                            <PetBubble text={line} place="top" />
+                            <span id="pet-play-hint" className="sr-only">
+                                Arrow keys make it look around.
                             </span>
-                        </button>
+                        </div>
                         {pet.crown && (
                             <p className="-mt-2 text-center text-sm font-semibold">
                                 👑 Last week&rsquo;s Moon Cup champion
@@ -283,6 +328,17 @@ export function PetPanel({
                                 </span>
                                 <span>{streakLabel(pet.streak)}</span>
                             </p>
+                        </section>
+
+                        <section
+                            aria-label="Mood"
+                            className="bg-bg px-3 py-2 text-sm"
+                        >
+                            <span className="font-semibold">{mood.label}</span>
+                            <span className="text-muted">
+                                {' '}
+                                &middot; {mood.hint}
+                            </span>
                         </section>
 
                         <section aria-label="Growth path">

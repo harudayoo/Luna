@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\Pet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -28,6 +29,14 @@ class PetController extends Controller
             $user->pet_public = (bool) $data['public'];
         }
         $user->save();
+
+        return back();
+    }
+
+    /** The first tap on your pet each office day (spec 2026-11-25-luna-moonling-life, slice 5): mood only, no XP. */
+    public function pat(Request $request): RedirectResponse
+    {
+        Pet::pat($request->user());
 
         return back();
     }

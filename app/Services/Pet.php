@@ -6,6 +6,7 @@ use App\Models\Holiday;
 use App\Models\Item;
 use App\Models\Leave;
 use App\Models\Payslip;
+use App\Models\PetDuel;
 use App\Models\PetEvent;
 use App\Models\TimeLog;
 use App\Models\User;
@@ -29,6 +30,11 @@ final class Pet
 
     /** How far back a streak is counted. */
     private const STREAK_WINDOW_DAYS = 60;
+
+    /** Mood (spec 2026-11-25-luna-moonling-life, slice 5): office days looked back on, and each level's floor. */
+    public const MOOD_DAYS = 5;
+
+    public const MOOD_LEVELS = ['glowing' => 90, 'happy' => 70, 'okay' => 45, 'droopy' => 20, 'gloomy' => 0];
 
     /** Session flag: an award crossed a stage, shown once on the next Home load. */
     public const GREW = 'pet_grew';
@@ -172,6 +178,82 @@ final class Pet
             'streak' => self::streak($user),
             'fed_today' => PetEvent::query()->where('user_id', $user->id)->where('kind', 'visit')->where('ref', self::today())->exists(),
             'crown' => in_array($user->id, PetDuels::champions(), true),
+            // Private: only ever in the owner's own `pet` prop (slice 5).
+            ...self::feelings($user),
+            'today' => self::news($user),
+        ];
+    }
+
+    /** Today's first pat: no XP, once an office day. */
+    public static function pat(User $user): void
+    {
+        self::award($user, 'pat', self::today(), 0);
+    }
+
+    /**
+     * Mood over the MOOD_DAYS office days before today (weekends, holidays, own leave and days before the first
+     * visit skipped): 100, −20 for each without a visit, +10 for today's pat, within 0–100. Lates are never read.
+     * `days_away`: office days missed in a row right before today.
+     *
+     * @return array{mood: array{score: int, level: string, patted: bool}, days_away: int}
+     */
+    private static function feelings(User $user): array
+    {
+        $today = CarbonImmutable::parse(self::today());
+        $from = $today->subDays(self::STREAK_WINDOW_DAYS)->toDateString();
+        $yesterday = $today->subDay()->toDateString();
+
+        $events = PetEvent::query()->where('user_id', $user->id)->whereIn('kind', ['visit', 'pat'])
+            ->whereBetween('ref', [$from, $today->toDateString()])->toBase()->get(['kind', 'ref']);
+        $visits = $events->where('kind', 'visit')->pluck('ref')->flip();
+        $patted = $events->where('kind', 'pat')->contains('ref', $today->toDateString());
+        $first = PetEvent::query()->where('user_id', $user->id)->where('kind', 'visit')->min('ref');
+        $closed = Holiday::query()->whereBetween('date', [$from, $yesterday])->toBase()->pluck('date')
+            ->merge(Leave::query()->where('user_id', $user->id)->whereBetween('date', [$from, $yesterday])->toBase()->pluck('date'))
+            ->flip();
+
+        // Office days before today, newest first.
+        $days = [];
+        for ($day = $today->subDay(); $first && $day->toDateString() >= max($from, $first); $day = $day->subDay()) {
+            $date = $day->toDateString();
+            if (! $day->isWeekend() && ! $closed->has($date)) {
+                $days[] = $visits->has($date);
+            }
+        }
+
+        $missed = count(array_filter(array_slice($days, 0, self::MOOD_DAYS), fn (bool $visited) => ! $visited));
+        $score = max(0, min(100, 100 - 20 * $missed + ($patted ? 10 : 0)));
+        $away = 0;
+        while ($away < count($days) && ! $days[$away]) {
+            $away++;
+        }
+
+        return [
+            'mood' => [
+                'score' => $score,
+                'level' => array_key_first(array_filter(self::MOOD_LEVELS, fn (int $floor) => $score >= $floor)),
+                'patted' => $patted,
+            ],
+            'days_away' => $away,
+        ];
+    }
+
+    /**
+     * What happened today, for the pet's voice line on Home.
+     *
+     * @return array{time_logged: bool, leave_filed: bool, duel_waiting: bool}
+     */
+    private static function news(User $user): array
+    {
+        $start = CarbonImmutable::parse(self::today(), config('luna.office.timezone'))->utc();
+        $kinds = PetEvent::query()->where('user_id', $user->id)->whereIn('kind', ['item_time', 'leave'])
+            ->where('created_at', '>=', $start)->distinct()->pluck('kind');
+
+        return [
+            'time_logged' => $kinds->contains('item_time'),
+            'leave_filed' => $kinds->contains('leave'),
+            'duel_waiting' => PetDuel::query()->where('status', 'open')->where('opponent_id', $user->id)
+                ->where('created_at', '>', now()->subDays(PetDuels::EXPIRE_DAYS))->exists(),
         ];
     }
 
@@ -222,7 +304,8 @@ final class Pet
     /** The last 10 awards, newest first, each with a line a person can read. */
     private static function recent(User $user): array
     {
-        $events = PetEvent::query()->where('user_id', $user->id)
+        // Pats give no XP, so they stay out of the XP list.
+        $events = PetEvent::query()->where('user_id', $user->id)->where('kind', '!=', 'pat')
             ->orderByDesc('created_at')->orderByDesc('id')->limit(10)->get();
 
         $itemIds = $events->where('kind', 'item_time')->map(fn (PetEvent $e) => (int) strtok($e->ref, ':'));

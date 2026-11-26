@@ -4,6 +4,8 @@
  * both themes. Parts the motion (lib/ocs.ts petIdle / petFed / petGrow) moves: [data-pet-body],
  * [data-pet-eye], [data-pet-glow]. Swapping in commissioned art only changes this file.
  */
+import type { MoodLevel } from '@/lib/pet';
+
 const PRIMARY = 'var(--color-primary)';
 const ACCENT = 'var(--color-accent)';
 const FACE = 'var(--color-on-primary)';
@@ -18,20 +20,23 @@ const CARD_SIZE = 'size-24 min-[390px]:size-30 lg:size-20';
 
 /**
  * `locked` draws a flat silhouette (every part in --color-surface-hover, no glow, no shadow): a stage
- * still ahead on the panel's growth path. `crown`: last week's Moon Cup champion. `className` replaces
- * the card sizes.
+ * still ahead on the panel's growth path. `crown`: last week's Moon Cup champion. `mood`: the owner's
+ * own pet only (sparkly eyes when glowing, sleepy when droopy or gloomy). The eyes sit in
+ * [data-pet-gaze], which lib/pet-play moves to follow the pointer. `className` replaces the card sizes.
  */
 export function PetSprite({
     stage,
     title,
     locked = false,
     crown = false,
+    mood,
     className = CARD_SIZE,
 }: {
     stage: number;
     title: string;
     locked?: boolean;
     crown?: boolean;
+    mood?: MoodLevel;
     className?: string;
 }) {
     const r = SIZE[stage] ?? 40;
@@ -73,7 +78,11 @@ export function PetSprite({
                     transformOrigin: '50% 100%',
                 }}
             >
-                {stage === 0 ? <Egg /> : <Body stage={stage} r={r} cy={cy} />}
+                {stage === 0 ? (
+                    <Egg />
+                ) : (
+                    <Body stage={stage} r={r} cy={cy} mood={mood} />
+                )}
                 {crown && !locked && <Crown base={top + 4} />}
             </g>
             {!locked && stage === 4 && <Sparkles />}
@@ -99,9 +108,20 @@ function Egg() {
     );
 }
 
-function Body({ stage, r, cy }: { stage: number; r: number; cy: number }) {
+function Body({
+    stage,
+    r,
+    cy,
+    mood,
+}: {
+    stage: number;
+    r: number;
+    cy: number;
+    mood?: MoodLevel;
+}) {
     const eyeY = cy - r * 0.1;
     const eyeDx = r * 0.36;
+    const sleepy = mood === 'droopy' || mood === 'gloomy';
 
     return (
         <>
@@ -194,26 +214,38 @@ function Body({ stage, r, cy }: { stage: number; r: number; cy: number }) {
                     />
                 </>
             )}
-            <ellipse
-                data-pet-eye
-                style={EYE}
-                cx={60 - eyeDx}
-                cy={eyeY}
-                rx="3.5"
-                ry="4.5"
-                fill={FACE}
-            />
-            <ellipse
-                data-pet-eye
-                style={EYE}
-                cx={60 + eyeDx}
-                cy={eyeY}
-                rx="3.5"
-                ry="4.5"
-                fill={FACE}
-            />
+            <g data-pet-gaze>
+                {[60 - eyeDx, 60 + eyeDx].map((x) =>
+                    mood === 'glowing' ? (
+                        <path
+                            key={x}
+                            data-pet-eye
+                            style={EYE}
+                            d={`M${x} ${eyeY - 5} L${x + 1.4} ${eyeY - 1.4} L${x + 4} ${eyeY} L${x + 1.4} ${eyeY + 1.4} L${x} ${eyeY + 5} L${x - 1.4} ${eyeY + 1.4} L${x - 4} ${eyeY} L${x - 1.4} ${eyeY - 1.4} Z`}
+                            fill={FACE}
+                        />
+                    ) : (
+                        <ellipse
+                            key={x}
+                            data-pet-eye
+                            style={EYE}
+                            cx={x}
+                            cy={sleepy ? eyeY + 1.5 : eyeY}
+                            rx={sleepy ? 4 : 3.5}
+                            ry={sleepy ? 1.4 : 4.5}
+                            fill={FACE}
+                        />
+                    ),
+                )}
+            </g>
             <path
-                d={`M${60 - 5} ${eyeY + 8} q5 5 10 0`}
+                d={
+                    mood === 'droopy'
+                        ? `M${60 - 4} ${eyeY + 10} h8`
+                        : mood === 'gloomy'
+                          ? `M${60 - 4} ${eyeY + 11} q4 -3 8 0`
+                          : `M${60 - 5} ${eyeY + 8} q5 5 10 0`
+                }
                 fill="none"
                 stroke={FACE}
                 strokeWidth="2.2"

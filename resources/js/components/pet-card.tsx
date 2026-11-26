@@ -1,11 +1,14 @@
 import { usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { PetBubble, useBubble } from '@/components/pet-bubble';
 import type { PetTab } from '@/components/pet-panel';
 import { PetPanel } from '@/components/pet-panel';
 import { PetSprite } from '@/components/pet-sprite';
 import { ocsRef, petFed, petGrow, petIdle } from '@/lib/ocs';
 import type { Pet, PetMoment } from '@/lib/pet';
 import { petTitle, stageProgress, streakLabel } from '@/lib/pet';
+import { usePetPlay } from '@/lib/pet-play';
+import { homeCue, voiceLine } from '@/lib/pet-voice';
 
 /**
  * The person's pet on Home (spec 2026-11-24-luna-pet): it grows from visits, item time, leave and
@@ -18,6 +21,8 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
     const [open, setOpen] = useState(false);
     const [startTab, setStartTab] = useState<PetTab>('pet');
     const tilt = useRef(ocsRef(['tilt'])).current;
+    const card = useRef<HTMLDivElement>(null);
+    const [line, say] = useBubble();
     const { pet_open: openTab } = usePage<{ pet_open?: PetTab | null }>().props;
 
     // A duel notice in the bell links to /dashboard?pet=duels; the server turns that into the plain address and a
@@ -45,12 +50,35 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
         }
 
         return petIdle(el);
-    }, [moment, pet.stage]);
+        // The mood redraws the eyes, so the idle blink restarts on the new ones.
+    }, [moment, pet.stage, pet.mood.level]);
+
+    // Its eyes follow a mouse over the card (slice 5); the card itself opens the panel, so no tug here.
+    usePetPlay(sprite, { area: card });
+
+    // Something to say about this visit, once Home has settled.
+    useEffect(() => {
+        const cue = homeCue(pet, moment);
+        if (!cue) {
+            return;
+        }
+        const t = window.setTimeout(
+            () => say(voiceLine(cue, pet.mood.level)),
+            900,
+        );
+
+        return () => window.clearTimeout(t);
+        // Only on mount: one line per Home load.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <>
             <div
-                ref={tilt}
+                ref={(el) => {
+                    card.current = el;
+                    tilt(el);
+                }}
                 role="button"
                 tabIndex={0}
                 data-ocs="tilt"
@@ -66,12 +94,16 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
                 className="ocs-card flex cursor-pointer items-center gap-4 p-4! sm:p-5! lg:gap-3 lg:p-4!"
             >
                 {/* Beside the text everywhere; smaller in the desktop rail so the whole rail fits on screen and stays put. */}
-                <span ref={sprite} className="inline-block">
-                    <PetSprite
-                        stage={progress.stage}
-                        title={`Your moonling: ${progress.name}${pet.crown ? ', Moon Cup champion' : ''}`}
-                        crown={pet.crown}
-                    />
+                <span className="relative inline-block">
+                    <span ref={sprite} className="inline-block">
+                        <PetSprite
+                            stage={progress.stage}
+                            title={`Your moonling: ${progress.name}${pet.crown ? ', Moon Cup champion' : ''}`}
+                            crown={pet.crown}
+                            mood={pet.mood.level}
+                        />
+                    </span>
+                    <PetBubble text={line} place="card" />
                 </span>
                 <div className="min-w-0 flex-1">
                     <p className="ocs-eyebrow mb-0">Your moonling</p>
