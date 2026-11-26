@@ -7,6 +7,7 @@ import { PetBoard } from '@/components/pet-board';
 import { PetBubble, useBubble } from '@/components/pet-bubble';
 import { PetDuels } from '@/components/pet-duels';
 import { PetNest } from '@/components/pet-nest';
+import { PetQuests } from '@/components/pet-quests';
 import { PetSprite } from '@/components/pet-sprite';
 import { PetWardrobe } from '@/components/pet-wardrobe';
 import { Button } from '@/components/ui/button';
@@ -17,11 +18,11 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { petIdle, petPoke } from '@/lib/ocs';
+import { petIdle, petPoke, petWearTap } from '@/lib/ocs';
 import type { Pet, PetDetail } from '@/lib/pet';
-import { stagePath, stageProgress, streakLabel } from '@/lib/pet';
+import { knownItem, stagePath, stageProgress, streakLabel } from '@/lib/pet';
 import { usePetPlay } from '@/lib/pet-play';
-import { MOODS, voiceLine } from '@/lib/pet-voice';
+import { itemLine, MOODS, voiceLine } from '@/lib/pet-voice';
 
 /** One square per office day this week (pet_detail.week). */
 const DAY_SHADE: Record<PetDetail['week'][number]['status'], string> = {
@@ -45,7 +46,7 @@ const DAY_WORD: Record<PetDetail['week'][number]['status'], string> = {
  * visits, what gives XP and what gave it lately. The extras (pet_detail) load when it opens; full screen on phones.
  * Tabs: the pet, the office board (slice 2), moon duels (slice 3). `startTab` opens on a tab (the bell's ?pet=duels).
  */
-export type PetTab = 'pet' | 'board' | 'duels' | 'nest';
+export type PetTab = 'pet' | 'board' | 'duels' | 'nest' | 'quests';
 
 /** The optional props each tab needs (the board offers duels, so it loads those too). */
 const TAB_PROPS: Record<PetTab, string[]> = {
@@ -53,6 +54,7 @@ const TAB_PROPS: Record<PetTab, string[]> = {
     board: ['pet_board', 'pet_duels'],
     duels: ['pet_duels'],
     nest: ['pet_nest'],
+    quests: ['pet_quests'],
 };
 
 export function PetPanel({
@@ -81,12 +83,28 @@ export function PetPanel({
     const [line, say] = useBubble();
     const mood = MOODS.find((m) => m.level === pet.mood.level) ?? MOODS[0];
 
+    // Where the last press started: a press on a worn item plays that item and says a line about it (slice 10).
+    const pressed = useRef<Element | null>(null);
+    const lastItemLine = useRef<string | undefined>(undefined);
+
     // A tap or a tug: it wobbles, says something, and the first one each office day is its pat (no XP).
     const tap = useCallback(() => {
-        if (sprite.current) {
-            petPoke(sprite.current);
+        const part = pressed.current?.closest('[data-pet-wear]');
+        const item = part?.getAttribute('data-pet-wear') ?? '';
+        pressed.current = null;
+        if (part && knownItem(item)) {
+            part.querySelectorAll('[data-pet-wear-tap]').forEach(petWearTap);
+            if (part.hasAttribute('data-pet-wear-tap')) {
+                petWearTap(part);
+            }
+            lastItemLine.current = itemLine(item, lastItemLine.current);
+            say(lastItemLine.current);
+        } else {
+            if (sprite.current) {
+                petPoke(sprite.current);
+            }
+            say(voiceLine('tap', pet.mood.level));
         }
-        say(voiceLine('tap', pet.mood.level));
         if (!pet.mood.patted) {
             router.post(
                 PetController.pat(),
@@ -240,7 +258,7 @@ export function PetPanel({
                 <div
                     role="tablist"
                     aria-label="Pet views"
-                    className="grid grid-cols-4 gap-1 bg-surface-hover p-1"
+                    className="grid grid-cols-5 gap-1 bg-surface-hover p-1"
                 >
                     {(
                         [
@@ -248,6 +266,7 @@ export function PetPanel({
                             ['board', 'Board'],
                             ['duels', 'Duels'],
                             ['nest', 'Nest'],
+                            ['quests', 'Quests'],
                         ] as const
                     ).map(([key, label]) => (
                         <button
@@ -256,7 +275,7 @@ export function PetPanel({
                             role="tab"
                             aria-selected={tab === key}
                             onClick={() => showTab(key)}
-                            className="min-h-10 px-3 text-sm font-semibold text-muted aria-selected:bg-primary aria-selected:text-on-primary focus-visible:shadow-lift focus-visible:outline-none"
+                            className="min-h-10 px-1 text-xs font-semibold text-muted min-[390px]:text-sm sm:px-3 aria-selected:bg-primary aria-selected:text-on-primary focus-visible:shadow-lift focus-visible:outline-none"
                         >
                             {label}
                         </button>
@@ -269,6 +288,8 @@ export function PetPanel({
                     <PetDuels pet={pet} revealLatest={startTab === 'duels'} />
                 ) : tab === 'nest' ? (
                     <PetNest />
+                ) : tab === 'quests' ? (
+                    <PetQuests />
                 ) : (
                     <>
                         {/* The pet, large. Tap or tug it (no XP; the first each day is its pat); arrows make it look. */}
@@ -278,6 +299,9 @@ export function PetPanel({
                                 type="button"
                                 aria-label={`Pat ${title}`}
                                 aria-describedby="pet-play-hint"
+                                onPointerDownCapture={(e) => {
+                                    pressed.current = e.target as Element;
+                                }}
                                 onClick={(e) => {
                                     // Pointer taps come through the tug on release; this is Enter or Space.
                                     if (e.detail === 0) {
@@ -292,6 +316,7 @@ export function PetPanel({
                                         kind={pet.kind}
                                         palette={pet.palette}
                                         wear={pet.wear}
+                                        dyes={pet.dyes}
                                         title={`${title}: ${progress.name}, ${mood.label.toLowerCase()}`}
                                         crown={pet.crown}
                                         mood={pet.mood.level}
@@ -445,6 +470,12 @@ export function PetPanel({
                                         what="Finish a moon duel"
                                         xp={`${detail.duel_xp.win} XP a win, ${detail.duel_xp.loss} otherwise, first a day`}
                                     />
+                                    {detail.duty_xp !== null && (
+                                        <Source
+                                            what="Do HR work: payroll, people or holidays"
+                                            xp={`${detail.duty_xp} XP each, once a day`}
+                                        />
+                                    )}
                                 </ul>
                             )}
                         </section>

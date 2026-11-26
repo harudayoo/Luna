@@ -10,6 +10,7 @@ use App\Services\Payroll\PayFrequency;
 use App\Services\Payroll\PayRate;
 use App\Services\Payroll\PaySchedule;
 use App\Services\Payroll\PayslipMath;
+use App\Services\Pet;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
@@ -177,6 +178,7 @@ class PayrollController extends Controller
             ],
         );
 
+        Pet::duty($request->user(), 'payroll'); // HR work pays moonling XP (spec 2026-11-26-luna-moonling-style)
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name}'s payslip saved."]);
 
         return to_route('people.payroll.edit', [$user, $start->toDateString()]);

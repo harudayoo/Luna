@@ -6,6 +6,7 @@ export type Pet = {
     kind: MoonlingKind;
     palette: Palette;
     wear: WearItem[];
+    dyes: Dyes;
     public: boolean;
     xp: number;
     stage: number;
@@ -50,6 +51,7 @@ export type PetNest = {
         active: boolean;
         palette: Palette;
         wear: WearItem[];
+        dyes: Dyes;
     }[];
     can_switch: boolean;
     eggs: { kind: MoonlingKind; how: string; earned: boolean }[];
@@ -90,72 +92,165 @@ export function nestGroups(moonlings: NestMoonling[]): {
     };
 }
 
-/** The wardrobe's shades (App\Services\Moonlings::PALETTES), all open from the start. */
-export const PALETTES = ['classic', 'dusk', 'dawn', 'tide', 'mist'] as const;
+/**
+ * The wardrobe's shades (App\Services\Moonlings::PALETTES), open ones first; the server says which are unlocked.
+ * Spec 2026-11-26-luna-moonling-style, slice 9: these are the moonling's own art colours, the same in both themes
+ * (the user asked to go beyond the theme). This is the one place in the app with art hex values; every other UI
+ * stays on the kit's tokens.
+ */
+export const PALETTES = [
+    'classic',
+    'dusk',
+    'dawn',
+    'tide',
+    'mist',
+    'mint',
+    'sakura',
+    'ember',
+    'frost',
+    'cocoa',
+    'midnight',
+    'gold',
+    'nebula',
+    'prism',
+] as const;
 
 export type Palette = (typeof PALETTES)[number];
 
-export const PALETTE_NAMES: Record<Palette, string> = {
-    classic: 'Classic',
-    dusk: 'Dusk',
-    dawn: 'Dawn',
-    tide: 'Tide',
-    mist: 'Mist',
+/** name, body, mark, face (eyes and mouth), line (the cartoon outline: a deep tone of the body). */
+const SHADES: Record<Palette, [string, string, string, string, string]> = {
+    classic: ['Classic', '#c4a6ff', '#ff9fd2', '#2b1650', '#3d2373'],
+    dusk: ['Dusk', '#6f62d9', '#ffcf5c', '#fff4dc', '#251b63'],
+    dawn: ['Dawn', '#ffb48c', '#ff6f86', '#4a1f12', '#8a3a1c'],
+    tide: ['Tide', '#4fc6c4', '#ffe08a', '#0b3438', '#0f4d55'],
+    mist: ['Mist', '#d8dce8', '#8f9bbd', '#2b3247', '#4b5573'],
+    mint: ['Mint', '#92e3b2', '#ff9f80', '#123b28', '#1f5e40'],
+    sakura: ['Sakura', '#ffc4de', '#ff6fae', '#5a1636', '#a1386b'],
+    ember: ['Ember', '#ff7550', '#ffd15c', '#3b0d04', '#7a1c08'],
+    frost: ['Frost', '#bfe6ff', '#5aa9e6', '#0f2f4d', '#2f6a99'],
+    cocoa: ['Cocoa', '#a87452', '#f4d3a1', '#2b150a', '#4f2a14'],
+    midnight: ['Midnight', '#2e3270', '#9fb4ff', '#eef1ff', '#0e1035'],
+    gold: ['Gold', '#ffd457', '#fff2b8', '#4a3200', '#8a5a00'],
+    nebula: ['Nebula', '#7b3fb8', '#ff8de1', '#fdf0ff', '#2c0f4f'],
+    prism: ['Prism', '#f3f0ff', '#38d6c9', '#2a2350', '#7a5cff'],
 };
 
-// The kit's own tokens (resources/ocs/tokens.css), set for both themes. Not Tailwind's --color-* aliases: with
-// `@theme inline` those exist at runtime only when some CSS references them (--color-ink and --color-muted don't).
-const mix = (a: string, pct: number, b: string) =>
-    `color-mix(in oklab, var(--${a}) ${pct}%, var(--${b}))`;
+export const PALETTE_NAMES = Object.fromEntries(
+    PALETTES.map((p) => [p, SHADES[p][0]]),
+) as Record<Palette, string>;
 
-/**
- * A shade as the sprite's CSS variables, built only from the theme's tokens (so it works in both themes and adds no
- * colour of its own). The face follows the body so it stays readable.
- */
+/** A shade as the sprite's CSS variables: fixed colours, so it looks the same in both themes. */
 export function paletteStyle(
     palette: Palette,
-): Record<'--pet-body' | '--pet-mark' | '--pet-face', string> {
-    const v = (t: string) => `var(--${t})`;
+): Record<'--pet-body' | '--pet-mark' | '--pet-face' | '--pet-line', string> {
+    const [, body, mark, face, line] = SHADES[palette] ?? SHADES.classic;
 
     return {
-        classic: {
-            '--pet-body': v('primary'),
-            '--pet-mark': v('accent'),
-            '--pet-face': v('on-primary'),
-        },
-        dusk: {
-            '--pet-body': mix('primary', 70, 'ink'),
-            '--pet-mark': v('accent'),
-            '--pet-face': v('on-primary'),
-        },
-        dawn: {
-            '--pet-body': mix('primary', 55, 'bg'),
-            '--pet-mark': v('accent'),
-            '--pet-face': v('ink'),
-        },
-        tide: {
-            '--pet-body': v('accent'),
-            '--pet-mark': v('primary'),
-            '--pet-face': v('on-accent'),
-        },
-        mist: {
-            '--pet-body': mix('muted', 55, 'surface'),
-            '--pet-mark': v('primary'),
-            '--pet-face': v('ink'),
-        },
-    }[palette];
+        '--pet-body': body,
+        '--pet-mark': mark,
+        '--pet-face': face,
+        '--pet-line': line,
+    };
 }
 
-/** The wardrobe's items (App\Services\Moonlings::WEAR): one on the head, one around the neck. */
+/** Where items go (App\Services\Moonlings::SLOTS, spec 2026-11-26-luna-moonling-style, slice 10): one in each. */
+export const SLOTS = ['head', 'face', 'neck', 'back', 'hand'] as const;
+
+export type Slot = (typeof SLOTS)[number];
+
+export const SLOT_NAMES: Record<Slot, string> = {
+    head: 'Head',
+    face: 'Face',
+    neck: 'Neck',
+    back: 'Back',
+    hand: 'Hand',
+};
+
+/**
+ * The wardrobe's items (App\Services\Moonlings::WEAR), each with its own colour (slice 12): the `default` dye, which
+ * the moonling's shade never changes. A new item is one row here and one on the server.
+ */
 export const WEAR = {
-    star_clip: { slot: 'head', label: 'Star clip' },
-    comet_trail: { slot: 'neck', label: 'Comet trail' },
-    halo: { slot: 'head', label: 'Halo' },
-    scarf: { slot: 'neck', label: 'Scarf' },
-    bow: { slot: 'head', label: 'Bow' },
-} as const;
+    star_clip: { slot: 'head', label: 'Star clip', color: '#ffcc33' },
+    comet_trail: { slot: 'neck', label: 'Comet trail', color: '#5aa9ff' },
+    halo: { slot: 'head', label: 'Halo', color: '#ffd84d' },
+    scarf: { slot: 'neck', label: 'Scarf', color: '#e8433f' },
+    bow: { slot: 'head', label: 'Bow', color: '#ff6fae' },
+    propeller: { slot: 'head', label: 'Propeller cap', color: '#3d8bff' },
+    glasses: { slot: 'face', label: 'Round glasses', color: '#7a4a2a' },
+    wings: { slot: 'back', label: 'Wings', color: '#f4f1ff' },
+    cape: { slot: 'back', label: 'Cape', color: '#d6343f' },
+    balloon: { slot: 'hand', label: 'Balloon', color: '#ff4d5e' },
+    wand: { slot: 'hand', label: 'Wand', color: '#ffd23f' },
+    lantern: { slot: 'hand', label: 'Lantern', color: '#c9963b' },
+} as const satisfies Record<
+    string,
+    { slot: Slot; label: string; color: string }
+>;
 
 export type WearItem = keyof typeof WEAR;
+
+/** Whether this page knows an item the server sent (an item added on the server first is skipped, not a crash). */
+export const knownItem = (key: string): key is WearItem => key in WEAR;
+
+/**
+ * Dyes for items (App\Services\Moonlings::DYES): `default` (the item's own colour) and `sun` are open, the rest come
+ * from moon quests (App\Services\MoonQuests), the seasonal ones last; the server says which are unlocked.
+ */
+export const DYES = [
+    'default',
+    'sun',
+    'ruby',
+    'leaf',
+    'sky',
+    'rose',
+    'night',
+    'starlight',
+    'fiesta',
+    'parol',
+] as const;
+
+export type Dye = (typeof DYES)[number];
+
+export type Dyes = Partial<Record<WearItem, Dye>>;
+
+/** name, colour (fixed art colours; `default` is each item's own). */
+const DYE_TABLE: Record<Dye, [string, string | null]> = {
+    default: ['Its own', null],
+    sun: ['Sun', '#ffc93c'],
+    ruby: ['Ruby', '#e0314b'],
+    leaf: ['Leaf', '#3fb36b'],
+    sky: ['Sky', '#4aa8ff'],
+    rose: ['Rose', '#ff7eb6'],
+    night: ['Night', '#2b2d5c'],
+    starlight: ['Starlight', '#f5f0ff'],
+    fiesta: ['Fiesta', '#ff7a1a'],
+    parol: ['Parol', '#9b5cff'],
+};
+
+export const DYE_NAMES = Object.fromEntries(
+    DYES.map((d) => [d, DYE_TABLE[d][0]]),
+) as Record<Dye, string>;
+
+/**
+ * An item's colour: its dye's, else the item's own (no dye, `default`, or a dye this page doesn't know, such as the
+ * `match` stored before slice 12). Never the shade's.
+ */
+export function dyeColor(dye: Dye | undefined, item: WearItem): string {
+    return (dye && DYE_TABLE[dye]?.[1]) || WEAR[item].color;
+}
+
+/** A moon quest (App\Services\MoonQuests::list), for the panel's Quests tab. */
+export type PetQuest = {
+    key: string;
+    title: string;
+    goal: string;
+    progress: number;
+    target: number;
+    done: boolean;
+    dye: Dye;
+    seasonal: boolean;
+};
 
 /** Puts an item on (swapping out whatever was in its slot), or takes it off when it's already on. */
 export function toggleWear(wear: WearItem[], item: WearItem): WearItem[] {
@@ -180,6 +275,7 @@ export type PetBoardData = {
         kind: MoonlingKind;
         palette: Palette;
         wear: WearItem[];
+        dyes: Dyes;
         stage: number;
         stage_name: string;
         streak: number;
@@ -195,6 +291,7 @@ export type PetBoardData = {
         kind: MoonlingKind;
         palette: Palette;
         wear: WearItem[];
+        dyes: Dyes;
         stage: number;
         stage_name: string;
         wins: number;
@@ -240,6 +337,7 @@ export type PetDuelsData = {
         kind: MoonlingKind;
         palette: Palette;
         wear: WearItem[];
+        dyes: Dyes;
         stage: number;
         at: string;
     }[];
@@ -257,6 +355,7 @@ export type PetDuelsData = {
         their_kind: MoonlingKind;
         their_palette: Palette;
         their_wear: WearItem[];
+        their_dyes: Dyes;
         mine: DuelPick | null;
         theirs: DuelPick | null;
         outcome: 'win' | 'loss' | 'draw' | 'declined' | 'expired';
@@ -292,15 +391,20 @@ export type PetDetail = {
     streak_bonus_max: number;
     /** House XP for an answered duel (only the first of each office day pays). */
     duel_xp: Record<'win' | 'draw' | 'loss', number>;
+    /** XP for HR and admin work (slice 11), per area once an office day; null for employees. */
+    duty_xp: number | null;
     /** App\Services\Moonlings::wardrobe: every shade, and every item with how to unlock it. */
     wardrobe: {
-        palettes: Palette[];
+        /** Every shade; an open one has no `how`. */
+        palettes: { key: Palette; unlocked: boolean; how: string | null }[];
         items: {
             key: WearItem;
-            slot: 'head' | 'neck';
-            how: string;
+            slot: Slot;
+            /** null: open from the start. */
+            how: string | null;
             unlocked: boolean;
         }[];
+        dyes: { key: Dye; unlocked: boolean; how: string | null }[];
     };
     week: {
         date: string;

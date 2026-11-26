@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\LunaNotice;
 use App\Services\Notify;
 use App\Services\Payroll\PayRate;
+use App\Services\Pet;
 use App\Services\Pto\CutOff;
 use App\Services\Pto\Ledger;
 use App\Services\Pto\Policy;
@@ -94,6 +95,7 @@ class TeamLeaveController extends Controller
         $dates = $request->dates();
 
         $request->save();
+        Pet::duty($request->user(), 'people'); // HR work pays moonling XP (spec 2026-11-26-luna-moonling-style)
 
         $days = count($dates) * $request->daysEach();
         $what = $request->partOfTheDay() ? $request->hoursLabel(count($dates)) : ((float) $days).' '.($days > 1 ? 'days' : 'day');

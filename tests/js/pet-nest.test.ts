@@ -79,13 +79,18 @@ describe('PetSprite kinds', () => {
             createElement(PetSprite, { stage, title: 'x', kind }),
         );
 
-    it('draws each kind differently at every stage, in token colours only', () => {
+    it('draws each kind differently at every stage, in the shade’s colours only', () => {
         for (const stage of [0, 1, 2, 3, 4]) {
             const drawn = kinds.map((k) => svg(k, stage));
             expect(new Set(drawn).size).toBe(kinds.length);
             drawn.forEach((s, i) => {
                 expect(s).toContain(`data-pet-kind="${kinds[i]}"`);
-                expect(s).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+                // Only the svg's style (the shade, spec 2026-11-26-luna-moonling-style) and white highlights carry a hex.
+                expect(
+                    s
+                        .replace(/style="--pet-[^"]*"/, '')
+                        .replaceAll('#ffffff', ''),
+                ).not.toMatch(/#[0-9a-f]{3,8}\b/i);
             });
         }
     });

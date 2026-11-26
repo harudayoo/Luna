@@ -13,6 +13,7 @@ import type {
     Pet,
     PetDuelsData,
     WearItem,
+    Dyes,
 } from '@/lib/pet';
 import { DUEL_PICKS } from '@/lib/pet';
 
@@ -114,6 +115,7 @@ export function PetDuels({
                     myKind={pet.kind}
                     myPalette={pet.palette}
                     myWear={pet.wear}
+                    myDyes={pet.dyes}
                 />
             )}
 
@@ -129,6 +131,7 @@ export function PetDuels({
                                         kind={d.kind}
                                         palette={d.palette}
                                         wear={d.wear}
+                                        dyes={d.dyes}
                                         title={
                                             d.from_pet ?? `${d.from}’s moonling`
                                         }
@@ -282,12 +285,14 @@ function Reveal({
     myKind,
     myPalette,
     myWear,
+    myDyes,
 }: {
     result: Result;
     myStage: number;
     myKind: MoonlingKind;
     myPalette: Palette;
     myWear: WearItem[];
+    myDyes: Dyes;
 }) {
     const ref = useRef<HTMLDivElement>(null);
     const role = (who: 'me' | 'them') =>
@@ -318,6 +323,7 @@ function Reveal({
                             kind={myKind}
                             palette={myPalette}
                             wear={myWear}
+                            dyes={myDyes}
                             title="Your pet"
                             className="size-20"
                         />
@@ -337,6 +343,7 @@ function Reveal({
                                 kind={result.their_kind}
                                 palette={result.their_palette}
                                 wear={result.their_wear}
+                                dyes={result.their_dyes}
                                 title={`${result.against}’s pet`}
                                 className="size-20"
                             />

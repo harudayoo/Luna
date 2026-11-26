@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Notifications\LunaNotice;
 use App\Services\Notify;
 use App\Services\Payroll\PaySchedule;
+use App\Services\Pet;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +36,7 @@ class PayrollReleaseController extends Controller
                 'released_by' => $request->user()->id,
             ]);
             $this->tell($payslip, $request->user());
+            Pet::duty($request->user(), 'payroll'); // HR work pays moonling XP (spec 2026-11-26-luna-moonling-style)
             Inertia::flash('toast', ['type' => 'success', 'message' => "{$name}'s pay marked as received."]);
         } else {
             $payslip->update(['released_on' => null, 'released_by' => null]);
@@ -61,6 +63,9 @@ class PayrollReleaseController extends Controller
                 $this->tell($p, $request->user());
             })
             ->count();
+        if ($count > 0) {
+            Pet::duty($request->user(), 'payroll'); // HR work pays moonling XP (spec 2026-11-26-luna-moonling-style)
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $count === 1
             ? '1 payslip marked as received.'

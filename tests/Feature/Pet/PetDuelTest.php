@@ -96,7 +96,7 @@ class PetDuelTest extends TestCase
                     ->has('pet_duels.incoming.0', fn (AssertableInertia $row) => $row
                         ->where('from', 'Ana')
                         ->where('from_id', $this->ana->id)
-                        ->hasAll(['id', 'from_pet', 'kind', 'palette', 'wear', 'stage', 'at'])
+                        ->hasAll(['id', 'from_pet', 'kind', 'palette', 'wear', 'dyes', 'stage', 'at'])
                         ->missing('pick'))));
 
         $props = json_encode($this->actingAs($this->ben)
@@ -123,7 +123,8 @@ class PetDuelTest extends TestCase
         }
 
         // Slice 4: the house pays duel XP (PetDuelStakesTest); nothing else is written, and nothing is taken.
-        $this->assertSame(0, PetEvent::query()->where('kind', '!=', 'duel')->orWhere('xp', '<', 0)->count());
+        // (0-XP unlock rows are allowed: finishing a duel completes the "First duel" quest, slice 12.)
+        $this->assertSame(0, PetEvent::query()->whereNotIn('kind', ['duel', 'unlock'])->orWhere('xp', '<', 0)->count());
     }
 
     public function test_only_the_opponent_answers_or_declines_and_only_once()
@@ -161,7 +162,8 @@ class PetDuelTest extends TestCase
         $this->assertSame(route('dashboard', ['pet' => 'duels'], false), $notice->data['url']);
 
         $this->answer($this->ben, PetDuel::query()->sole(), 'star');
-        $this->assertSame(['pet_duel_result'], $this->kinds($this->ana));
+        // Ana's first finished duel also completes her "First duel" quest (slice 12), with its own notice.
+        $this->assertSame(['pet_quest', 'pet_duel_result'], $this->kinds($this->ana));
 
         $cy = $this->onBoard('Cy Lim');
         $this->challenge($cy, $this->ben);

@@ -55,10 +55,11 @@ class WardrobeTest extends TestCase
         PetEvent::query()->create(['user_id' => $this->ana->id, 'kind' => 'unlock', 'ref' => $item, 'xp' => 0]);
     }
 
-    /** @return list<string> */
+    /** @return list<string> the slice 7 items unlocked (shades are in ShadeTest; newer items and dyes in ItemDyeTest) */
     private function unlocked(): array
     {
-        return PetEvent::query()->where('user_id', $this->ana->id)->where('kind', 'unlock')->orderBy('ref')->pluck('ref')->all();
+        return PetEvent::query()->where('user_id', $this->ana->id)->where('kind', 'unlock')
+            ->whereIn('ref', ['bow', 'comet_trail', 'halo', 'scarf', 'star_clip'])->orderBy('ref')->pluck('ref')->all();
     }
 
     /** A new award, so the unlocks are checked. */
@@ -162,8 +163,9 @@ class WardrobeTest extends TestCase
         $this->actingAs($this->ana)->get(route('dashboard'))
             ->assertInertia(fn (AssertableInertia $page) => $page->missing('pet_detail')
                 ->reloadOnly('pet_detail', fn (AssertableInertia $reload) => $reload
-                    ->where('pet_detail.wardrobe.palettes', ['classic', 'dusk', 'dawn', 'tide', 'mist'])
-                    ->has('pet_detail.wardrobe.items', 5)
+                    // The shades (slice 9) are listed in ShadeTest.
+                    ->has('pet_detail.wardrobe.palettes', 14)
+                    ->has('pet_detail.wardrobe.items', 12)
                     ->where('pet_detail.wardrobe.items.0.key', 'star_clip')
                     ->where('pet_detail.wardrobe.items.0.slot', 'head')
                     ->where('pet_detail.wardrobe.items.0.unlocked', false)

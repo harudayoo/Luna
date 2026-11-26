@@ -175,6 +175,7 @@ function MoonCup({ cup }: { cup: CupRow[] }) {
                 kind={r.kind}
                 palette={r.palette}
                 wear={r.wear}
+                dyes={r.dyes}
                 title={r.stage_name}
                 crown={r.crown}
                 className="size-10"
@@ -251,6 +252,7 @@ function BoardRow({
                     kind={row.kind}
                     palette={row.palette}
                     wear={row.wear}
+                    dyes={row.dyes}
                     title={row.stage_name}
                     crown={row.crown}
                     className="size-10"

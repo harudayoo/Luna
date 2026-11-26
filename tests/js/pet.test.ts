@@ -25,11 +25,16 @@ describe('PetSprite crown', () => {
             createElement(PetSprite, { stage, title: 'x', crown }),
         );
 
-    it('draws the Moon Cup crown at every stage, the egg included, in token colours', () => {
+    it('draws the Moon Cup crown at every stage, the egg included, in the shade’s colours', () => {
         for (const stage of [0, 1, 2, 3, 4]) {
             const svg = sprite(stage, true);
             expect(svg).toContain('data-pet-crown');
-            expect(svg).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+            // Only the svg's style (the shade, spec 2026-11-26-luna-moonling-style) and white highlights carry a hex.
+            expect(
+                svg
+                    .replace(/style="--pet-[^"]*"/, '')
+                    .replaceAll('#ffffff', ''),
+            ).not.toMatch(/#[0-9a-f]{3,8}\b/i);
         }
     });
 

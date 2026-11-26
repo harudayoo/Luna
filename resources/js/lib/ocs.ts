@@ -7,6 +7,7 @@
  * are only applied to plain-text labels, see components/ui/button.tsx.
  */
 import * as anime from 'animejs';
+import type { AnimationParams } from 'animejs';
 import '../../ocs/ocs.js';
 
 window.anime = anime;
@@ -486,6 +487,21 @@ function petIdleOnce(el: HTMLElement): () => void {
             }),
         );
     }
+    // Worn items with an idle move (spec 2026-11-26-luna-moonling-style, slice 10); dark is slower and softer.
+    el.querySelectorAll('[data-pet-wear-idle]').forEach((part) => {
+        const move = WEAR_IDLE[part.getAttribute('data-pet-wear-idle') ?? ''];
+        if (move) {
+            running.push(
+                animate(part, {
+                    ...move.to,
+                    duration: move.duration * (dark ? 1.4 : 1),
+                    ease: 'inOutSine',
+                    loop: true,
+                    alternate: true,
+                }),
+            );
+        }
+    });
     const blink = window.setInterval(() => {
         animate(eyes, {
             scaleY: [
@@ -600,6 +616,8 @@ export function petPoke(el: HTMLElement): void {
         return;
     }
 
+    el.querySelectorAll('[data-pet-wear-tap]').forEach(petWearTap);
+
     if (ocs().isDark()) {
         animate(el, {
             y: [
@@ -634,6 +652,83 @@ export function petPoke(el: HTMLElement): void {
             { to: 0, duration: 140, ease: 'outBack(3)' },
         ],
     });
+}
+
+/** Worn items' idle loops, by the sprite's data-pet-wear-idle name (each runs there and back). */
+const WEAR_IDLE: Record<string, { to: AnimationParams; duration: number }> = {
+    spin: { to: { scaleX: { from: 1, to: -1 } }, duration: 700 },
+    flap: { to: { scaleX: { from: 1, to: 0.78 } }, duration: 520 },
+    bob: { to: { y: -3, rotate: 4 }, duration: 1400 },
+    sway: { to: { rotate: { from: -4, to: 4 } }, duration: 1600 },
+    flicker: { to: { opacity: { from: 0.35, to: 0.85 } }, duration: 900 },
+    float: { to: { y: -2 }, duration: 1500 },
+};
+
+/*
+ * petWearTap: one worn item's own move, by its data-pet-wear-tap name: when the moonling is tapped (petPoke runs it
+ * for every worn item) or when the item itself is tapped in the panel. Cosmetic, no XP. Reduced motion: none.
+ */
+export function petWearTap(part: Element): void {
+    const { animate, spring } = anime;
+
+    if (ocs().reduced()) {
+        return;
+    }
+
+    const back = (ms: number) => ({ to: 1, duration: ms, ease: 'outBack(3)' });
+    const moves: Record<string, AnimationParams> = {
+        twinkle: {
+            scale: [{ to: 1.5, duration: 120 }, back(260)],
+            rotate: { from: 0, to: 72, duration: 380 },
+        },
+        wiggle: {
+            rotate: [
+                { to: -15, duration: 80 },
+                { to: 12, duration: 90 },
+                { to: -8, duration: 90 },
+                { to: 0, duration: 140 },
+            ],
+        },
+        spin: {
+            scaleX: [-1, 1, -1, 1, -1, 1].map((to) => ({ to, duration: 90 })),
+        },
+        glint: {
+            opacity: [
+                { to: 0.4, duration: 90 },
+                { to: 1, duration: 160 },
+            ],
+            scale: [{ to: 1.12, duration: 90 }, back(200)],
+        },
+        flutter: {
+            scaleX: [0.6, 1, 0.6, 1, 0.6, 1].map((to) => ({
+                to,
+                duration: 70,
+            })),
+        },
+        billow: { scaleX: [{ to: 1.25, duration: 160 }, back(320)] },
+        jump: {
+            y: [
+                { to: -14, duration: 200, ease: 'outQuad' },
+                { to: 0, ease: spring({ bounce: 0.6, duration: 700 }) },
+            ],
+        },
+        burst: {
+            scale: [{ to: 1.6, duration: 140 }, back(300)],
+            rotate: { from: 0, to: 180, duration: 440 },
+        },
+        flare: {
+            opacity: [
+                { to: 1, duration: 120 },
+                { to: 0.6, duration: 500 },
+            ],
+            scale: [{ to: 1.25, duration: 120 }, back(400)],
+        },
+    };
+    const move = moves[part.getAttribute('data-pet-wear-tap') ?? ''];
+
+    if (move) {
+        animate(part, move);
+    }
 }
 
 /*

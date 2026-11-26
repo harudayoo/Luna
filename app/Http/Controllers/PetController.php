@@ -44,6 +44,9 @@ class PetController extends Controller
             'palette' => ['sometimes', 'string'],
             'wear' => ['sometimes', 'array'],
             'wear.*' => ['string'],
+            // A dye per item (spec 2026-11-26-luna-moonling-style, slice 10); Moonlings::dress checks the keys.
+            'dyes' => ['sometimes', 'array'],
+            'dyes.*' => ['string'],
         ]);
         Moonlings::dress($request->user(), $moonling, $data);
 

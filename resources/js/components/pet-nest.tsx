@@ -104,6 +104,7 @@ export function PetNest() {
                     kind={m.kind}
                     palette={m.palette}
                     wear={m.wear}
+                    dyes={m.dyes}
                     title={m.name ?? KINDS[m.kind]}
                     className={size}
                 />

@@ -8,6 +8,7 @@ use App\Models\Leave;
 use App\Models\User;
 use App\Models\WipTile;
 use App\Services\Moonlings;
+use App\Services\MoonQuests;
 use App\Services\Pet;
 use App\Services\PetDuels;
 use App\Services\Pto\CutOff;
@@ -22,9 +23,9 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request): Response|RedirectResponse
     {
-        // A duel notice links to ?pet=duels, an egg notice to ?pet=nest. Swap that for a one-time note and the plain
+        // A duel notice links to ?pet=duels, an egg notice to ?pet=nest, a quest notice to ?pet=quests. Swap that for a one-time note and the plain
         // address, so the panel opens on that tab once and a refresh of Home doesn't open it again.
-        if (in_array($request->query('pet'), ['duels', 'nest'], true)) {
+        if (in_array($request->query('pet'), ['duels', 'nest', 'quests'], true)) {
             return to_route('dashboard')->with('pet_open', $request->query('pet'));
         }
 
@@ -68,8 +69,10 @@ class DashboardController extends Controller
             'pet_duels' => Inertia::optional(fn () => PetDuels::tab($user)),
             // The moon nest (slice 6), when the panel's Nest tab opens.
             'pet_nest' => Inertia::optional(fn () => Moonlings::nest($user)),
+            // Moon quests (spec 2026-11-26-luna-moonling-style, slice 12), when the panel's Quests tab opens.
+            'pet_quests' => Inertia::optional(fn () => MoonQuests::list($user)),
             // Which panel tab to open straight away (once, after a duel or egg notice), or null.
-            'pet_open' => in_array($openTab, ['duels', 'nest'], true) ? $openTab : null,
+            'pet_open' => in_array($openTab, ['duels', 'nest', 'quests'], true) ? $openTab : null,
         ]);
     }
 }

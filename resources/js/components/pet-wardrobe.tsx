@@ -1,15 +1,27 @@
 import { router, usePage } from '@inertiajs/react';
 import type { CSSProperties } from 'react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import PetController from '@/actions/App/Http/Controllers/PetController';
 import InputError from '@/components/input-error';
 import { PetSprite } from '@/components/pet-sprite';
-import type { Palette, Pet, PetDetail, WearItem } from '@/lib/pet';
-import { PALETTE_NAMES, paletteStyle, toggleWear, WEAR } from '@/lib/pet';
+import type { Dye, Palette, Pet, PetDetail, Slot, WearItem } from '@/lib/pet';
+import {
+    DYE_NAMES,
+    dyeColor,
+    knownItem,
+    PALETTE_NAMES,
+    paletteStyle,
+    SLOT_NAMES,
+    SLOTS,
+    toggleWear,
+    WEAR,
+} from '@/lib/pet';
 
 /**
- * The wardrobe (spec 2026-11-25-luna-moonling-life, slice 7) for the moonling you're raising: a shade (all open)
- * and one head and one neck item from the ones you've unlocked; locked ones say what unlocks them. Each tap saves.
+ * The wardrobe for the moonling you're raising (spec 2026-11-25-luna-moonling-life, slice 7; spec
+ * 2026-11-26-luna-moonling-style, slices 9–10): a shade (fixed art colours; six open, the rest unlocked), one item
+ * per slot (head, face, neck, back, hand) picked slot by slot, and a dye for a worn item. Locked ones say what
+ * unlocks them. Each tap saves.
  */
 export function PetWardrobe({
     pet,
@@ -20,8 +32,30 @@ export function PetWardrobe({
 }) {
     const { errors } = usePage<{ errors: Record<string, string> }>().props;
     const [saving, setSaving] = useState(false);
+    // The swatch last tapped (or the worn one): its name, and what unlocks it when it's locked.
+    const [peek, setPeek] = useState<Palette>(pet.palette);
+    const peeked =
+        wardrobe.palettes.find((p) => p.key === peek) ?? wardrobe.palettes[0];
+    const shadeNote = useId();
+    const [slot, setSlot] = useState<Slot>('head');
+    // The item whose dyes show: the one last tapped in this slot, else the one worn there.
+    const [picked, setPicked] = useState<WearItem | null>(null);
+    const items = wardrobe.items.filter((i) => knownItem(i.key));
+    const inSlot = items.filter((i) => i.slot === slot);
+    const worn = pet.wear.find((w) => knownItem(w) && WEAR[w].slot === slot);
+    const dyeing =
+        picked && WEAR[picked]?.slot === slot && pet.wear.includes(picked)
+            ? picked
+            : (worn ?? null);
+    const [dyePeek, setDyePeek] = useState<Dye | null>(null);
+    const dyeNote = useId();
+    const peekedDye = wardrobe.dyes.find((d) => d.key === dyePeek);
 
-    const save = (data: { palette?: Palette; wear?: WearItem[] }) =>
+    const save = (data: {
+        palette?: Palette;
+        wear?: WearItem[];
+        dyes?: Partial<Record<WearItem, Dye>>;
+    }) =>
         router.patch(PetController.dress(pet.moonling_id), data, {
             preserveScroll: true,
             preserveState: true,
@@ -34,43 +68,102 @@ export function PetWardrobe({
         <section aria-label="Wardrobe" className="grid gap-3">
             <p className="ocs-eyebrow mb-0">Wardrobe</p>
 
+            {/* Fourteen swatches in two rows of seven, so a phone sees them all at once; the line under them names the
+                one in focus and, for a locked one, what unlocks it. */}
             <div
                 role="radiogroup"
                 aria-label="Shade"
-                className="flex flex-wrap gap-2"
+                aria-describedby={shadeNote}
+                className="grid grid-cols-7 gap-1.5"
             >
                 {wardrobe.palettes.map((p) => (
                     <button
-                        key={p}
+                        key={p.key}
                         type="button"
                         role="radio"
-                        aria-checked={pet.palette === p}
-                        disabled={saving}
-                        onClick={() => save({ palette: p })}
-                        className="flex min-h-10 cursor-pointer items-center gap-2 bg-bg px-2 py-1 text-xs font-semibold text-muted aria-checked:bg-surface-hover aria-checked:text-ink focus-visible:shadow-lift focus-visible:outline-none"
+                        aria-checked={pet.palette === p.key}
+                        aria-disabled={!p.unlocked || saving}
+                        aria-label={`${PALETTE_NAMES[p.key]}${p.unlocked ? '' : ', locked'}`}
+                        onClick={() => {
+                            setPeek(p.key);
+                            if (p.unlocked && !saving) {
+                                save({ palette: p.key });
+                            }
+                        }}
+                        className="relative grid aspect-square min-h-10 cursor-pointer place-items-center bg-bg p-1 aria-checked:bg-surface-hover aria-checked:shadow-lift focus-visible:shadow-lift focus-visible:outline-none"
                     >
                         <span
                             aria-hidden
-                            className="relative size-6"
+                            className={`relative size-full ${p.unlocked ? '' : 'opacity-35 grayscale'}`}
                             style={
                                 {
-                                    ...paletteStyle(p),
+                                    ...paletteStyle(p.key),
                                     background: 'var(--pet-body)',
+                                    boxShadow:
+                                        'inset 0 0 0 2px var(--pet-line)',
                                 } as CSSProperties
                             }
                         >
                             <span
-                                className="absolute right-0.5 bottom-0.5 size-2"
+                                className="absolute right-1 bottom-1 size-2"
                                 style={{ background: 'var(--pet-mark)' }}
                             />
                         </span>
-                        {PALETTE_NAMES[p]}
+                        {!p.unlocked && (
+                            <span
+                                aria-hidden
+                                className="absolute inset-0 grid place-items-center text-sm"
+                            >
+                                🔒
+                            </span>
+                        )}
+                    </button>
+                ))}
+            </div>
+            <p id={shadeNote} className="-mt-1 text-xs text-muted">
+                <span className="font-semibold text-ink">
+                    {PALETTE_NAMES[peeked.key]}
+                </span>
+                {peeked.how ? ` · 🔒 ${peeked.how}` : ''}
+            </p>
+
+            {/* Items, one slot at a time, so a phone sees one short row instead of a long page. */}
+            <div
+                role="tablist"
+                aria-label="Where it goes"
+                className="grid grid-cols-5 gap-1"
+            >
+                {SLOTS.map((k) => (
+                    <button
+                        key={k}
+                        type="button"
+                        role="tab"
+                        aria-selected={slot === k}
+                        onClick={() => {
+                            setSlot(k);
+                            setPicked(null);
+                            setDyePeek(null);
+                        }}
+                        className="min-h-10 cursor-pointer bg-bg px-1 text-xs font-semibold text-muted aria-selected:bg-surface-hover aria-selected:text-ink focus-visible:shadow-lift focus-visible:outline-none"
+                    >
+                        {SLOT_NAMES[k]}
+                        {pet.wear.some(
+                            (w) => knownItem(w) && WEAR[w].slot === k,
+                        ) && (
+                            <span aria-label=", wearing one" className="ml-1">
+                                •
+                            </span>
+                        )}
                     </button>
                 ))}
             </div>
 
-            <ul className="grid grid-cols-2 gap-1 min-[390px]:grid-cols-3 sm:grid-cols-5">
-                {wardrobe.items.map((item) => {
+            <ul
+                role="tabpanel"
+                aria-label={SLOT_NAMES[slot]}
+                className="grid grid-cols-2 gap-1 min-[390px]:grid-cols-3 sm:grid-cols-4"
+            >
+                {inSlot.map((item) => {
                     const on = pet.wear.includes(item.key);
 
                     return (
@@ -79,21 +172,23 @@ export function PetWardrobe({
                                 type="button"
                                 aria-pressed={on}
                                 disabled={!item.unlocked || saving}
-                                onClick={() =>
+                                onClick={() => {
+                                    setPicked(item.key);
                                     save({
                                         wear: toggleWear(pet.wear, item.key),
-                                    })
-                                }
+                                    });
+                                }}
                                 className="flex size-full min-h-24 cursor-pointer flex-col items-center gap-1 bg-bg px-2 py-2 text-center aria-pressed:bg-surface-hover focus-visible:shadow-lift focus-visible:outline-none disabled:cursor-default"
                             >
                                 <PetSprite
-                                    stage={Math.max(1, pet.stage)}
+                                    stage={Math.max(2, pet.stage)}
                                     kind={pet.kind}
                                     palette={pet.palette}
                                     wear={[item.key]}
+                                    dyes={pet.dyes}
                                     locked={!item.unlocked}
                                     title=""
-                                    className="size-12"
+                                    className="size-14"
                                 />
                                 <span className="text-xs font-semibold">
                                     {WEAR[item.key].label}
@@ -101,19 +196,90 @@ export function PetWardrobe({
                                         {on ? ', worn' : ''}
                                     </span>
                                 </span>
-                                <span className="text-[11px] leading-tight text-muted">
-                                    {item.unlocked
-                                        ? WEAR[item.key].slot === 'head'
-                                            ? 'Head'
-                                            : 'Neck'
-                                        : item.how}
-                                </span>
+                                {!item.unlocked && item.how && (
+                                    <span className="text-[11px] leading-tight text-muted">
+                                        🔒 {item.how}
+                                    </span>
+                                )}
                             </button>
                         </li>
                     );
                 })}
             </ul>
-            <InputError message={errors.wear ?? errors.palette} />
+
+            {dyeing && (
+                <>
+                    <div
+                        role="radiogroup"
+                        aria-label={`Dye for the ${WEAR[dyeing].label.toLowerCase()}`}
+                        aria-describedby={dyeNote}
+                        className="grid grid-cols-8 gap-1"
+                    >
+                        {wardrobe.dyes.map((d) => {
+                            const current =
+                                (pet.dyes[dyeing] ?? 'default') === d.key;
+
+                            return (
+                                <button
+                                    key={d.key}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={current}
+                                    aria-disabled={!d.unlocked || saving}
+                                    aria-label={`${DYE_NAMES[d.key]}${d.unlocked ? '' : ', locked'}`}
+                                    onClick={() => {
+                                        setDyePeek(d.key);
+                                        if (d.unlocked && !saving) {
+                                            save({ dyes: { [dyeing]: d.key } });
+                                        }
+                                    }}
+                                    className="relative grid aspect-square min-h-9 cursor-pointer place-items-center bg-bg p-1 aria-checked:bg-surface-hover aria-checked:shadow-lift focus-visible:shadow-lift focus-visible:outline-none"
+                                >
+                                    <span
+                                        aria-hidden
+                                        className={`size-full ${d.unlocked ? '' : 'opacity-35 grayscale'}`}
+                                        style={
+                                            {
+                                                ...paletteStyle(pet.palette),
+                                                background: dyeColor(
+                                                    d.key,
+                                                    dyeing,
+                                                ),
+                                                boxShadow:
+                                                    'inset 0 0 0 2px var(--pet-line)',
+                                            } as CSSProperties
+                                        }
+                                    />
+                                    {!d.unlocked && (
+                                        <span
+                                            aria-hidden
+                                            className="absolute inset-0 grid place-items-center text-xs"
+                                        >
+                                            🔒
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <p id={dyeNote} className="-mt-1 text-xs text-muted">
+                        <span className="font-semibold text-ink">
+                            {WEAR[dyeing].label}:{' '}
+                            {
+                                DYE_NAMES[
+                                    peekedDye?.key ??
+                                        pet.dyes[dyeing] ??
+                                        'default'
+                                ]
+                            }
+                        </span>
+                        {peekedDye?.how ? ` · 🔒 ${peekedDye.how}` : ''}
+                    </p>
+                </>
+            )}
+            <InputError
+                message={errors.wear ?? errors.palette ?? errors.dyes}
+            />
             {pet.crown && (
                 <p className="text-xs text-muted">
                     👑 Your Moon Cup crown is on this week. It takes the head

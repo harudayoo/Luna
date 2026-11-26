@@ -6,6 +6,7 @@ use App\Http\Requests\StoreLateRequest;
 use App\Models\LateLog;
 use App\Models\TimeLog;
 use App\Models\User;
+use App\Services\Pet;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -68,6 +69,7 @@ class TeamTimeController extends Controller
         } else {
             $user->timeLogs()->updateOrCreate(['date' => $day->toDateString()], $times)
                 ->forceFill(['edited_by' => $request->user()->id])->save();
+            Pet::duty($request->user(), 'people'); // HR work pays moonling XP (spec 2026-11-26-luna-moonling-style)
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name}'s times for {$day->format('M j')} saved."]);
@@ -78,6 +80,7 @@ class TeamTimeController extends Controller
     public function storeLate(StoreLateRequest $request, User $user): RedirectResponse
     {
         $late = $request->save();
+        Pet::duty($request->user(), 'people'); // HR work pays moonling XP (spec 2026-11-26-luna-moonling-style)
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name}: ".strtolower(LateLog::KINDS[$late->kind])." logged, {$late->minutes} min."]);
 
         return back();

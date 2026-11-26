@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\Role;
 use App\Models\Holiday;
 use App\Models\Item;
 use App\Models\Leave;
@@ -19,7 +20,10 @@ use Carbon\CarbonImmutable;
  */
 final class Pet
 {
-    public const XP = ['visit' => 5, 'item_time' => 10, 'leave' => 5, 'payslip' => 5];
+    public const XP = ['visit' => 5, 'item_time' => 10, 'leave' => 5, 'payslip' => 5, 'duty' => 10];
+
+    /** HR and admin work that pays duty XP (spec 2026-11-26-luna-moonling-style, slice 11), with its recent-list label. */
+    public const DUTIES = ['payroll' => 'Payroll work', 'people' => 'People work', 'calendar' => 'Calendar work'];
 
     public const STREAK_BONUS_MAX = 5;
 
@@ -64,6 +68,15 @@ final class Pet
         }
 
         return $new;
+    }
+
+    /**
+     * HR or admin work in one area (payroll, people, calendar): 10 XP once per area per office day, so 30 at most.
+     * Called by the HR controllers after a successful save only; deletes and undos never call it.
+     */
+    public static function duty(User $user, string $area): void
+    {
+        self::award($user, 'duty', $area.':'.self::today());
     }
 
     /** Today's visit: 5 XP plus 1 per streak day before today, up to +5. True when it is new. */
@@ -151,6 +164,7 @@ final class Pet
                 'kind' => $pets[$u->id]->kind ?? 'moon',
                 'palette' => $pets[$u->id]->palette ?? 'classic',
                 'wear' => $pets[$u->id]->wear ?? [],
+                'dyes' => $pets[$u->id]->dyes ?? [],
                 'stage' => $stage,
                 'stage_name' => self::STAGE_NAMES[$stage],
                 'streak' => $streaks[$u->id],
@@ -187,6 +201,7 @@ final class Pet
             // The wardrobe (slice 7).
             'palette' => $pet->palette,
             'wear' => $pet->wear,
+            'dyes' => $pet->dyes,
             'public' => (bool) $user->pet_public,
             'xp' => $xp,
             'stage' => $stage,
@@ -286,6 +301,8 @@ final class Pet
             'xp' => self::XP,
             'streak_bonus_max' => self::STREAK_BONUS_MAX,
             'duel_xp' => PetDuels::XP,
+            // The duty line in "How it grows" is for HR and admin only.
+            'duty_xp' => $user->role->atLeast(Role::Hr) ? self::XP['duty'] : null,
             'wardrobe' => Moonlings::wardrobe($user),
             'week' => self::week($user),
             'recent' => self::recent($user),
@@ -341,6 +358,7 @@ final class Pet
                     ? 'Opened your payslip for '.self::period($slip->period_start, $slip->period_end)
                     : 'Opened your payslip',
                 'duel' => $e->xp >= PetDuels::XP['win'] ? 'Won a moon duel' : 'Played a moon duel',
+                'duty' => self::DUTIES[strtok($e->ref, ':')] ?? 'HR work',
                 default => ucfirst(str_replace('_', ' ', $e->kind)),
             },
             'at' => $e->created_at?->timezone($tz)->toDateString() ?? $e->ref,

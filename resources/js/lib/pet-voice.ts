@@ -3,7 +3,7 @@
  * picked at random. Taps answer by mood; Home events get their own lines. Never a word about lates, and
  * never guilt: time away gets a warm welcome back.
  */
-import type { MoodLevel, Pet, PetMoment } from '@/lib/pet';
+import type { MoodLevel, Pet, PetMoment, WearItem } from '@/lib/pet';
 
 export const MOODS: { level: MoodLevel; label: string; hint: string }[] = [
     {
@@ -128,4 +128,30 @@ export function homeCue(
     }
 
     return moment === 'fed' ? 'fed' : null;
+}
+
+/**
+ * What it says when you tap one of its items in the panel (spec 2026-11-26-luna-moonling-style, slice 10). Same
+ * rules as the rest: kind, short, never about lates.
+ */
+export const ITEM_LINES: Record<WearItem, string[]> = {
+    star_clip: ['Twinkle twinkle!', 'My lucky star.'],
+    comet_trail: ['Whoosh!', 'A comet, just for me.'],
+    halo: ['Behaving today. Mostly.', 'Shiny ring!'],
+    scarf: ['So cosy.', 'Warm and snug.'],
+    bow: ['Do I look cute?', 'Tied it myself!'],
+    propeller: ['Wheee, liftoff!', 'Spin, spin, spin!'],
+    glasses: ['I can see everything now.', 'Very scholarly.'],
+    wings: ['Flap flap!', 'Almost flying!'],
+    cape: ['To the rescue!', 'Swoosh!'],
+    balloon: ['Don’t let go!', 'Up, up, up!'],
+    wand: ['Abracadabra!', 'Sparkle magic!'],
+    lantern: ['Lighting the way.', 'A little glow for you.'],
+};
+
+/** A line for a tapped item, never the same as `last` twice in a row. */
+export function itemLine(item: WearItem, last?: string): string {
+    const lines = ITEM_LINES[item].filter((l) => l !== last);
+
+    return lines[Math.floor(Math.random() * lines.length)];
 }

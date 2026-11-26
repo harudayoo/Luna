@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\User;
 use App\Notifications\InviteNotification;
 use App\Services\Payroll\PayRate;
+use App\Services\Pet;
 use App\Services\Pto\Policy;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -64,6 +65,7 @@ class PeopleController extends Controller
         $user = new User(['name' => $validated['name'], 'email' => $validated['email']]);
         $user->role = Role::from($validated['role']);
         $user->save();
+        Pet::duty($request->user(), 'people'); // HR work pays moonling XP (spec 2026-11-26-luna-moonling-style)
 
         if (! $this->emailIsSetUp()) {
             Inertia::flash('toast', ['type' => 'info', 'message' => "{$user->name} was added. Copy their invite link and send it to them."]);
@@ -98,6 +100,7 @@ class PeopleController extends Controller
         ]);
 
         $user->update($validated);
+        Pet::duty($request->user(), 'people'); // HR work pays moonling XP (spec 2026-11-26-luna-moonling-style)
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name}'s leave details saved."]);
 
         return to_route('people.index');

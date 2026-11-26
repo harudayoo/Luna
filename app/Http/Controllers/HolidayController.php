@@ -7,6 +7,7 @@ use App\Models\Holiday;
 use App\Models\Leave;
 use App\Notifications\LunaNotice;
 use App\Services\Notify;
+use App\Services\Pet;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -66,6 +67,8 @@ class HolidayController extends Controller
             return $this->settleLeave($holiday, $request->boolean('cancel_leave'));
         });
 
+        Pet::duty($request->user(), 'calendar');
+
         return $this->done($holiday, 'added', $affected, $request->boolean('cancel_leave'));
     }
 
@@ -80,6 +83,8 @@ class HolidayController extends Controller
 
             return $this->settleLeave($holiday, $request->boolean('cancel_leave'));
         });
+
+        Pet::duty($request->user(), 'calendar');
 
         return $this->done($holiday, 'saved', $affected, $request->boolean('cancel_leave'));
     }

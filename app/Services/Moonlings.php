@@ -25,21 +25,61 @@ final class Moonlings
         'star' => 'A 30-day visit streak',
         'comet' => 'Finish 25 of your items',
         'eclipse' => 'Raise a moonling to Full Moon',
-        'aurora' => 'Log time on 20 different days',
+        'aurora' => 'Work on 20 different days',
         'nova' => 'Win a weekly Moon Cup',
     ];
 
-    /** The wardrobe's shades (slice 7), all open from the start; drawn from tokens in lib/pet.ts paletteStyle. */
-    public const PALETTES = ['classic', 'dusk', 'dawn', 'tide', 'mist'];
+    /**
+     * The wardrobe's shades: fixed art colours, the same in both themes (spec 2026-11-26-luna-moonling-style,
+     * slice 9; drawn in lib/pet.ts paletteStyle). The open ones first; SHADE_UNLOCKS says what unlocks the rest.
+     */
+    public const PALETTES = [
+        'classic', 'dusk', 'dawn', 'tide', 'mist', 'mint',
+        'sakura', 'ember', 'frost', 'cocoa', 'midnight', 'gold', 'nebula', 'prism',
+    ];
 
-    /** The wardrobe's items: slot and what unlocks each. The Moon Cup crown is worn automatically, not picked. */
+    /** Shades that are unlocked (recorded as `shade:{key}`), and how. Reachable in every role. */
+    public const SHADE_UNLOCKS = [
+        'sakura' => 'Pat your moonling on 10 days',
+        'ember' => 'Reach a 20-day visit streak',
+        'frost' => 'Win 10 moon duels',
+        'cocoa' => 'Earn 500 XP across your moonlings',
+        'midnight' => 'Hatch 3 moonlings',
+        'gold' => 'Raise a moonling to Full Moon',
+        'nebula' => 'Win a weekly Moon Cup',
+        'prism' => 'Unlock every other shade',
+    ];
+
+    /** Where items go (slice 10): one item in each. */
+    public const SLOTS = ['head', 'face', 'neck', 'back', 'hand'];
+
+    /**
+     * The wardrobe's items: slot and what unlocks each (`how` null: open from the start). The Moon Cup crown is worn
+     * automatically, not picked.
+     */
     public const WEAR = [
         'star_clip' => ['slot' => 'head', 'how' => 'Win 5 moon duels'],
         'comet_trail' => ['slot' => 'neck', 'how' => 'Win 15 moon duels'],
         'halo' => ['slot' => 'head', 'how' => 'Win 30 moon duels'],
         'scarf' => ['slot' => 'neck', 'how' => 'Reach a 10-day visit streak'],
         'bow' => ['slot' => 'head', 'how' => 'Give your moonling a name'],
+        'propeller' => ['slot' => 'head', 'how' => 'Reach a 5-day visit streak'],
+        'glasses' => ['slot' => 'face', 'how' => null],
+        'wings' => ['slot' => 'back', 'how' => 'Hatch a moonling'],
+        'cape' => ['slot' => 'back', 'how' => 'Earn 200 XP across your moonlings'],
+        'balloon' => ['slot' => 'hand', 'how' => null],
+        'wand' => ['slot' => 'hand', 'how' => 'Win a moon duel'],
+        'lantern' => ['slot' => 'hand', 'how' => 'Raise a moonling to Bright'],
     ];
+
+    /**
+     * Dyes for items (recorded as `dye:{key}` when unlocked). Every item has its own colour, `default`, which the
+     * shade never changes (slice 12). The open ones first; the rest are paid by moon quests (MoonQuests), the
+     * seasonal ones last.
+     */
+    public const DYES = ['default', 'sun', 'ruby', 'leaf', 'sky', 'rose', 'night', 'starlight', 'fiesta', 'parol'];
+
+    public const OPEN_DYES = ['default', 'sun'];
 
     /** The person's active moonling; their first `moon` one is made the first time it's needed. */
     public static function active(User $user): Moonling
@@ -106,83 +146,165 @@ final class Moonlings
     }
 
     /**
-     * Records any wardrobe item the person has newly unlocked, once (a 0-XP `unlock` row; the unique key keeps it
-     * once), so it stays theirs even when a streak later breaks.
+     * Records anything in the wardrobe the person has newly unlocked, once (a 0-XP `unlock` row; the unique key keeps
+     * it once), so it stays theirs even when a streak later breaks. Items are recorded by key, shades as
+     * `shade:{key}`, dyes as `dye:{key}`. Each measure is counted at most once per call, and only when something still needs it.
      */
     public static function checkUnlocks(User $user): void
     {
         $have = self::unlocked($user);
-        $wins = fn () => PetDuel::query()->where('status', 'done')->where('winner_id', $user->id)->count();
+        $memo = [];
+        $m = function (string $key, callable $count) use (&$memo) {
+            return $memo[$key] ??= $count();
+        };
+        $wins = fn () => $m('wins', fn () => PetDuel::query()->where('status', 'done')->where('winner_id', $user->id)->count());
+        $streak = fn () => $m('streak', fn () => Pet::streak($user));
+        // XP of each of the person's moonlings.
+        $xps = fn () => $m('xps', fn () => PetEvent::query()->where('user_id', $user->id)->whereNotNull('moonling_id')
+            ->groupBy('moonling_id')->selectRaw('moonling_id, sum(xp) as total')->toBase()->pluck('total')
+            ->map(fn ($xp) => (int) $xp));
+        $stages = fn () => $xps()->map(fn (int $xp) => Pet::stageFor($xp));
+        $hatched = fn () => $stages()->filter(fn (int $s) => $s >= 1)->count();
+        $pats = fn () => $m('pats', fn () => PetEvent::query()->where('user_id', $user->id)->where('kind', 'pat')->count());
+
         $rules = [
             'star_clip' => fn () => $wins() >= 5,
             'comet_trail' => fn () => $wins() >= 15,
             'halo' => fn () => $wins() >= 30,
-            'scarf' => fn () => Pet::streak($user) >= 10,
+            'scarf' => fn () => $streak() >= 10,
             'bow' => fn () => Moonling::query()->where('user_id', $user->id)->whereNotNull('name')->exists(),
+            'propeller' => fn () => $streak() >= 5,
+            'wings' => fn () => $hatched() >= 1,
+            'cape' => fn () => $xps()->sum() >= 200,
+            'wand' => fn () => $wins() >= 1,
+            'lantern' => fn () => $stages()->contains(fn (int $s) => $s >= 3),
+            'shade:sakura' => fn () => $pats() >= 10,
+            'shade:ember' => fn () => $streak() >= 20,
+            'shade:frost' => fn () => $wins() >= 10,
+            'shade:cocoa' => fn () => $xps()->sum() >= 500,
+            'shade:midnight' => fn () => $hatched() >= 3,
+            'shade:gold' => fn () => $stages()->contains(4),
+            'shade:nebula' => fn () => in_array($user->id, PetDuels::champions(), true),
+            // Last, and by reference, so it sees the shades unlocked just above in this same pass.
+            'shade:prism' => function () use (&$have) {
+                return collect(array_keys(self::SHADE_UNLOCKS))->reject(fn ($k) => $k === 'prism')
+                    ->every(fn ($k) => in_array("shade:{$k}", $have, true));
+            },
         ];
 
-        foreach ($rules as $item => $earned) {
-            if (! in_array($item, $have, true) && $earned()) {
+        foreach ($rules as $ref => $earned) {
+            if (! in_array($ref, $have, true) && $earned()) {
                 PetEvent::query()->insertOrIgnore([
-                    'user_id' => $user->id, 'kind' => 'unlock', 'ref' => $item, 'xp' => 0, 'created_at' => now(),
+                    'user_id' => $user->id, 'kind' => 'unlock', 'ref' => $ref, 'xp' => 0, 'created_at' => now(),
                 ]);
+                $have[] = $ref;
             }
         }
+
+        // Dyes come from moon quests (slice 12).
+        MoonQuests::check($user, $have);
     }
 
-    /** @return list<string> the items the person has unlocked */
+    /** Whether a dye can be used: open from the start, or unlocked (by its quest). */
+    private static function dyeOpen(string $dye, array $unlocked): bool
+    {
+        return in_array($dye, self::OPEN_DYES, true) || in_array("dye:{$dye}", $unlocked, true);
+    }
+
+    /** What unlocks a dye: its quest's goal; null for an open one. */
+    private static function dyeHow(string $dye): ?string
+    {
+        if (in_array($dye, self::OPEN_DYES, true)) {
+            return null;
+        }
+        $quest = MoonQuests::forDye($dye);
+
+        return $quest ? "{$quest['title']}: {$quest['goal']}" : 'Finish a moon quest';
+    }
+
+    /** Whether a shade can be worn: open from the start, or unlocked. */
+    private static function shadeOpen(string $shade, array $unlocked): bool
+    {
+        return ! isset(self::SHADE_UNLOCKS[$shade]) || in_array("shade:{$shade}", $unlocked, true);
+    }
+
+    /** @return list<string> what the person has unlocked: item keys, `shade:{key}` and `dye:{key}` */
     public static function unlocked(User $user): array
     {
         return PetEvent::query()->where('user_id', $user->id)->where('kind', 'unlock')->pluck('ref')->all();
     }
 
     /**
-     * Puts a shade and/or items on one of your moonlings: a known shade, only unlocked items, one head and one neck.
+     * Puts a shade, items and/or dyes on one of your moonlings: an open or unlocked shade, only open or unlocked
+     * items, one per slot, and open or unlocked dyes on known items (merged into the moonling's dyes).
      *
-     * @param  array{palette?: string, wear?: list<string>}  $data
+     * @param  array{palette?: string, wear?: list<string>, dyes?: array<string, string>}  $data
      */
     public static function dress(User $user, Moonling $moonling, array $data): void
     {
         abort_unless($moonling->user_id === $user->id, 404);
 
-        if (array_key_exists('palette', $data) && ! in_array($data['palette'], self::PALETTES, true)) {
-            throw ValidationException::withMessages(['palette' => 'Pick one of the shades.']);
+        $unlocked = self::unlocked($user);
+        if (array_key_exists('palette', $data)) {
+            if (! in_array($data['palette'], self::PALETTES, true)) {
+                throw ValidationException::withMessages(['palette' => 'Pick one of the shades.']);
+            }
+            if (! self::shadeOpen($data['palette'], $unlocked)) {
+                throw ValidationException::withMessages(['palette' => self::SHADE_UNLOCKS[$data['palette']].' to unlock that shade.']);
+            }
         }
         if (array_key_exists('wear', $data)) {
             $wear = array_values(array_unique($data['wear']));
-            $unlocked = self::unlocked($user);
             foreach ($wear as $item) {
                 if (! isset(self::WEAR[$item])) {
                     throw ValidationException::withMessages(['wear' => 'That isn’t something your moonling can wear.']);
                 }
-                if (! in_array($item, $unlocked, true)) {
+                if (self::WEAR[$item]['how'] !== null && ! in_array($item, $unlocked, true)) {
                     throw ValidationException::withMessages(['wear' => self::WEAR[$item]['how'].' to unlock that.']);
                 }
             }
             $slots = array_map(fn (string $item) => self::WEAR[$item]['slot'], $wear);
             if (count($slots) !== count(array_unique($slots))) {
-                throw ValidationException::withMessages(['wear' => 'One thing on the head and one around the neck.']);
+                throw ValidationException::withMessages(['wear' => 'One item on each spot: head, face, neck, back and hand.']);
             }
             $data['wear'] = $wear;
         }
+        if (array_key_exists('dyes', $data)) {
+            foreach ($data['dyes'] as $item => $dye) {
+                if (! isset(self::WEAR[$item]) || ! in_array($dye, self::DYES, true)) {
+                    throw ValidationException::withMessages(['dyes' => 'Pick one of the dyes for one of the items.']);
+                }
+                if (! self::dyeOpen($dye, $unlocked)) {
+                    throw ValidationException::withMessages(['dyes' => self::dyeHow($dye).' to unlock that dye.']);
+                }
+            }
+            $data['dyes'] = array_merge($moonling->dyes, $data['dyes']);
+        }
 
-        $moonling->update(array_intersect_key($data, ['palette' => 1, 'wear' => 1]));
+        $moonling->update(array_intersect_key($data, ['palette' => 1, 'wear' => 1, 'dyes' => 1]));
     }
 
     /**
-     * The wardrobe in the panel: every shade, and every item with its slot, how to unlock it and whether you have.
+     * The wardrobe in the panel: every shade, item and dye, with whether you have it and how to unlock it (`how` is
+     * null for an open one).
      *
-     * @return array{palettes: list<string>, items: list<array{key: string, slot: string, how: string, unlocked: bool}>}
+     * @return array{palettes: list<array{key: string, unlocked: bool, how: string|null}>, items: list<array{key: string, slot: string, how: string|null, unlocked: bool}>, dyes: list<array{key: string, unlocked: bool, how: string|null}>}
      */
     public static function wardrobe(User $user): array
     {
         $unlocked = self::unlocked($user);
 
         return [
-            'palettes' => self::PALETTES,
+            'palettes' => array_map(fn (string $p) => [
+                'key' => $p, 'unlocked' => self::shadeOpen($p, $unlocked), 'how' => self::SHADE_UNLOCKS[$p] ?? null,
+            ], self::PALETTES),
             'items' => collect(self::WEAR)->map(fn (array $w, string $key) => [
-                'key' => $key, 'slot' => $w['slot'], 'how' => $w['how'], 'unlocked' => in_array($key, $unlocked, true),
+                'key' => $key, 'slot' => $w['slot'], 'how' => $w['how'],
+                'unlocked' => $w['how'] === null || in_array($key, $unlocked, true),
             ])->values()->all(),
+            'dyes' => array_map(fn (string $key) => [
+                'key' => $key, 'unlocked' => self::dyeOpen($key, $unlocked), 'how' => self::dyeHow($key),
+            ], self::DYES),
         ];
     }
 
@@ -195,8 +317,8 @@ final class Moonlings
             'eclipse' => PetEvent::query()->where('user_id', $user->id)->whereNotNull('moonling_id')
                 ->select('moonling_id')->groupBy('moonling_id')->havingRaw('sum(xp) >= ?', [Pet::STAGES[4]])
                 ->toBase()->limit(1)->get()->isNotEmpty(),
-            // Item time refs are "{item}:{office date}": count the dates.
-            'aurora' => PetEvent::query()->where('user_id', $user->id)->where('kind', 'item_time')->pluck('ref')
+            // Item time and duty refs end in ":{office date}": count the dates (duty: HR work, slice 11).
+            'aurora' => PetEvent::query()->where('user_id', $user->id)->whereIn('kind', ['item_time', 'duty'])->pluck('ref')
                 ->map(fn (string $ref) => substr($ref, strrpos($ref, ':') + 1))->unique()->count() >= 20,
             'nova' => in_array($user->id, PetDuels::champions(), true),
         };
@@ -226,6 +348,7 @@ final class Moonlings
                 'active' => $m->active,
                 'palette' => $m->palette,
                 'wear' => $m->wear,
+                'dyes' => $m->dyes,
             ])->values()->all(),
             'can_switch' => $stage($active) >= 1,
             'eggs' => collect(self::EGGS)->map(fn (string $how, string $kind) => [
