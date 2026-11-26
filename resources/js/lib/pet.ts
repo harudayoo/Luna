@@ -1,8 +1,11 @@
 /** The pet on Home (spec 2026-11-24-luna-pet). Stages match App\Services\Pet::STAGES. */
 export type Pet = {
     name: string | null;
-    /** The kind of the moonling being raised (slice 6). */
+    /** The moonling being raised (slice 6): its id, kind, and wardrobe (slice 7). */
+    moonling_id: number;
     kind: MoonlingKind;
+    palette: Palette;
+    wear: WearItem[];
     public: boolean;
     xp: number;
     stage: number;
@@ -45,6 +48,8 @@ export type PetNest = {
         stage: number;
         stage_name: string;
         active: boolean;
+        palette: Palette;
+        wear: WearItem[];
     }[];
     can_switch: boolean;
     eggs: { kind: MoonlingKind; how: string; earned: boolean }[];
@@ -85,6 +90,82 @@ export function nestGroups(moonlings: NestMoonling[]): {
     };
 }
 
+/** The wardrobe's shades (App\Services\Moonlings::PALETTES), all open from the start. */
+export const PALETTES = ['classic', 'dusk', 'dawn', 'tide', 'mist'] as const;
+
+export type Palette = (typeof PALETTES)[number];
+
+export const PALETTE_NAMES: Record<Palette, string> = {
+    classic: 'Classic',
+    dusk: 'Dusk',
+    dawn: 'Dawn',
+    tide: 'Tide',
+    mist: 'Mist',
+};
+
+// The kit's own tokens (resources/ocs/tokens.css), set for both themes. Not Tailwind's --color-* aliases: with
+// `@theme inline` those exist at runtime only when some CSS references them (--color-ink and --color-muted don't).
+const mix = (a: string, pct: number, b: string) =>
+    `color-mix(in oklab, var(--${a}) ${pct}%, var(--${b}))`;
+
+/**
+ * A shade as the sprite's CSS variables, built only from the theme's tokens (so it works in both themes and adds no
+ * colour of its own). The face follows the body so it stays readable.
+ */
+export function paletteStyle(
+    palette: Palette,
+): Record<'--pet-body' | '--pet-mark' | '--pet-face', string> {
+    const v = (t: string) => `var(--${t})`;
+
+    return {
+        classic: {
+            '--pet-body': v('primary'),
+            '--pet-mark': v('accent'),
+            '--pet-face': v('on-primary'),
+        },
+        dusk: {
+            '--pet-body': mix('primary', 70, 'ink'),
+            '--pet-mark': v('accent'),
+            '--pet-face': v('on-primary'),
+        },
+        dawn: {
+            '--pet-body': mix('primary', 55, 'bg'),
+            '--pet-mark': v('accent'),
+            '--pet-face': v('ink'),
+        },
+        tide: {
+            '--pet-body': v('accent'),
+            '--pet-mark': v('primary'),
+            '--pet-face': v('on-accent'),
+        },
+        mist: {
+            '--pet-body': mix('muted', 55, 'surface'),
+            '--pet-mark': v('primary'),
+            '--pet-face': v('ink'),
+        },
+    }[palette];
+}
+
+/** The wardrobe's items (App\Services\Moonlings::WEAR): one on the head, one around the neck. */
+export const WEAR = {
+    star_clip: { slot: 'head', label: 'Star clip' },
+    comet_trail: { slot: 'neck', label: 'Comet trail' },
+    halo: { slot: 'head', label: 'Halo' },
+    scarf: { slot: 'neck', label: 'Scarf' },
+    bow: { slot: 'head', label: 'Bow' },
+} as const;
+
+export type WearItem = keyof typeof WEAR;
+
+/** Puts an item on (swapping out whatever was in its slot), or takes it off when it's already on. */
+export function toggleWear(wear: WearItem[], item: WearItem): WearItem[] {
+    if (wear.includes(item)) {
+        return wear.filter((w) => w !== item);
+    }
+
+    return [...wear.filter((w) => WEAR[w].slot !== WEAR[item].slot), item];
+}
+
 /** App\Services\Pet::MOOD_LEVELS, best first. */
 export type MoodLevel = 'glowing' | 'happy' | 'okay' | 'droopy' | 'gloomy';
 
@@ -97,6 +178,8 @@ export type PetBoardData = {
         first_name: string;
         pet_name: string | null;
         kind: MoonlingKind;
+        palette: Palette;
+        wear: WearItem[];
         stage: number;
         stage_name: string;
         streak: number;
@@ -110,6 +193,8 @@ export type PetBoardData = {
         first_name: string;
         pet_name: string | null;
         kind: MoonlingKind;
+        palette: Palette;
+        wear: WearItem[];
         stage: number;
         stage_name: string;
         wins: number;
@@ -153,6 +238,8 @@ export type PetDuelsData = {
         from: string;
         from_pet: string | null;
         kind: MoonlingKind;
+        palette: Palette;
+        wear: WearItem[];
         stage: number;
         at: string;
     }[];
@@ -168,6 +255,8 @@ export type PetDuelsData = {
         against: string;
         their_stage: number;
         their_kind: MoonlingKind;
+        their_palette: Palette;
+        their_wear: WearItem[];
         mine: DuelPick | null;
         theirs: DuelPick | null;
         outcome: 'win' | 'loss' | 'draw' | 'declined' | 'expired';
@@ -203,6 +292,16 @@ export type PetDetail = {
     streak_bonus_max: number;
     /** House XP for an answered duel (only the first of each office day pays). */
     duel_xp: Record<'win' | 'draw' | 'loss', number>;
+    /** App\Services\Moonlings::wardrobe: every shade, and every item with how to unlock it. */
+    wardrobe: {
+        palettes: Palette[];
+        items: {
+            key: WearItem;
+            slot: 'head' | 'neck';
+            how: string;
+            unlocked: boolean;
+        }[];
+    };
     week: {
         date: string;
         day: string;

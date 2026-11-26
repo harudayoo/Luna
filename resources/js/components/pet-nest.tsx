@@ -102,6 +102,8 @@ export function PetNest() {
                 <PetSprite
                     stage={m.stage}
                     kind={m.kind}
+                    palette={m.palette}
+                    wear={m.wear}
                     title={m.name ?? KINDS[m.kind]}
                     className={size}
                 />

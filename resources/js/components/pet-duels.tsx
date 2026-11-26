@@ -6,7 +6,14 @@ import { PickTiles } from '@/components/pet-board';
 import { PetSprite } from '@/components/pet-sprite';
 import { Button } from '@/components/ui/button';
 import { duelReveal } from '@/lib/ocs';
-import type { DuelPick, MoonlingKind, Pet, PetDuelsData } from '@/lib/pet';
+import type {
+    DuelPick,
+    MoonlingKind,
+    Palette,
+    Pet,
+    PetDuelsData,
+    WearItem,
+} from '@/lib/pet';
 import { DUEL_PICKS } from '@/lib/pet';
 
 type Result = PetDuelsData['results'][number];
@@ -105,6 +112,8 @@ export function PetDuels({
                     result={revealed}
                     myStage={pet.stage}
                     myKind={pet.kind}
+                    myPalette={pet.palette}
+                    myWear={pet.wear}
                 />
             )}
 
@@ -118,6 +127,8 @@ export function PetDuels({
                                     <PetSprite
                                         stage={d.stage}
                                         kind={d.kind}
+                                        palette={d.palette}
+                                        wear={d.wear}
                                         title={
                                             d.from_pet ?? `${d.from}’s moonling`
                                         }
@@ -269,10 +280,14 @@ function Reveal({
     result,
     myStage,
     myKind,
+    myPalette,
+    myWear,
 }: {
     result: Result;
     myStage: number;
     myKind: MoonlingKind;
+    myPalette: Palette;
+    myWear: WearItem[];
 }) {
     const ref = useRef<HTMLDivElement>(null);
     const role = (who: 'me' | 'them') =>
@@ -301,6 +316,8 @@ function Reveal({
                         <PetSprite
                             stage={myStage}
                             kind={myKind}
+                            palette={myPalette}
+                            wear={myWear}
                             title="Your pet"
                             className="size-20"
                         />
@@ -318,6 +335,8 @@ function Reveal({
                             <PetSprite
                                 stage={result.their_stage}
                                 kind={result.their_kind}
+                                palette={result.their_palette}
+                                wear={result.their_wear}
                                 title={`${result.against}’s pet`}
                                 className="size-20"
                             />

@@ -4,11 +4,14 @@
  * both themes. Parts the motion (lib/ocs.ts petIdle / petFed / petGrow) moves: [data-pet-body],
  * [data-pet-eye], [data-pet-glow]. Swapping in commissioned art only changes this file.
  */
-import type { MoodLevel, MoonlingKind } from '@/lib/pet';
+import type { CSSProperties } from 'react';
+import { paletteStyle, WEAR } from '@/lib/pet';
+import type { MoodLevel, MoonlingKind, Palette, WearItem } from '@/lib/pet';
 
-const PRIMARY = 'var(--color-primary)';
-const ACCENT = 'var(--color-accent)';
-const FACE = 'var(--color-on-primary)';
+// The shade (slice 7) sets these on the svg, from tokens only (lib/pet.ts paletteStyle).
+const PRIMARY = 'var(--pet-body)';
+const ACCENT = 'var(--pet-mark)';
+const FACE = 'var(--pet-face)';
 const EYE = { transformBox: 'fill-box', transformOrigin: '50% 50%' } as const;
 
 /** Body radius and glow per stage (the egg has neither). */
@@ -31,6 +34,8 @@ export function PetSprite({
     crown = false,
     mood,
     kind = 'moon',
+    palette = 'classic',
+    wear = [],
     className = CARD_SIZE,
 }: {
     stage: number;
@@ -40,6 +45,9 @@ export function PetSprite({
     mood?: MoodLevel;
     /** Which kind of moonling (slice 6): its mark, and what it has around its body. */
     kind?: MoonlingKind;
+    /** The wardrobe (slice 7): a shade, and at most one head and one neck item. */
+    palette?: Palette;
+    wear?: WearItem[];
     className?: string;
 }) {
     const r = SIZE[stage] ?? 40;
@@ -53,6 +61,7 @@ export function PetSprite({
             role="img"
             aria-label={title}
             data-pet-kind={kind}
+            style={paletteStyle(palette) as CSSProperties}
             className={`shrink-0 overflow-visible ${className} ${locked ? '[&_[data-pet-body]_*]:fill-surface-hover [&_[data-pet-body]_*]:stroke-none' : ''}`}
         >
             {!locked && GLOW[stage] > 0 && (
@@ -86,6 +95,15 @@ export function PetSprite({
                     <Egg kind={kind} />
                 ) : (
                     <Body stage={stage} r={r} cy={cy} mood={mood} kind={kind} />
+                )}
+                {!locked && (
+                    <Wear
+                        wear={wear}
+                        crown={crown}
+                        top={top}
+                        neck={stage === 0 ? 78 : cy + r * 0.45}
+                        half={stage === 0 ? 24 : r * 0.89}
+                    />
                 )}
                 {crown && !locked && <Crown base={top + 4} />}
             </g>
@@ -440,5 +458,115 @@ function Sparkles() {
             <path d={star(106, 30, 5)} />
             <path d={star(100, 88, 4)} />
         </g>
+    );
+}
+
+/**
+ * The wardrobe's items (slice 7), placed from the head's top and the neck line so they fit every stage and kind.
+ * The Moon Cup crown takes the head slot in its week, so a head item is hidden then.
+ */
+function Wear({
+    wear,
+    crown,
+    top,
+    neck,
+    half,
+}: {
+    wear: WearItem[];
+    crown: boolean;
+    top: number;
+    neck: number;
+    half: number;
+}) {
+    const shown = wear.filter((w) => !(crown && WEAR[w].slot === 'head'));
+
+    return (
+        <>
+            {shown.map((item) => {
+                switch (item) {
+                    case 'star_clip':
+                        return (
+                            <path
+                                key={item}
+                                data-pet-wear={item}
+                                d={starPath(
+                                    60 + half * 0.45,
+                                    top + 6,
+                                    6,
+                                    5,
+                                    0.45,
+                                )}
+                                fill={ACCENT}
+                                stroke={FACE}
+                                strokeWidth="1"
+                            />
+                        );
+                    case 'halo':
+                        return (
+                            <ellipse
+                                key={item}
+                                data-pet-wear={item}
+                                cx="60"
+                                cy={top - 7}
+                                rx={Math.max(12, half * 0.55)}
+                                ry="4"
+                                fill="none"
+                                stroke={ACCENT}
+                                strokeWidth="3"
+                            />
+                        );
+                    case 'bow': {
+                        const x = 60 - half * 0.45;
+                        const y = top + 6;
+                        return (
+                            <g key={item} data-pet-wear={item} fill={ACCENT}>
+                                <path
+                                    d={`M${x} ${y} L${x - 8} ${y - 6} L${x - 8} ${y + 6} Z`}
+                                />
+                                <path
+                                    d={`M${x} ${y} L${x + 8} ${y - 6} L${x + 8} ${y + 6} Z`}
+                                />
+                                <circle cx={x} cy={y} r="2.5" fill={FACE} />
+                            </g>
+                        );
+                    }
+                    case 'scarf':
+                        return (
+                            <g key={item} data-pet-wear={item} fill={ACCENT}>
+                                <path
+                                    d={`M${60 - half} ${neck - 3} Q60 ${neck + 3} ${60 + half} ${neck - 3} L${60 + half} ${neck + 3} Q60 ${neck + 9} ${60 - half} ${neck + 3} Z`}
+                                />
+                                <path
+                                    d={`M${60 + half * 0.4} ${neck + 4} l5 12 l6 -2 l-4 -11 Z`}
+                                />
+                            </g>
+                        );
+                    case 'comet_trail':
+                        return (
+                            <g key={item} data-pet-wear={item}>
+                                <path
+                                    d={`M${60 - half * 0.6} ${neck - 2} Q60 ${neck + 6} ${60 + half * 0.6} ${neck - 2}`}
+                                    fill="none"
+                                    stroke={FACE}
+                                    strokeWidth="1.5"
+                                />
+                                <path
+                                    d={`M${58} ${neck + 3} L${50} ${neck - 1} L${53} ${neck + 6} Z`}
+                                    fill={ACCENT}
+                                    opacity="0.7"
+                                />
+                                <circle
+                                    cx="60"
+                                    cy={neck + 5}
+                                    r="3"
+                                    fill={ACCENT}
+                                />
+                            </g>
+                        );
+                    default:
+                        return null;
+                }
+            })}
+        </>
     );
 }

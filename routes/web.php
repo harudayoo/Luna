@@ -24,6 +24,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('pet', [PetController::class, 'update'])->name('pet.update');
     Route::post('pet/pat', [PetController::class, 'pat'])->name('pet.pat');
     Route::patch('pet/active', [PetController::class, 'active'])->name('pet.active');
+    Route::patch('pet/moonlings/{moonling}', [PetController::class, 'dress'])->name('pet.moonlings.update');
     Route::post('pet/duels', [PetDuelController::class, 'store'])->name('pet.duels.store');
     Route::post('pet/duels/{duel}/answer', [PetDuelController::class, 'answer'])->name('pet.duels.answer');
     Route::post('pet/duels/{duel}/decline', [PetDuelController::class, 'decline'])->name('pet.duels.decline');

@@ -99,6 +99,8 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
                         <PetSprite
                             stage={progress.stage}
                             kind={pet.kind}
+                            palette={pet.palette}
+                            wear={pet.wear}
                             title={`Your moonling: ${progress.name}${pet.crown ? ', Moon Cup champion' : ''}`}
                             crown={pet.crown}
                             mood={pet.mood.level}

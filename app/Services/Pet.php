@@ -60,6 +60,7 @@ final class Pet
         }
         if ($new) {
             Moonlings::checkEggs($user);
+            Moonlings::checkUnlocks($user);
         }
 
         return $new;
@@ -148,6 +149,8 @@ final class Pet
                 'first_name' => strtok($u->name, ' ') ?: $u->name,
                 'pet_name' => $pets[$u->id]->name ?? null,
                 'kind' => $pets[$u->id]->kind ?? 'moon',
+                'palette' => $pets[$u->id]->palette ?? 'classic',
+                'wear' => $pets[$u->id]->wear ?? [],
                 'stage' => $stage,
                 'stage_name' => self::STAGE_NAMES[$stage],
                 'streak' => $streaks[$u->id],
@@ -177,9 +180,13 @@ final class Pet
         $stage = self::stageFor($xp);
 
         return [
-            // The active moonling (slice 6).
+            // The active moonling (slice 6); its id is what the wardrobe saves to (slice 7).
+            'moonling_id' => $pet->id,
             'name' => $pet->name,
             'kind' => $pet->kind,
+            // The wardrobe (slice 7).
+            'palette' => $pet->palette,
+            'wear' => $pet->wear,
             'public' => (bool) $user->pet_public,
             'xp' => $xp,
             'stage' => $stage,
@@ -279,6 +286,7 @@ final class Pet
             'xp' => self::XP,
             'streak_bonus_max' => self::STREAK_BONUS_MAX,
             'duel_xp' => PetDuels::XP,
+            'wardrobe' => Moonlings::wardrobe($user),
             'week' => self::week($user),
             'recent' => self::recent($user),
         ];
@@ -314,8 +322,8 @@ final class Pet
     /** The last 10 awards, newest first, each with a line a person can read. */
     private static function recent(User $user): array
     {
-        // Pats give no XP, so they stay out of the XP list.
-        $events = PetEvent::query()->where('user_id', $user->id)->where('kind', '!=', 'pat')
+        // Pats and wardrobe unlocks give no XP, so they stay out of the XP list.
+        $events = PetEvent::query()->where('user_id', $user->id)->whereNotIn('kind', ['pat', 'unlock'])
             ->orderByDesc('created_at')->orderByDesc('id')->limit(10)->get();
 
         $itemIds = $events->where('kind', 'item_time')->map(fn (PetEvent $e) => (int) strtok($e->ref, ':'));

@@ -8,6 +8,7 @@ import { PetBubble, useBubble } from '@/components/pet-bubble';
 import { PetDuels } from '@/components/pet-duels';
 import { PetNest } from '@/components/pet-nest';
 import { PetSprite } from '@/components/pet-sprite';
+import { PetWardrobe } from '@/components/pet-wardrobe';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -289,6 +290,8 @@ export function PetPanel({
                                     <PetSprite
                                         stage={progress.stage}
                                         kind={pet.kind}
+                                        palette={pet.palette}
+                                        wear={pet.wear}
                                         title={`${title}: ${progress.name}, ${mood.label.toLowerCase()}`}
                                         crown={pet.crown}
                                         mood={pet.mood.level}
@@ -347,6 +350,10 @@ export function PetPanel({
                             </span>
                         </section>
 
+                        {detail && (
+                            <PetWardrobe pet={pet} wardrobe={detail.wardrobe} />
+                        )}
+
                         <section aria-label="Growth path">
                             <p className="ocs-eyebrow">Growth path</p>
                             <ol className="grid grid-cols-5 gap-1">
@@ -363,6 +370,7 @@ export function PetPanel({
                                         <PetSprite
                                             stage={s.stage}
                                             kind={pet.kind}
+                                            palette={pet.palette}
                                             title={
                                                 s.state === 'locked'
                                                     ? `${s.name}, still to come`

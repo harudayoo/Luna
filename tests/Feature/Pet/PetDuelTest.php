@@ -96,7 +96,7 @@ class PetDuelTest extends TestCase
                     ->has('pet_duels.incoming.0', fn (AssertableInertia $row) => $row
                         ->where('from', 'Ana')
                         ->where('from_id', $this->ana->id)
-                        ->hasAll(['id', 'from_pet', 'kind', 'stage', 'at'])
+                        ->hasAll(['id', 'from_pet', 'kind', 'palette', 'wear', 'stage', 'at'])
                         ->missing('pick'))));
 
         $props = json_encode($this->actingAs($this->ben)

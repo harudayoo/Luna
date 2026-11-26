@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Item;
 use App\Models\Moonling;
+use App\Models\PetDuel;
 use App\Models\PetEvent;
 use App\Models\User;
 use App\Notifications\LunaNotice;
@@ -26,6 +27,18 @@ final class Moonlings
         'eclipse' => 'Raise a moonling to Full Moon',
         'aurora' => 'Log time on 20 different days',
         'nova' => 'Win a weekly Moon Cup',
+    ];
+
+    /** The wardrobe's shades (slice 7), all open from the start; drawn from tokens in lib/pet.ts paletteStyle. */
+    public const PALETTES = ['classic', 'dusk', 'dawn', 'tide', 'mist'];
+
+    /** The wardrobe's items: slot and what unlocks each. The Moon Cup crown is worn automatically, not picked. */
+    public const WEAR = [
+        'star_clip' => ['slot' => 'head', 'how' => 'Win 5 moon duels'],
+        'comet_trail' => ['slot' => 'neck', 'how' => 'Win 15 moon duels'],
+        'halo' => ['slot' => 'head', 'how' => 'Win 30 moon duels'],
+        'scarf' => ['slot' => 'neck', 'how' => 'Reach a 10-day visit streak'],
+        'bow' => ['slot' => 'head', 'how' => 'Give your moonling a name'],
     ];
 
     /** The person's active moonling; their first `moon` one is made the first time it's needed. */
@@ -92,6 +105,87 @@ final class Moonlings
         }
     }
 
+    /**
+     * Records any wardrobe item the person has newly unlocked, once (a 0-XP `unlock` row; the unique key keeps it
+     * once), so it stays theirs even when a streak later breaks.
+     */
+    public static function checkUnlocks(User $user): void
+    {
+        $have = self::unlocked($user);
+        $wins = fn () => PetDuel::query()->where('status', 'done')->where('winner_id', $user->id)->count();
+        $rules = [
+            'star_clip' => fn () => $wins() >= 5,
+            'comet_trail' => fn () => $wins() >= 15,
+            'halo' => fn () => $wins() >= 30,
+            'scarf' => fn () => Pet::streak($user) >= 10,
+            'bow' => fn () => Moonling::query()->where('user_id', $user->id)->whereNotNull('name')->exists(),
+        ];
+
+        foreach ($rules as $item => $earned) {
+            if (! in_array($item, $have, true) && $earned()) {
+                PetEvent::query()->insertOrIgnore([
+                    'user_id' => $user->id, 'kind' => 'unlock', 'ref' => $item, 'xp' => 0, 'created_at' => now(),
+                ]);
+            }
+        }
+    }
+
+    /** @return list<string> the items the person has unlocked */
+    public static function unlocked(User $user): array
+    {
+        return PetEvent::query()->where('user_id', $user->id)->where('kind', 'unlock')->pluck('ref')->all();
+    }
+
+    /**
+     * Puts a shade and/or items on one of your moonlings: a known shade, only unlocked items, one head and one neck.
+     *
+     * @param  array{palette?: string, wear?: list<string>}  $data
+     */
+    public static function dress(User $user, Moonling $moonling, array $data): void
+    {
+        abort_unless($moonling->user_id === $user->id, 404);
+
+        if (array_key_exists('palette', $data) && ! in_array($data['palette'], self::PALETTES, true)) {
+            throw ValidationException::withMessages(['palette' => 'Pick one of the shades.']);
+        }
+        if (array_key_exists('wear', $data)) {
+            $wear = array_values(array_unique($data['wear']));
+            $unlocked = self::unlocked($user);
+            foreach ($wear as $item) {
+                if (! isset(self::WEAR[$item])) {
+                    throw ValidationException::withMessages(['wear' => 'That isn’t something your moonling can wear.']);
+                }
+                if (! in_array($item, $unlocked, true)) {
+                    throw ValidationException::withMessages(['wear' => self::WEAR[$item]['how'].' to unlock that.']);
+                }
+            }
+            $slots = array_map(fn (string $item) => self::WEAR[$item]['slot'], $wear);
+            if (count($slots) !== count(array_unique($slots))) {
+                throw ValidationException::withMessages(['wear' => 'One thing on the head and one around the neck.']);
+            }
+            $data['wear'] = $wear;
+        }
+
+        $moonling->update(array_intersect_key($data, ['palette' => 1, 'wear' => 1]));
+    }
+
+    /**
+     * The wardrobe in the panel: every shade, and every item with its slot, how to unlock it and whether you have.
+     *
+     * @return array{palettes: list<string>, items: list<array{key: string, slot: string, how: string, unlocked: bool}>}
+     */
+    public static function wardrobe(User $user): array
+    {
+        $unlocked = self::unlocked($user);
+
+        return [
+            'palettes' => self::PALETTES,
+            'items' => collect(self::WEAR)->map(fn (array $w, string $key) => [
+                'key' => $key, 'slot' => $w['slot'], 'how' => $w['how'], 'unlocked' => in_array($key, $unlocked, true),
+            ])->values()->all(),
+        ];
+    }
+
     private static function earned(User $user, string $kind): bool
     {
         return match ($kind) {
@@ -130,6 +224,8 @@ final class Moonlings
                 'stage' => $stage($m),
                 'stage_name' => Pet::STAGE_NAMES[$stage($m)],
                 'active' => $m->active,
+                'palette' => $m->palette,
+                'wear' => $m->wear,
             ])->values()->all(),
             'can_switch' => $stage($active) >= 1,
             'eggs' => collect(self::EGGS)->map(fn (string $how, string $kind) => [

@@ -146,6 +146,8 @@ final class PetDuels
                 'from' => self::first($d->challenger),
                 'from_pet' => $pets[$d->challenger_id]->name ?? null,
                 'kind' => $pets[$d->challenger_id]->kind ?? 'moon',
+                'palette' => $pets[$d->challenger_id]->palette ?? 'classic',
+                'wear' => $pets[$d->challenger_id]->wear ?? [],
                 'stage' => $stages[$d->challenger_id],
                 'at' => $at($d),
             ])->values()->all(),
@@ -167,6 +169,8 @@ final class PetDuels
                         // For the result reveal: both pets face each other.
                         'their_stage' => $stages[$other($d)],
                         'their_kind' => $pets[$other($d)]->kind ?? 'moon',
+                        'their_palette' => $pets[$other($d)]->palette ?? 'classic',
+                        'their_wear' => $pets[$other($d)]->wear ?? [],
                         'mine' => $challenged ? $d->challenger_pick : $d->opponent_pick,
                         'theirs' => $challenged ? $d->opponent_pick : $d->challenger_pick,
                         'outcome' => $d->status !== 'done' ? $d->status : match ($d->winner_id) {
@@ -202,6 +206,8 @@ final class PetDuels
             'first_name' => self::first($u),
             'pet_name' => $pets[$u->id]->name ?? null,
             'kind' => $pets[$u->id]->kind ?? 'moon',
+            'palette' => $pets[$u->id]->palette ?? 'classic',
+            'wear' => $pets[$u->id]->wear ?? [],
             'stage' => $stages[$u->id],
             'stage_name' => Pet::STAGE_NAMES[$stages[$u->id]],
             'wins' => $standings[$u->id]['wins'],

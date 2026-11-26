@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Moonling;
 use App\Models\User;
 use App\Services\Moonlings;
 use App\Services\Pet;
@@ -26,11 +27,25 @@ class PetController extends Controller
         // The name belongs to the moonling you're raising (slice 6).
         if (array_key_exists('name', $data)) {
             Moonlings::active($user)->update(['name' => $data['name']]);
+            Moonlings::checkUnlocks($user); // naming unlocks the bow (slice 7)
         }
         if (array_key_exists('public', $data)) {
             $user->pet_public = (bool) $data['public'];
             $user->save();
         }
+
+        return back();
+    }
+
+    /** The wardrobe (slice 7): a shade and/or items on one of your own moonlings. */
+    public function dress(Request $request, Moonling $moonling): RedirectResponse
+    {
+        $data = $request->validate([
+            'palette' => ['sometimes', 'string'],
+            'wear' => ['sometimes', 'array'],
+            'wear.*' => ['string'],
+        ]);
+        Moonlings::dress($request->user(), $moonling, $data);
 
         return back();
     }
