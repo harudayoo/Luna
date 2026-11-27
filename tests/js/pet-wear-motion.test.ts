@@ -25,9 +25,8 @@ Object.assign(globalThis, {
     requestAnimationFrame: () => 0,
     cancelAnimationFrame: () => {},
 });
-const { petIdle, petPoke, petWearTap } = await import(
-    '../../resources/js/lib/ocs'
-);
+const { petIdle, petPoke, petWearTap } =
+    await import('../../resources/js/lib/ocs');
 
 let reduced = false;
 Object.assign(globalThis, {

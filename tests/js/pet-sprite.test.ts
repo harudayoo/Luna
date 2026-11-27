@@ -2,7 +2,10 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import { PetSprite } from '../../resources/js/components/pet-sprite';
+import {
+    outlinePath,
+    PetSprite,
+} from '../../resources/js/components/pet-sprite';
 import type { MoodLevel } from '../../resources/js/lib/pet';
 
 const svg = (stage: number, mood?: MoodLevel) =>
@@ -58,5 +61,50 @@ describe('PetSprite redesign', () => {
         expect(s).toContain('data-pet-eyes-happy');
         expect(s).toContain('data-pet-mouth-o');
         expect(s).toContain('data-pet-mouth=""');
+    });
+});
+
+/** Rocket wings (spec 2026-11-27-luna-jetpack-wings-nest-stars): the jetpack shows past the body's sides. */
+describe('PetSprite jetpack', () => {
+    const xs = (d: string) =>
+        [...d.matchAll(/[MLQC]\s*([-\d.]+)[ ,]([-\d.]+)/g)].map((m) =>
+            Number(m[1]),
+        );
+
+    it('has two rocket wings that reach past the body edge at every hatched stage', () => {
+        for (const stage of [1, 2, 3, 4]) {
+            const body = xs(outlinePath(stage));
+            const right = Math.max(...body);
+            const left = Math.min(...body);
+            const s = renderToStaticMarkup(
+                createElement(PetSprite, {
+                    stage,
+                    title: 'x',
+                    wear: ['jetpack'],
+                }),
+            );
+            const wings = [
+                ...s.matchAll(
+                    /<path[^>]*data-pet-jetpack-wing="(left|right)"[^>]*>/g,
+                ),
+            ];
+            expect(wings.map((w) => w[1]).sort(), `stage ${stage}`).toEqual([
+                'left',
+                'right',
+            ]);
+            for (const [tag, side] of wings) {
+                const d = tag.match(/ d="([^"]+)"/)![1];
+                if (side === 'right') {
+                    expect(
+                        Math.max(...xs(d)),
+                        `stage ${stage}`,
+                    ).toBeGreaterThan(right + 4);
+                } else {
+                    expect(Math.min(...xs(d)), `stage ${stage}`).toBeLessThan(
+                        left - 4,
+                    );
+                }
+            }
+        }
     });
 });

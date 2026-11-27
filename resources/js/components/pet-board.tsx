@@ -119,7 +119,7 @@ export function PetBoard({ pet }: { pet: Pet }) {
                         role="radio"
                         aria-checked={view === key}
                         onClick={() => setView(key)}
-                        className="min-h-10 px-3 text-sm font-semibold text-muted aria-checked:bg-surface-hover aria-checked:text-primary focus-visible:shadow-lift focus-visible:outline-none"
+                        className="min-h-10 px-3 text-sm font-semibold text-muted focus-visible:shadow-lift focus-visible:outline-none aria-checked:bg-surface-hover aria-checked:text-primary"
                     >
                         {label}
                     </button>

@@ -94,7 +94,7 @@ export function PetWardrobe({
                                 save({ palette: p.key });
                             }
                         }}
-                        className="relative grid aspect-square min-h-10 cursor-pointer place-items-center bg-bg p-1 aria-checked:bg-surface-hover aria-checked:shadow-lift focus-visible:shadow-lift focus-visible:outline-none"
+                        className="relative grid aspect-square min-h-10 cursor-pointer place-items-center bg-bg p-1 focus-visible:shadow-lift focus-visible:outline-none aria-checked:bg-surface-hover aria-checked:shadow-lift"
                     >
                         <span
                             aria-hidden
@@ -148,7 +148,7 @@ export function PetWardrobe({
                             setPicked(null);
                             setDyePeek(null);
                         }}
-                        className="min-h-10 cursor-pointer bg-bg px-1 text-xs font-semibold text-muted aria-selected:bg-surface-hover aria-selected:text-ink focus-visible:shadow-lift focus-visible:outline-none"
+                        className="min-h-10 cursor-pointer bg-bg px-1 text-xs font-semibold text-muted focus-visible:shadow-lift focus-visible:outline-none aria-selected:bg-surface-hover aria-selected:text-ink"
                     >
                         {SLOT_NAMES[k]}
                         {pet.wear.some(
@@ -185,7 +185,7 @@ export function PetWardrobe({
                                         onWorn?.();
                                     }
                                 }}
-                                className="flex size-full min-h-24 cursor-pointer flex-col items-center gap-1 bg-bg px-2 py-2 text-center aria-pressed:bg-surface-hover focus-visible:shadow-lift focus-visible:outline-none disabled:cursor-default"
+                                className="flex size-full min-h-24 cursor-pointer flex-col items-center gap-1 bg-bg px-2 py-2 text-center focus-visible:shadow-lift focus-visible:outline-none disabled:cursor-default aria-pressed:bg-surface-hover"
                             >
                                 <PetSprite
                                     stage={Math.max(2, pet.stage)}
@@ -240,7 +240,7 @@ export function PetWardrobe({
                                             save({ dyes: { [dyeing]: d.key } });
                                         }
                                     }}
-                                    className="relative grid aspect-square min-h-9 cursor-pointer place-items-center bg-bg p-1 aria-checked:bg-surface-hover aria-checked:shadow-lift focus-visible:shadow-lift focus-visible:outline-none"
+                                    className="relative grid aspect-square min-h-9 cursor-pointer place-items-center bg-bg p-1 focus-visible:shadow-lift focus-visible:outline-none aria-checked:bg-surface-hover aria-checked:shadow-lift"
                                 >
                                     <span
                                         aria-hidden

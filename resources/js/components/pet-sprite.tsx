@@ -1328,6 +1328,21 @@ function Wear({
                             <g key={item} {...root('jump')}>
                                 {[-1, 1].map((side) => (
                                     <g key={side}>
+                                        {/* Rocket wings reach past the body, so the pack shows from the front. */}
+                                        <path
+                                            {...INK_THIN}
+                                            data-pet-jetpack-wing={
+                                                side < 0 ? 'left' : 'right'
+                                            }
+                                            d={`M${n(60 + side * r * 0.7)} ${n(cy - r * 0.3)} L${n(60 + side * r * 1.52)} ${n(cy + r * 0.16)} L${n(60 + side * r * 1.46)} ${n(cy + r * 0.48)} L${n(60 + side * r * 0.7)} ${n(cy + r * 0.26)} Z`}
+                                            fill={c}
+                                        />
+                                        <path
+                                            d={`M${n(60 + side * r * 1.25)} ${n(cy + r * 0.08)} L${n(60 + side * r * 1.2)} ${n(cy + r * 0.4)}`}
+                                            stroke="#e0565b"
+                                            strokeWidth="3"
+                                            strokeLinecap="round"
+                                        />
                                         <rect
                                             {...INK_THIN}
                                             x={60 + side * r * 0.62 - r * 0.17}

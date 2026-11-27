@@ -14,6 +14,11 @@ const { wipTime } = await import('../../resources/js/components/item-parts');
 /** Time on items reads the way it's logged onto WIP (ItemTime::wip on the server). */
 describe('wipTime', () => {
     it('reads hours and minutes', () => {
-        expect([155, 45, 120, 0].map(wipTime)).toEqual(['2h 35m', '45m', '2h', '0m']);
+        expect([155, 45, 120, 0].map(wipTime)).toEqual([
+            '2h 35m',
+            '45m',
+            '2h',
+            '0m',
+        ]);
     });
 });

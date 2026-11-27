@@ -219,7 +219,11 @@ describe('shouldSpeak (now and then)', () => {
             shouldSpeak('fed', '2026-11-19:morning', '2026-11-19:morning'),
         ).toBe(false);
         expect(
-            shouldSpeak('afternoon', '2026-11-19:afternoon', '2026-11-19:morning'),
+            shouldSpeak(
+                'afternoon',
+                '2026-11-19:afternoon',
+                '2026-11-19:morning',
+            ),
         ).toBe(true);
         expect(
             shouldSpeak('grew', '2026-11-19:morning', '2026-11-19:morning'),

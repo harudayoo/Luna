@@ -8,17 +8,19 @@ const running: {
     revert: ReturnType<typeof vi.fn>;
 }[] = [];
 vi.mock('animejs', () => ({
-    animate: vi.fn((target: unknown, params: { y?: number; scaleY?: unknown }) => {
-        const animation = {
-            target,
-            y: params.y ?? 0,
-            scaleY: params.scaleY,
-            revert: vi.fn(),
-        };
-        running.push(animation);
+    animate: vi.fn(
+        (target: unknown, params: { y?: number; scaleY?: unknown }) => {
+            const animation = {
+                target,
+                y: params.y ?? 0,
+                scaleY: params.scaleY,
+                revert: vi.fn(),
+            };
+            running.push(animation);
 
-        return animation;
-    }),
+            return animation;
+        },
+    ),
     spring: () => 'spring',
     stagger: () => 0,
     utils: { set: () => {} },

@@ -6,6 +6,17 @@ import { PetSprite } from '../../resources/js/components/pet-sprite';
 import { KINDS, nestGroups, raiseState } from '../../resources/js/lib/pet';
 import type { MoonlingKind, PetNest } from '../../resources/js/lib/pet';
 
+// pet-nest pulls in the kit (ocs.js) and Inertia's router, which read window, document and history when they load
+// (see button.test.tsx).
+Object.assign(globalThis, {
+    window: globalThis,
+    history: {},
+    document: { documentElement: {}, addEventListener: () => {} },
+    requestAnimationFrame: () => 0,
+    cancelAnimationFrame: () => {},
+});
+const { NestSky } = await import('../../resources/js/components/pet-nest');
+
 const kinds = Object.keys(KINDS) as MoonlingKind[];
 
 const moonling = (
@@ -108,5 +119,29 @@ describe('PetSprite kinds', () => {
                 createElement(PetSprite, { stage: 2, title: 'x' }),
             ),
         ).toContain('data-pet-kind="moon"');
+    });
+});
+
+/** Round stars (spec 2026-11-27-luna-jetpack-wings-nest-stars): never stretched by a wide scene. */
+describe('NestSky', () => {
+    const sky = () => renderToStaticMarkup(createElement(NestSky));
+
+    it('draws no star circle in a stretched svg', () => {
+        expect(sky()).not.toMatch(/preserveAspectRatio="none"[^]*<circle/);
+    });
+
+    it('places round stars by percent with a fixed pixel size', () => {
+        const stars = [
+            ...sky().matchAll(/<span[^>]*data-nest-star[^>]*>/g),
+        ].map((m) => m[0]);
+        expect(stars.length).toBeGreaterThanOrEqual(8);
+        for (const s of stars) {
+            expect(s).toMatch(/left:\s*[\d.]+%/);
+            expect(s).toMatch(/top:\s*[\d.]+%/);
+            const w = s.match(/width:\s*([\d.]+)px/)?.[1];
+            const h = s.match(/height:\s*([\d.]+)px/)?.[1];
+            expect(w).toBeDefined();
+            expect(w).toBe(h);
+        }
     });
 });

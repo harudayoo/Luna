@@ -17,17 +17,93 @@ type Moonling = PetNestData['moonlings'][number];
 const reduced = () =>
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
-/** Small stars in the night sky (positions in % of the scene). */
+/** Stars in the night sky: [left %, top %, size px]. */
 const STARS = [
-    [6, 18],
-    [17, 8],
-    [31, 22],
-    [46, 10],
-    [58, 26],
-    [72, 12],
-    [84, 24],
-    [93, 9],
-];
+    [4, 14, 3],
+    [11, 34, 2],
+    [17, 8, 4],
+    [24, 24, 2],
+    [31, 16, 3],
+    [38, 38, 2],
+    [46, 9, 3],
+    [52, 28, 2],
+    [58, 18, 4],
+    [65, 36, 2],
+    [72, 11, 3],
+    [78, 26, 2],
+    [84, 17, 4],
+    [90, 33, 2],
+    [95, 8, 3],
+] as const;
+
+/**
+ * The nest's sky: round stars placed by percent at a fixed pixel size (so a wide scene never stretches them), each
+ * twinkling at its own pace, over the crescent cradle. Reduced motion: still.
+ */
+export function NestSky() {
+    const sky = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const el = sky.current;
+        if (!el || reduced()) {
+            return;
+        }
+        const twinkles = Array.from(
+            el.querySelectorAll<HTMLElement>('[data-nest-star]'),
+        ).map((star, i) =>
+            star.animate(
+                [
+                    { opacity: 0.8, transform: 'scale(1)' },
+                    { opacity: 0.25, transform: 'scale(0.6)' },
+                    { opacity: 0.8, transform: 'scale(1)' },
+                ],
+                {
+                    duration: 1800 + ((i * 530) % 2200),
+                    delay: (i * 370) % 1500,
+                    iterations: Infinity,
+                    easing: 'ease-in-out',
+                },
+            ),
+        );
+
+        return () => twinkles.forEach((t) => t.cancel());
+    }, []);
+
+    return (
+        <div
+            ref={sky}
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+        >
+            {STARS.map(([x, y, size]) => (
+                <span
+                    key={`${x}-${y}`}
+                    data-nest-star
+                    className="absolute rounded-full bg-accent"
+                    style={{
+                        left: `${x}%`,
+                        top: `${y}%`,
+                        width: `${size}px`,
+                        height: `${size}px`,
+                        opacity: 0.8,
+                    }}
+                />
+            ))}
+            {/* The crescent cradle. */}
+            <svg
+                className="absolute inset-0 size-full"
+                preserveAspectRatio="none"
+                viewBox="0 0 100 100"
+            >
+                <path
+                    d="M0 78 Q50 108 100 78 L100 100 L0 100 Z"
+                    fill="var(--color-primary)"
+                    opacity="0.35"
+                />
+            </svg>
+        </div>
+    );
+}
 
 /**
  * The moon nest (spec 2026-11-25-luna-moonling-life, slice 6): a night sky with a crescent cradle where your
@@ -164,29 +240,7 @@ export function PetNest() {
                         'color-mix(in oklab, var(--color-primary) 16%, var(--color-bg))',
                 }}
             >
-                <svg
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 size-full"
-                    preserveAspectRatio="none"
-                    viewBox="0 0 100 100"
-                >
-                    {STARS.map(([x, y]) => (
-                        <circle
-                            key={`${x}-${y}`}
-                            cx={x}
-                            cy={y}
-                            r="0.8"
-                            fill="var(--color-accent)"
-                            opacity="0.7"
-                        />
-                    ))}
-                    {/* The crescent cradle. */}
-                    <path
-                        d="M0 78 Q50 108 100 78 L100 100 L0 100 Z"
-                        fill="var(--color-primary)"
-                        opacity="0.35"
-                    />
-                </svg>
+                <NestSky />
                 <PetBubble text={line} place="top" />
                 <div className="relative flex min-w-max items-end gap-1 px-3 pt-10 pb-4">
                     {cradle.map((m) => tile(m, 'size-18 min-[390px]:size-20'))}
