@@ -1,8 +1,11 @@
 /*
  * The pet, drawn in code (spec 2026-11-24-luna-pet): a little moon creature in five stages,
  * Egg · Hatchling · Moonling · Bright · Full Moon. Colours come from the shade (fixed art colours,
- * the same in both themes), with a cartoon outline and shading. Parts the motion (lib/ocs.ts petIdle / petFed / petGrow) moves: [data-pet-body],
- * [data-pet-eye], [data-pet-glow]. Swapping in commissioned art only changes this file.
+ * the same in both themes), with a cartoon outline and shading. The redesign (spec 2026-11-26-luna-moonling-redesign)
+ * gave it a soft body, a lower face and layers for the motion in lib/ocs.ts: [data-pet-lean] > [data-pet-body] >
+ * [data-pet-hop] > [data-pet-breath], plus [data-pet-shadow], [data-pet-arm], [data-pet-eye], [data-pet-glow] and an
+ * empty [data-pet-fx] for hearts and z's. The happy and surprised faces are drawn hidden; `data-pet-react` on the svg
+ * shows them (resources/css/app.css).
  */
 import type { CSSProperties } from 'react';
 import { useId } from 'react';
@@ -38,6 +41,45 @@ const EYE = { transformBox: 'fill-box', transformOrigin: '50% 50%' } as const;
 /** Body radius and glow per stage (the egg has neither). */
 const SIZE = [0, 24, 32, 36, 40];
 const GLOW = [0, 0, 0, 48, 56];
+
+/** Where the face sits on a body of radius `r` centred at `cy`: low and wide. Items read the same numbers. */
+const faceOf = (r: number, cy: number) => ({
+    eyeY: cy + r * 0.08,
+    eyeDx: r * 0.4,
+});
+
+const n = (v: number) => Math.round(v * 100) / 100;
+
+/**
+ * The outline of the body at a stage: the egg's oval, then a soft body wider low down, inside the old circle's top,
+ * bottom and width so items still fit. Every stage has the same four curves, so growing can morph one into the next.
+ */
+export function outlinePath(stage: number): string {
+    if (stage === 0) {
+        return 'M60 32 C74.35 32 86 47.22 86 66 C86 84.78 74.35 100 60 100 C45.65 100 34 84.78 34 66 C34 47.22 45.65 32 60 32 Z';
+    }
+    const r = SIZE[stage] ?? 40;
+    const cy = 96 - r - 4;
+    const top = n(cy - r);
+    const bottom = n(cy + r);
+    const w = r * 1.05;
+    const side = n(cy + r * 0.22);
+    const c = (dx: number) => n(60 + dx);
+
+    return [
+        `M60 ${top}`,
+        `C${c(r * 0.62)} ${top} ${c(w)} ${n(cy - r * 0.55)} ${c(w)} ${side}`,
+        `C${c(w)} ${n(cy + r * 0.8)} ${c(r * 0.62)} ${bottom} 60 ${bottom}`,
+        `C${c(-r * 0.62)} ${bottom} ${c(-w)} ${n(cy + r * 0.8)} ${c(-w)} ${side}`,
+        `C${c(-w)} ${n(cy - r * 0.55)} ${c(-r * 0.62)} ${top} 60 ${top} Z`,
+    ].join(' ');
+}
+
+/** A layer the motion moves, from its bottom centre. */
+const LAYER = {
+    transformBox: 'fill-box',
+    transformOrigin: '50% 100%',
+} as const;
 
 /** Sizes for the Home card (smaller in the desktop rail, so the rail fits on screen). */
 const CARD_SIZE = 'size-24 min-[390px]:size-30 lg:size-20';
@@ -87,14 +129,16 @@ export function PetSprite({
         top,
         cy: egg ? 66 : cy,
         r: egg ? 26 : r,
-        neck: egg ? 78 : cy + r * 0.45,
+        neck: egg ? 78 : cy + r * 0.58,
         half: egg ? 24 : r * 0.89,
-        eyeY: egg ? 58 : cy - r * 0.1,
-        eyeDx: egg ? 9 : r * 0.36,
+        eyeY: egg ? 58 : faceOf(r, cy).eyeY,
+        eyeDx: egg ? 9 : faceOf(r, cy).eyeDx,
         // The hands: on the arms from the Moonling on, else at the sides.
-        handDx: egg ? 24 : stage >= 2 ? r + 2 : r - 2,
+        handDx: egg ? 24 : stage >= 2 ? r * 1.05 + 1 : r - 2,
         handY: egg ? 76 : cy + r * 0.3,
     };
+
+    const holding = wear.some((w) => knownItem(w) && WEAR[w].slot === 'hand');
 
     return (
         <svg
@@ -102,6 +146,8 @@ export function PetSprite({
             role="img"
             aria-label={title}
             data-pet-kind={kind}
+            data-pet-mood={mood}
+            data-pet-hand={holding ? '' : undefined}
             style={paletteStyle(palette) as CSSProperties}
             className={`shrink-0 overflow-visible ${className} ${locked ? '[&_[data-pet-body]_*]:fill-surface-hover [&_[data-pet-body]_*]:stroke-none' : ''}`}
         >
@@ -115,34 +161,48 @@ export function PetSprite({
                     opacity={stage === 4 ? 0.22 : 0.16}
                 />
             )}
-            {!locked && (
-                <ellipse
-                    cx="60"
-                    cy="104"
-                    rx={stage === 0 ? 22 : r * 0.8}
-                    ry="4"
-                    fill={ACCENT}
-                    opacity="0.25"
-                />
-            )}
+            <ellipse
+                data-pet-shadow
+                style={EYE}
+                cx="60"
+                cy="104"
+                rx={stage === 0 ? 22 : r * 0.84}
+                ry="4"
+                fill={ACCENT}
+                opacity={locked ? 0 : 0.25}
+            />
             <g
-                data-pet-body
+                data-pet-lean
                 style={{
-                    transformBox: 'fill-box',
-                    transformOrigin: '50% 100%',
+                    ...LAYER,
+                    transition:
+                        'transform 450ms cubic-bezier(0.3, 1.4, 0.5, 1)',
                 }}
             >
-                {/* Back items (wings, cape) behind the body; the rest in front. */}
-                {!locked && <Wear layer="back" {...fit} />}
-                {stage === 0 ? (
-                    <Egg kind={kind} />
-                ) : (
-                    <Body stage={stage} r={r} cy={cy} mood={mood} kind={kind} />
-                )}
-                {!locked && <Wear layer="front" {...fit} />}
-                {crown && !locked && <Crown base={top + 4} />}
+                <g data-pet-body style={LAYER}>
+                    <g data-pet-hop style={LAYER}>
+                        <g data-pet-breath style={LAYER}>
+                            {/* Back items (wings, cape) behind the body; the rest in front. */}
+                            {!locked && <Wear layer="back" {...fit} />}
+                            {stage === 0 ? (
+                                <Egg kind={kind} />
+                            ) : (
+                                <Body
+                                    stage={stage}
+                                    r={r}
+                                    cy={cy}
+                                    mood={mood}
+                                    kind={kind}
+                                />
+                            )}
+                            {!locked && <Wear layer="front" {...fit} />}
+                            {crown && !locked && <Crown base={top + 4} />}
+                        </g>
+                    </g>
+                </g>
             </g>
             {!locked && stage === 4 && <Sparkles />}
+            <g data-pet-fx />
         </svg>
     );
 }
@@ -150,7 +210,7 @@ export function PetSprite({
 function Egg({ kind }: { kind: MoonlingKind }) {
     return (
         <>
-            <ellipse {...INK} cx="60" cy="66" rx="26" ry="34" fill={PRIMARY} />
+            <path {...INK} data-pet-outline d={outlinePath(0)} fill={PRIMARY} />
             <ellipse
                 cx="50"
                 cy="46"
@@ -591,180 +651,251 @@ function Body({
     mood?: MoodLevel;
     kind: MoonlingKind;
 }) {
-    const eyeY = cy - r * 0.1;
-    const eyeDx = r * 0.36;
+    const { eyeY, eyeDx } = faceOf(r, cy);
     const sleepy = mood === 'droopy' || mood === 'gloomy';
+    const outline = outlinePath(stage);
+    const w = r * 1.05;
+    // Eyes: big and a little tall; the mouth sits close under them.
+    const ex = r * 0.14;
+    const ey = r * 0.18;
+    const my = eyeY + r * 0.26;
+    const mw = r * 0.13;
     // Unique per sprite: the board and the nest draw many on one page.
     const clip = `pet-clip-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    const eyes = [60 - eyeDx, 60 + eyeDx];
 
     return (
         <>
             <KindBack kind={kind} r={r} cy={cy} />
-            {/* Arms from the Moonling on, feet on everything that hatched. */}
-            {stage >= 2 && (
-                <>
-                    <ellipse
-                        {...INK}
-                        cx={60 - r - 2}
-                        cy={cy + r * 0.25}
-                        rx="6"
-                        ry="9"
-                        fill={PRIMARY}
-                        transform={`rotate(25 ${60 - r - 2} ${cy + r * 0.25})`}
-                    />
-                    <ellipse
-                        {...INK}
-                        cx={60 + r + 2}
-                        cy={cy + r * 0.25}
-                        rx="6"
-                        ry="9"
-                        fill={PRIMARY}
-                        transform={`rotate(-25 ${60 + r + 2} ${cy + r * 0.25})`}
-                    />
-                </>
-            )}
-            <ellipse
-                {...INK}
-                cx={60 - r * 0.4}
-                cy={cy + r}
-                rx="7"
-                ry="4"
-                fill={PRIMARY}
-            />
-            <ellipse
-                {...INK}
-                cx={60 + r * 0.4}
-                cy={cy + r}
-                rx="7"
-                ry="4"
-                fill={PRIMARY}
-            />
-            <circle {...INK} cx="60" cy={cy} r={r} fill={PRIMARY} />
-            {/* Cartoon shading: a shade on the lower right (the body minus a circle up and left), and a highlight. */}
+            {/* Arms from the Moonling on, each turning at its shoulder; feet on everything that hatched. */}
+            {stage >= 2 &&
+                ([-1, 1] as const).map((side) => {
+                    const ax = n(60 + side * (w + 1));
+                    const ay = n(cy + r * 0.3);
+                    return (
+                        <g
+                            key={side}
+                            data-pet-arm={side < 0 ? 'left' : 'right'}
+                            style={{
+                                transformBox: 'view-box',
+                                transformOrigin: `${n(60 + side * r * 0.92)}px ${n(cy + r * 0.08)}px`,
+                            }}
+                        >
+                            <ellipse
+                                {...INK}
+                                cx={ax}
+                                cy={ay}
+                                rx="6"
+                                ry="9"
+                                fill={PRIMARY}
+                                transform={`rotate(${-side * 25} ${ax} ${ay})`}
+                            />
+                        </g>
+                    );
+                })}
+            {[-1, 1].map((side) => (
+                <ellipse
+                    key={side}
+                    {...INK}
+                    cx={n(60 + side * r * 0.4)}
+                    cy={n(cy + r)}
+                    rx={n(Math.max(7, r * 0.22))}
+                    ry="4.5"
+                    fill={PRIMARY}
+                />
+            ))}
+            <path {...INK} data-pet-outline d={outline} fill={PRIMARY} />
+            {/* Cartoon shading: a shade on the lower right (the body minus a circle up and left), a rim light and a highlight. */}
             <clipPath id={clip}>
-                <circle cx="60" cy={cy} r={r} />
+                <path d={outline} />
             </clipPath>
             <path
                 clipPath={`url(#${clip})`}
                 fillRule="evenodd"
-                d={`M${60 - r} ${cy - r} h${2 * r} v${2 * r} h${-2 * r} Z M${60 - r * 0.18} ${cy - r * 0.18} m${-r * 1.02} 0 a${r * 1.02} ${r * 1.02} 0 1 0 ${r * 2.04} 0 a${r * 1.02} ${r * 1.02} 0 1 0 ${-r * 2.04} 0 Z`}
+                d={`M${n(60 - w - 2)} ${n(cy - r - 2)} h${n(2 * w + 4)} v${n(2 * r + 4)} h${n(-2 * w - 4)} Z M${n(60 - r * 0.2)} ${n(cy - r * 0.22)} m${n(-r * 1.08)} 0 a${n(r * 1.08)} ${n(r * 1.08)} 0 1 0 ${n(r * 2.16)} 0 a${n(r * 1.08)} ${n(r * 1.08)} 0 1 0 ${n(-r * 2.16)} 0 Z`}
                 fill={LINE}
-                opacity="0.16"
+                opacity="0.15"
+            />
+            <path
+                d={`M${n(60 - r * 0.86)} ${n(cy + r * 0.05)} Q${n(60 - r * 0.8)} ${n(cy - r * 0.62)} ${n(60 - r * 0.28)} ${n(cy - r * 0.86)}`}
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth={n(Math.max(2, r * 0.08))}
+                strokeLinecap="round"
+                opacity="0.5"
             />
             <ellipse
-                cx={60 - r * 0.42}
-                cy={cy - r * 0.5}
-                rx={r * 0.26}
-                ry={r * 0.14}
+                cx={n(60 - r * 0.4)}
+                cy={n(cy - r * 0.5)}
+                rx={n(r * 0.2)}
+                ry={n(r * 0.1)}
                 fill="#ffffff"
-                opacity="0.45"
-                transform={`rotate(-35 ${60 - r * 0.42} ${cy - r * 0.5})`}
+                opacity="0.6"
+                transform={`rotate(-35 ${n(60 - r * 0.4)} ${n(cy - r * 0.5)})`}
             />
             {/* Craters on the Full Moon. */}
             {stage === 4 && (
                 <>
                     <circle
-                        cx={60 - r * 0.5}
-                        cy={cy + r * 0.45}
-                        r="5"
-                        fill={FACE}
-                        opacity="0.14"
-                    />
-                    <circle
-                        cx={60 + r * 0.55}
-                        cy={cy - r * 0.45}
+                        cx={60 - r * 0.62}
+                        cy={cy + r * 0.5}
                         r="4"
                         fill={FACE}
-                        opacity="0.14"
+                        opacity="0.12"
                     />
                     <circle
-                        cx={60 + r * 0.25}
-                        cy={cy + r * 0.62}
+                        cx={60 + r * 0.58}
+                        cy={cy - r * 0.42}
+                        r="4"
+                        fill={FACE}
+                        opacity="0.12"
+                    />
+                    <circle
+                        cx={60 + r * 0.3}
+                        cy={cy + r * 0.72}
                         r="3"
                         fill={FACE}
-                        opacity="0.14"
+                        opacity="0.12"
                     />
                 </>
             )}
             {/* The kind's mark on the forehead, from the Moonling on (the moon's crescent). */}
             {stage >= 2 && (
-                <KindMark kind={kind} x={60} y={cy - r * 0.62} fill={ACCENT} />
+                <KindMark kind={kind} x={60} y={cy - r * 0.58} fill={ACCENT} />
             )}
-            {stage >= 3 && (
-                <>
-                    <ellipse
-                        cx={60 - eyeDx - 6}
-                        cy={eyeY + 9}
-                        rx="5"
-                        ry="3"
-                        fill={ACCENT}
-                        opacity="0.6"
-                    />
-                    <ellipse
-                        cx={60 + eyeDx + 6}
-                        cy={eyeY + 9}
-                        rx="5"
-                        ry="3"
-                        fill={ACCENT}
-                        opacity="0.6"
-                    />
-                </>
+            {stage >= 2 && (
+                <g data-pet-blush opacity="0.55">
+                    {[-1, 1].map((side) => (
+                        <ellipse
+                            key={side}
+                            cx={n(60 + side * (eyeDx + r * 0.22))}
+                            cy={n(eyeY + r * 0.24)}
+                            rx={n(r * 0.17)}
+                            ry={n(r * 0.1)}
+                            fill={ACCENT}
+                        />
+                    ))}
+                </g>
             )}
             <g data-pet-gaze>
-                {[60 - eyeDx, 60 + eyeDx].map((x) =>
-                    mood === 'glowing' ? (
-                        <path
-                            key={x}
-                            data-pet-eye
-                            style={EYE}
-                            d={`M${x} ${eyeY - 5} L${x + 1.4} ${eyeY - 1.4} L${x + 4} ${eyeY} L${x + 1.4} ${eyeY + 1.4} L${x} ${eyeY + 5} L${x - 1.4} ${eyeY + 1.4} L${x - 4} ${eyeY} L${x - 1.4} ${eyeY - 1.4} Z`}
-                            fill={FACE}
-                        />
-                    ) : (
-                        <g key={x} data-pet-eye style={EYE}>
-                            <ellipse
-                                cx={x}
-                                cy={sleepy ? eyeY + 1.5 : eyeY}
-                                rx={sleepy ? 4 : 3.5}
-                                ry={sleepy ? 1.4 : 4.5}
+                {mood === 'glowing' ? (
+                    <g data-pet-eyes-open>
+                        {eyes.map((x) => (
+                            <path
+                                key={x}
+                                data-pet-eye
+                                style={EYE}
+                                d={`M${n(x)} ${n(eyeY - ey)} L${n(x + ex * 0.4)} ${n(eyeY - ey * 0.3)} L${n(x + ex * 1.15)} ${n(eyeY)} L${n(x + ex * 0.4)} ${n(eyeY + ey * 0.3)} L${n(x)} ${n(eyeY + ey)} L${n(x - ex * 0.4)} ${n(eyeY + ey * 0.3)} L${n(x - ex * 1.15)} ${n(eyeY)} L${n(x - ex * 0.4)} ${n(eyeY - ey * 0.3)} Z`}
                                 fill={FACE}
                             />
-                            {/* An anime catchlight, on open eyes only. */}
-                            {!sleepy && (
+                        ))}
+                    </g>
+                ) : sleepy ? (
+                    <g
+                        data-pet-eyes-closed
+                        fill="none"
+                        stroke={FACE}
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                    >
+                        {eyes.map((x) => (
+                            <path
+                                key={x}
+                                d={`M${n(x - ex * 1.1)} ${n(eyeY)} q${n(ex * 1.1)} ${n(ey * 0.6)} ${n(ex * 2.2)} 0`}
+                            />
+                        ))}
+                    </g>
+                ) : (
+                    <g data-pet-eyes-open>
+                        {eyes.map((x) => (
+                            <g key={x} data-pet-eye style={EYE}>
+                                <ellipse
+                                    cx={n(x)}
+                                    cy={n(eyeY)}
+                                    rx={n(ex)}
+                                    ry={n(ey)}
+                                    fill={FACE}
+                                />
+                                {/* Two catchlights: a big one up and out, a small one down and in. */}
                                 <circle
                                     data-pet-catchlight
-                                    cx={x + 1.2}
-                                    cy={eyeY - 1.8}
-                                    r="1.3"
+                                    cx={n(x + ex * 0.35)}
+                                    cy={n(eyeY - ey * 0.4)}
+                                    r={n(ex * 0.42)}
                                     fill="#ffffff"
                                 />
-                            )}
-                        </g>
-                    ),
+                                <circle
+                                    cx={n(x - ex * 0.3)}
+                                    cy={n(eyeY + ey * 0.4)}
+                                    r={n(ex * 0.2)}
+                                    fill="#ffffff"
+                                    opacity="0.85"
+                                />
+                            </g>
+                        ))}
+                    </g>
                 )}
+                <g
+                    data-pet-eyes-happy
+                    fill="none"
+                    stroke={FACE}
+                    strokeWidth="2.6"
+                    strokeLinecap="round"
+                >
+                    {eyes.map((x) => (
+                        <path
+                            key={x}
+                            d={`M${n(x - ex * 1.1)} ${n(eyeY + ey * 0.3)} q${n(ex * 1.1)} ${n(-ey * 1.1)} ${n(ex * 2.2)} 0`}
+                        />
+                    ))}
+                </g>
             </g>
             <path
+                data-pet-mouth=""
                 d={
                     mood === 'droopy'
-                        ? `M${60 - 4} ${eyeY + 10} h8`
+                        ? `M${n(60 - r * 0.11)} ${n(my + 1)} h${n(r * 0.22)}`
                         : mood === 'gloomy'
-                          ? `M${60 - 4} ${eyeY + 11} q4 -3 8 0`
-                          : `M${60 - 5} ${eyeY + 8} q5 5 10 0`
+                          ? `M${n(60 - r * 0.12)} ${n(my + 2)} q${n(r * 0.12)} ${n(-r * 0.08)} ${n(r * 0.24)} 0`
+                          : `M${n(60 - mw)} ${n(my)} q${n(mw / 2)} ${n(r * 0.09)} ${n(mw)} 0 q${n(mw / 2)} ${n(r * 0.09)} ${n(mw)} 0`
                 }
                 fill="none"
                 stroke={FACE}
                 strokeWidth="2.2"
                 strokeLinecap="round"
+                strokeLinejoin="round"
             />
-            {/* The hatchling still wears its shell. */}
-            {stage === 1 && (
-                <path
-                    {...INK}
-                    d={`M${60 - r - 4} ${cy + 6} l7 -6 l6 6 l7 -6 l6 6 l7 -6 l6 6 l7 -6 l6 6 l${2 * r + 8 - 52} 0 v${r - 2} a${r + 4} 10 0 0 1 ${-(2 * r + 8)} 0 z`}
-                    fill={ACCENT}
-                />
-            )}
+            <ellipse
+                data-pet-mouth-o
+                cx="60"
+                cy={n(my + 1)}
+                rx={n(r * 0.08)}
+                ry={n(r * 0.1)}
+                fill={FACE}
+            />
+            {/* The hatchling still wears its shell, low enough to show its face. */}
+            {stage === 1 && <Shell r={r} cy={cy} />}
         </>
+    );
+}
+
+/** The hatchling's half shell: a zigzag rim below the mouth and a rounded bottom. */
+function Shell({ r, cy }: { r: number; cy: number }) {
+    const x0 = 60 - r - 4;
+    const width = 2 * r + 8;
+    const rim = cy + r * 0.72;
+    const tooth = width / 6;
+    const teeth = Array.from(
+        { length: 6 },
+        () => `l${n(tooth / 2)} -4 l${n(tooth / 2)} 4`,
+    ).join(' ');
+
+    return (
+        <path
+            {...INK}
+            d={`M${n(x0)} ${n(rim)} ${teeth} v${n(cy + r + 4 - rim)} a${n(r + 4)} 10 0 0 1 ${n(-width)} 0 z`}
+            fill={ACCENT}
+        />
     );
 }
 

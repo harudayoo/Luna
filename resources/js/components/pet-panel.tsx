@@ -18,7 +18,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { petIdle, petPoke, petWearTap } from '@/lib/ocs';
+import { petIdle, petPet, petPoke, petWearTap } from '@/lib/ocs';
 import type { Pet, PetDetail } from '@/lib/pet';
 import { knownItem, stagePath, stageProgress, streakLabel } from '@/lib/pet';
 import { usePetPlay } from '@/lib/pet-play';
@@ -130,10 +130,17 @@ export function PetPanel({
         }
     }, [pet.mood.level, pet.mood.patted, pet.kind, say]);
 
+    // Stroking it, with a mouse or a finger dragging on it, pets it (spec 2026-11-26-luna-moonling-redesign).
+    const stroked = useCallback(() => {
+        if (sprite.current) {
+            petPet(sprite.current);
+        }
+    }, []);
     usePetPlay(pat, {
         area,
         tug: true,
         onTap: tap,
+        onPet: stroked,
         active: open && tab === 'pet',
     });
 
@@ -291,7 +298,7 @@ export function PetPanel({
                             role="tab"
                             aria-selected={tab === key}
                             onClick={() => showTab(key)}
-                            className="min-h-10 px-1 text-xs font-semibold text-muted min-[390px]:text-sm sm:px-3 aria-selected:bg-primary aria-selected:text-on-primary focus-visible:shadow-lift focus-visible:outline-none"
+                            className="min-h-10 px-1 text-xs font-semibold text-muted focus-visible:shadow-lift focus-visible:outline-none aria-selected:bg-primary aria-selected:text-on-primary min-[390px]:text-sm sm:px-3"
                         >
                             {label}
                         </button>

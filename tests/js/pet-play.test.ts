@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    blinkPlan,
+    fidgetFor,
     GAZE_RADIUS,
     gazeOffset,
     glanceFor,
+    isPetStroke,
+    leanFor,
     tugPose,
 } from '../../resources/js/lib/pet-play';
 
@@ -62,5 +66,57 @@ describe('glanceFor', () => {
         expect(glanceFor('ArrowDown')).toEqual({ x: 0, y: GAZE_RADIUS });
         expect(glanceFor('Enter')).toBeNull();
         expect(glanceFor('a')).toBeNull();
+    });
+});
+
+describe('blinkPlan', () => {
+    it('waits a random 1.8 to 5.2 seconds, and a quarter of the blinks are double', () => {
+        expect(blinkPlan(0, 0.9)).toEqual({ delay: 1800, double: false });
+        expect(blinkPlan(1, 0.9)).toEqual({ delay: 5200, double: false });
+        expect(blinkPlan(0.5, 0.1)).toEqual({ delay: 3500, double: true });
+        expect(blinkPlan(0.5, 0.25).double).toBe(false);
+    });
+});
+
+describe('fidgetFor', () => {
+    const all = { arms: true, gaze: true };
+
+    it('picks one of four fidgets from the roll', () => {
+        expect([0, 0.3, 0.6, 0.9].map((r) => fidgetFor(r, all))).toEqual([
+            'look',
+            'wave',
+            'hop',
+            'wiggle',
+        ]);
+    });
+
+    it('never waves without arms or looks around without eyes (the egg only wiggles)', () => {
+        expect(fidgetFor(0.3, { arms: false, gaze: true })).not.toBe('wave');
+        expect(
+            [0, 0.3, 0.6, 0.9].map((r) =>
+                fidgetFor(r, { arms: false, gaze: false }),
+            ),
+        ).toEqual(['wiggle', 'wiggle', 'wiggle', 'wiggle']);
+    });
+});
+
+describe('leanFor', () => {
+    it('leans toward the pointer, at most 5 degrees either way', () => {
+        expect(leanFor(0, 200)).toBe(0);
+        expect(leanFor(50, 200)).toBeGreaterThan(0);
+        expect(leanFor(50, 200)).toBeLessThan(5);
+        expect(leanFor(5000, 200)).toBe(5);
+        expect(leanFor(-5000, 200)).toBe(-5);
+    });
+
+    it('stays upright under reduced motion', () => {
+        expect(leanFor(5000, 200, true)).toBe(0);
+    });
+});
+
+describe('isPetStroke', () => {
+    it('counts as petting once the pointer has travelled over twice the sprite width', () => {
+        expect(isPetStroke(399, 200)).toBe(false);
+        expect(isPetStroke(401, 200)).toBe(true);
     });
 });

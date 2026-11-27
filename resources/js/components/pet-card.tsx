@@ -1,10 +1,10 @@
 import { usePage } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PetBubble, useBubble } from '@/components/pet-bubble';
 import type { PetTab } from '@/components/pet-panel';
 import { PetPanel } from '@/components/pet-panel';
-import { PetSprite } from '@/components/pet-sprite';
-import { ocsRef, petFed, petGrow, petIdle } from '@/lib/ocs';
+import { outlinePath, PetSprite } from '@/components/pet-sprite';
+import { ocsRef, petFed, petGrow, petIdle, petPet } from '@/lib/ocs';
 import type { Pet, PetMoment } from '@/lib/pet';
 import { petTitle, stageProgress, streakLabel } from '@/lib/pet';
 import { usePetPlay } from '@/lib/pet-play';
@@ -47,7 +47,8 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
         }
 
         if (moment === 'grew') {
-            petGrow(el);
+            // The body morphs out of the last stage's shape.
+            petGrow(el, outlinePath(Math.max(0, pet.stage - 1)));
         } else if (moment === 'fed') {
             petFed(el);
         }
@@ -56,8 +57,14 @@ export function PetCard({ pet, moment }: { pet: Pet; moment: PetMoment }) {
         // The mood redraws the eyes, so the idle blink restarts on the new ones.
     }, [moment, pet.stage, pet.mood.level]);
 
-    // Its eyes follow a mouse over the card (slice 5); the card itself opens the panel, so no tug here.
-    usePetPlay(sprite, { area: card });
+    // Its eyes follow a mouse over the card (slice 5); the card itself opens the panel, so no tug here. A mouse
+    // stroking it pets it (spec 2026-11-26-luna-moonling-redesign).
+    const stroked = useCallback(() => {
+        if (sprite.current) {
+            petPet(sprite.current);
+        }
+    }, []);
+    usePetPlay(sprite, { area: card, onPet: stroked });
 
     // Something to say about this visit, once Home has settled: "now and then" (slice 8), once in each part of the
     // office day, remembered in this browser; growing a stage always speaks.

@@ -9,6 +9,7 @@
 import * as anime from 'animejs';
 import type { AnimationParams } from 'animejs';
 import '../../ocs/ocs.js';
+import { blinkPlan, fidgetFor, GAZE_RADIUS } from './pet-play';
 
 window.anime = anime;
 
@@ -433,14 +434,76 @@ export function ringBell(el: HTMLElement): void {
 }
 
 /*
- * The pet on Home (Luna-local, spec 2026-11-24-luna-pet). Parts: [data-pet-body], [data-pet-eye],
- * [data-pet-glow] inside the sprite; petFed / petGrow move the wrapper itself so they never fight
- * the idle bob. Reduced motion = a still sprite.
- *   LIGHT (paper): short, stamp-like moves: a small step bob, a squish-and-hop that lands hard,
- *                  and growth stamped on with an overshoot.
- *   DARK  (code):  softer springs: a slow float with breathing glow, a springy hop, and growth that
- *                  swells in on a spring while the glow flares.
+ * The pet on Home and in its panel (Luna-local, specs 2026-11-24-luna-pet and 2026-11-26-luna-moonling-redesign).
+ * The sprite's layers: [data-pet-lean] (pet-play) > [data-pet-body] (float, wiggle) > [data-pet-hop] (hops) >
+ * [data-pet-breath] (breathing), with [data-pet-shadow] on the ground. petGrow moves the wrapper itself so it never
+ * fights the idle loops. Reduced motion = a still sprite: no idle, no fidgets, no hearts or z's.
+ *   LIGHT (paper): short, stamp-like moves: quick breaths, a hop that lands hard, growth stamped on with an overshoot.
+ *   DARK  (code):  softer springs: slow breaths under a float with breathing glow, a hop that lands on a spring, and
+ *                  growth that swells in while the glow flares.
  */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const HEART = 'M0 2C-1 -1 -6 -1 -6 3C-6 6 -2 8 0 10C2 8 6 6 6 3C6 -1 1 -1 0 2Z';
+const ZED = 'M0 0h6l-6 7h6';
+
+const spriteOf = (el: HTMLElement) => el.querySelector('svg');
+
+/** Shows a passing face (resources/css/app.css) for `ms`, unless another one replaced it. */
+function petFace(el: HTMLElement, face: 'happy' | 'surprised', ms: number) {
+    const svg = spriteOf(el);
+    svg?.setAttribute?.('data-pet-react', face);
+    window.setTimeout(() => {
+        if (svg?.getAttribute?.('data-pet-react') === face) {
+            svg.removeAttribute('data-pet-react');
+        }
+    }, ms);
+}
+
+/** Floats a small shape up from (x, y) in the sprite's empty [data-pet-fx] layer, then removes it. */
+function petPuff(
+    el: HTMLElement,
+    shape: 'heart' | 'zed',
+    x: number,
+    y: number,
+    delay = 0,
+) {
+    const fx = el.querySelector('[data-pet-fx]');
+    if (!fx?.appendChild) {
+        return;
+    }
+    const g = document.createElementNS(SVG_NS, 'g');
+    g.setAttribute('transform', `translate(${x} ${y})`);
+    const p = document.createElementNS(SVG_NS, 'path');
+    p.setAttribute('d', shape === 'heart' ? HEART : ZED);
+    p.setAttribute('fill', shape === 'heart' ? 'var(--pet-mark)' : 'none');
+    p.setAttribute('stroke', 'var(--pet-line)');
+    p.setAttribute('stroke-width', shape === 'heart' ? '1.5' : '2');
+    p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round');
+    p.setAttribute('paint-order', 'stroke');
+    p.style.transformBox = 'fill-box';
+    p.style.transformOrigin = '50% 50%';
+    p.style.opacity = '0';
+    g.appendChild(p);
+    fx.appendChild(g);
+    const long = shape === 'zed' ? 2200 : 1200;
+    anime.animate(p, {
+        y: { from: 0, to: shape === 'zed' ? -22 : -26 },
+        x: { from: 0, to: shape === 'zed' ? 10 : (x - 60) / 6 },
+        scale: [
+            { from: 0.3, to: 1.1, duration: long * 0.25 },
+            { to: shape === 'zed' ? 1.3 : 0.9, duration: long * 0.75 },
+        ],
+        opacity: [
+            { from: 0, to: 1, duration: long * 0.25 },
+            { to: 0, duration: long * 0.75 },
+        ],
+        delay,
+        ease: 'outQuad',
+        onComplete: () => g.remove(),
+    });
+}
+
 export function petIdle(el: HTMLElement): () => void {
     // The kit sets data-theme before it announces "ocs:theme", so a restart picks the new personality.
     let stop = petIdleOnce(el);
@@ -459,7 +522,7 @@ export function petIdle(el: HTMLElement): () => void {
 function petIdleOnce(el: HTMLElement): () => void {
     const { animate } = anime;
     const body = el.querySelector<SVGElement>('[data-pet-body]');
-    const eyes = el.querySelectorAll<SVGElement>('[data-pet-eye]');
+    const breath = el.querySelector<SVGElement>('[data-pet-breath]');
     const glow = el.querySelectorAll<SVGElement>('[data-pet-glow]');
 
     if (ocs().reduced() || !body) {
@@ -467,25 +530,44 @@ function petIdleOnce(el: HTMLElement): () => void {
     }
 
     const dark = ocs().isDark();
-    const running = [
-        animate(body, {
-            y: dark ? -4 : -2,
-            duration: dark ? 1800 : 900,
-            ease: dark ? 'inOutSine' : 'inOutQuad',
-            loop: true,
-            alternate: true,
-        }),
-    ];
-    if (dark && glow.length) {
+    const mood = spriteOf(el)?.getAttribute?.('data-pet-mood');
+    const sleepy = mood === 'droopy' || mood === 'gloomy';
+    // Droopy and gloomy breathe at half speed.
+    const slow = sleepy ? 2 : 1;
+    const running: ReturnType<typeof animate>[] = [];
+    if (breath) {
         running.push(
-            animate(glow, {
-                opacity: { from: 0.12, to: 0.3 },
-                duration: 1800,
+            animate(breath, {
+                scaleY: dark ? 1.04 : 1.03,
+                scaleX: dark ? 0.98 : 0.985,
+                duration: (dark ? 1600 : 1100) * slow,
                 ease: 'inOutSine',
                 loop: true,
                 alternate: true,
             }),
         );
+    }
+    if (dark) {
+        running.push(
+            animate(body, {
+                y: -4,
+                duration: 1800 * slow,
+                ease: 'inOutSine',
+                loop: true,
+                alternate: true,
+            }),
+        );
+        if (glow.length) {
+            running.push(
+                animate(glow, {
+                    opacity: { from: 0.12, to: 0.3 },
+                    duration: 1800,
+                    ease: 'inOutSine',
+                    loop: true,
+                    alternate: true,
+                }),
+            );
+        }
     }
     // Worn items with an idle move (spec 2026-11-26-luna-moonling-style, slice 10); dark is slower and softer.
     el.querySelectorAll('[data-pet-wear-idle]').forEach((part) => {
@@ -502,68 +584,207 @@ function petIdleOnce(el: HTMLElement): () => void {
             );
         }
     });
-    const blink = window.setInterval(() => {
+
+    const timers = new Set<number>();
+    const later = (fn: () => void, ms: number) => {
+        const t = window.setTimeout(() => {
+            timers.delete(t);
+            fn();
+        }, ms);
+        timers.add(t);
+    };
+    const shut = (eyes: NodeListOf<SVGElement>) =>
         animate(eyes, {
             scaleY: [
                 { to: 0.1, duration: 70 },
                 { to: 1, duration: 120 },
             ],
         });
-    }, 3600);
+    // Blinks at random, now and then twice (lib/pet-play blinkPlan); read the eyes each time, as the mood redraws them.
+    const blink = () => {
+        const plan = blinkPlan(Math.random(), Math.random());
+        later(() => {
+            const eyes = el.querySelectorAll<SVGElement>('[data-pet-eye]');
+            if (eyes.length) {
+                shut(eyes);
+                if (plan.double) {
+                    later(() => shut(eyes), 240);
+                }
+            }
+            blink();
+        }, plan.delay);
+    };
+    blink();
+    if (sleepy) {
+        const doze = () =>
+            later(() => {
+                petPuff(el, 'zed', 82, 30);
+                doze();
+            }, 1600);
+        doze();
+    } else {
+        const fidget = () =>
+            later(
+                () => {
+                    petFidget(el);
+                    fidget();
+                },
+                3500 + Math.random() * 3000,
+            );
+        fidget();
+    }
 
     return () => {
-        window.clearInterval(blink);
+        timers.forEach((t) => window.clearTimeout(t));
+        timers.clear();
         running.forEach((a) => a.revert());
     };
 }
 
-export function petFed(el: HTMLElement): void {
-    const { animate, spring } = anime;
+/** One small idle move (lib/pet-play fidgetFor): look around, wave, a small hop or a wiggle. Not mid-reaction. */
+function petFidget(el: HTMLElement): void {
+    const { animate } = anime;
+    const svg = spriteOf(el);
 
-    if (ocs().reduced()) {
+    if (
+        ocs().reduced() ||
+        document.hidden ||
+        svg?.hasAttribute?.('data-pet-react')
+    ) {
         return;
     }
 
-    if (ocs().isDark()) {
-        animate(el, {
-            scaleX: [
-                { to: 1.12, duration: 160 },
-                { to: 1, ease: spring({ bounce: 0.6, duration: 700 }) },
-            ],
-            scaleY: [
-                { to: 0.86, duration: 160 },
-                { to: 1, ease: spring({ bounce: 0.6, duration: 700 }) },
-            ],
-            y: [
-                { to: -12, duration: 260, delay: 160, ease: 'outQuad' },
-                { to: 0, ease: spring({ bounce: 0.5, duration: 600 }) },
-            ],
-        });
+    const gaze = el.querySelector('[data-pet-gaze]');
+    const lean = el.querySelector<SVGElement>('[data-pet-lean]');
+    // A held item is drawn apart from the arm, so a busy hand doesn't wave.
+    const arm = svg?.hasAttribute?.('data-pet-hand')
+        ? null
+        : el.querySelector('[data-pet-arm="right"]');
+    const body = el.querySelector('[data-pet-body]');
+    const wobble = ocs().isDark() ? 1.3 : 1;
 
-        return;
+    switch (fidgetFor(Math.random(), { arms: !!arm, gaze: !!gaze })) {
+        case 'look': {
+            const look = (x: number) => {
+                gaze?.setAttribute('transform', `translate(${x} 0)`);
+                if (lean) {
+                    lean.style.transform = x ? `rotate(${x}deg)` : '';
+                }
+            };
+            look(-GAZE_RADIUS);
+            window.setTimeout(() => look(GAZE_RADIUS), 650 * wobble);
+            window.setTimeout(() => look(0), 1300 * wobble);
+            break;
+        }
+        case 'wave':
+            animate(arm!, {
+                rotate: [
+                    { to: -70, duration: 250 * wobble },
+                    { to: -45, duration: 180 * wobble },
+                    { to: -70, duration: 180 * wobble },
+                    { to: 0, duration: 350 * wobble },
+                ],
+                ease: 'inOutSine',
+            });
+            break;
+        case 'hop':
+            petHop(el, 0.45);
+            break;
+        default:
+            if (body) {
+                animate(body, {
+                    rotate: [
+                        { to: -7, duration: 140 * wobble },
+                        { to: 6, duration: 150 * wobble },
+                        { to: -3, duration: 150 * wobble },
+                        { to: 0, duration: 200 * wobble },
+                    ],
+                    ease: 'inOutSine',
+                });
+            }
     }
-
-    animate(el, {
-        scaleX: [
-            { to: 1.14, duration: 90 },
-            { to: 1, duration: 120 },
-            { to: 1.08, duration: 60, delay: 200 },
-            { to: 1, duration: 100 },
-        ],
-        scaleY: [
-            { to: 0.84, duration: 90 },
-            { to: 1, duration: 120 },
-            { to: 0.9, duration: 60, delay: 200 },
-            { to: 1, duration: 100 },
-        ],
-        y: [
-            { to: -10, duration: 160, delay: 90, ease: 'outQuad' },
-            { to: 0, duration: 160, ease: 'inQuad' },
-        ],
-    });
 }
 
-export function petGrow(el: HTMLElement): void {
+/**
+ * petHop: crouch, stretch up, squash on landing and settle, on [data-pet-hop]; the arms trail and the shadow shrinks
+ * while it's up. `size` scales the height (a fidget hops at under half). LIGHT lands hard; DARK lands on a spring.
+ */
+export function petHop(el: HTMLElement, size = 1): void {
+    const { animate, spring } = anime;
+    const hop = el.querySelector('[data-pet-hop]');
+
+    if (ocs().reduced() || !hop) {
+        return;
+    }
+
+    const dark = ocs().isDark();
+    const t = dark ? 1.25 : 1;
+    const h = 22 * size;
+    const s = (v: number) => 1 + (v - 1) * Math.max(0.5, size);
+    const settle = dark
+        ? { to: 1, ease: spring({ bounce: 0.55, duration: 650 }) }
+        : { to: 1, duration: 220, ease: 'outBack(3)' };
+    // Crouch 110, launch 120, in the air 330, land 90, settle.
+    animate(hop, {
+        scaleX: [
+            { to: s(1.14), duration: 110 * t },
+            { to: s(0.9), duration: 120 * t },
+            { to: s(0.98), duration: 330 * t },
+            { to: s(1.16), duration: 90 * t },
+            settle,
+        ],
+        scaleY: [
+            { to: s(0.84), duration: 110 * t },
+            { to: s(1.14), duration: 120 * t },
+            { to: s(1.02), duration: 330 * t },
+            { to: s(0.82), duration: 90 * t },
+            settle,
+        ],
+        y: [
+            { to: 0, duration: 110 * t },
+            { to: -h, duration: 280 * t, ease: 'outQuad' },
+            { to: 0, duration: 170 * t, ease: 'inQuad' },
+        ],
+    });
+    const shadow = el.querySelector('[data-pet-shadow]');
+    if (shadow) {
+        animate(shadow, {
+            scale: [
+                { to: 1.1, duration: 110 * t },
+                { to: 1 - 0.45 * size, duration: 280 * t, ease: 'outQuad' },
+                { to: 1.15, duration: 170 * t, ease: 'inQuad' },
+                { to: 1, duration: 310 * t },
+            ],
+        });
+    }
+    if (!spriteOf(el)?.hasAttribute?.('data-pet-hand')) {
+        el.querySelectorAll('[data-pet-arm]').forEach((arm) => {
+            const side = arm.getAttribute('data-pet-arm') === 'left' ? 1 : -1;
+            animate(arm, {
+                rotate: [
+                    { to: 0, duration: 230 * t },
+                    {
+                        to: side * 35 * size,
+                        duration: 200 * t,
+                        ease: 'outQuad',
+                    },
+                    { to: side * -12 * size, duration: 220 * t },
+                    { to: 0, duration: 260 * t, ease: 'outBack(2)' },
+                ],
+            });
+        });
+    }
+}
+
+export function petFed(el: HTMLElement): void {
+    petHop(el);
+}
+
+/**
+ * petGrow: the pet reached a new stage. `from` is the old stage's outline (pet-sprite outlinePath), which the body
+ * morphs out of (anime.js svg.morphTo) while the whole pet grows in.
+ */
+export function petGrow(el: HTMLElement, from?: string): void {
     const { animate, spring } = anime;
     const glow = el.querySelectorAll<SVGElement>('[data-pet-glow]');
 
@@ -571,7 +792,28 @@ export function petGrow(el: HTMLElement): void {
         return;
     }
 
-    if (ocs().isDark()) {
+    const dark = ocs().isDark();
+    const shape = el.querySelector<SVGPathElement>('path[data-pet-outline]');
+    const fx = el.querySelector('[data-pet-fx]');
+    const to = shape?.getAttribute('d');
+    if (from && shape && fx && to && anime.svg?.morphTo) {
+        const target = document.createElementNS(SVG_NS, 'path');
+        target.setAttribute('d', to);
+        target.setAttribute('fill', 'none');
+        fx.appendChild(target);
+        shape.setAttribute('d', from);
+        animate(shape, {
+            d: anime.svg.morphTo(target),
+            duration: dark ? 1100 : 600,
+            ease: dark ? 'outElastic(1, .6)' : 'outBack(2)',
+            onComplete: () => {
+                target.remove();
+                shape.setAttribute('d', to);
+            },
+        });
+    }
+
+    if (dark) {
         animate(el, {
             scale: {
                 from: 0.6,
@@ -604,12 +846,12 @@ export function petGrow(el: HTMLElement): void {
 }
 
 /*
- * petPoke: the pet was tapped in its panel (cosmetic, no XP). Moves the wrapper, like petFed.
- *   LIGHT (paper): a quick squish and a side-to-side wobble that settles hard.
- *   DARK  (code):  a springy jump while its glow flares.
+ * petPoke: the pet was tapped in its panel (cosmetic, no XP): a surprised face with wide eyes, then a hop.
+ *   LIGHT (paper): a quick start and a small hop that lands hard.
+ *   DARK  (code):  a higher, springy hop while its glow flares.
  */
 export function petPoke(el: HTMLElement): void {
-    const { animate, spring } = anime;
+    const { animate } = anime;
     const glow = el.querySelectorAll<SVGElement>('[data-pet-glow]');
 
     if (ocs().reduced()) {
@@ -618,40 +860,67 @@ export function petPoke(el: HTMLElement): void {
 
     el.querySelectorAll('[data-pet-wear-tap]').forEach(petWearTap);
 
-    if (ocs().isDark()) {
-        animate(el, {
-            y: [
-                { to: -18, duration: 220, ease: 'outQuad' },
-                { to: 0, ease: spring({ bounce: 0.6, duration: 800 }) },
+    const dark = ocs().isDark();
+    petFace(el, 'surprised', 320);
+    const eyes = el.querySelectorAll('[data-pet-eye]');
+    if (eyes.length) {
+        animate(eyes, {
+            scale: [
+                { to: 1.25, duration: 120 },
+                { to: 1, duration: 260, ease: 'outBack(3)' },
             ],
         });
-        if (glow.length) {
-            animate(glow, {
-                opacity: [
-                    { to: 0.5, duration: 200 },
-                    { to: 0.2, duration: 700, ease: 'outQuad' },
-                ],
-            });
-        }
+    }
+    window.setTimeout(() => petHop(el, dark ? 0.8 : 0.6), 180);
+    if (dark && glow.length) {
+        animate(glow, {
+            opacity: [
+                { to: 0.5, duration: 200 },
+                { to: 0.2, duration: 700, ease: 'outQuad' },
+            ],
+        });
+    }
+}
 
+/**
+ * petPet: the pet was stroked (lib/pet-play isPetStroke; cosmetic, no XP): happy eyes, a deeper blush, a little sway
+ * and three hearts floating up. Not again while it's still happy.
+ */
+export function petPet(el: HTMLElement): void {
+    const { animate } = anime;
+    const svg = spriteOf(el);
+
+    if (ocs().reduced() || svg?.getAttribute?.('data-pet-react') === 'happy') {
         return;
     }
 
-    animate(el, {
-        scaleX: [
-            { to: 1.12, duration: 80 },
-            { to: 1, duration: 160, ease: 'outBack(3)' },
-        ],
-        scaleY: [
-            { to: 0.86, duration: 80 },
-            { to: 1, duration: 160, ease: 'outBack(3)' },
-        ],
-        rotate: [
-            { to: -8, duration: 90, delay: 80 },
-            { to: 6, duration: 90 },
-            { to: 0, duration: 140, ease: 'outBack(3)' },
-        ],
-    });
+    const wobble = ocs().isDark() ? 1.3 : 1;
+    petFace(el, 'happy', 1600);
+    const blush = el.querySelector('[data-pet-blush]');
+    if (blush) {
+        animate(blush, {
+            opacity: [
+                { to: 0.95, duration: 300 },
+                { to: 0.95, duration: 900 },
+                { to: 0.55, duration: 400 },
+            ],
+        });
+    }
+    const hop = el.querySelector('[data-pet-hop]');
+    if (hop) {
+        animate(hop, {
+            rotate: [
+                { to: -5, duration: 220 * wobble },
+                { to: 5, duration: 240 * wobble },
+                { to: -3, duration: 220 * wobble },
+                { to: 0, duration: 220 * wobble },
+            ],
+            ease: 'inOutSine',
+        });
+    }
+    petPuff(el, 'heart', 44, 30);
+    petPuff(el, 'heart', 76, 30, 220);
+    petPuff(el, 'heart', 60, 24, 440);
 }
 
 /** Worn items' idle loops, by the sprite's data-pet-wear-idle name (each runs there and back). */
@@ -762,7 +1031,11 @@ export function duelReveal(el: HTMLElement): void {
 
     if (ocs().isDark()) {
         animate(picks, {
-            rotateY: { from: 90, to: 0, ease: spring({ bounce: 0.5, duration: 700 }) },
+            rotateY: {
+                from: 90,
+                to: 0,
+                ease: spring({ bounce: 0.5, duration: 700 }),
+            },
             opacity: { from: 0, to: 1, duration: 250 },
             delay: stagger(220),
         });
@@ -776,7 +1049,12 @@ export function duelReveal(el: HTMLElement): void {
                     { to: 0, ease: spring({ bounce: 0.5, duration: 800 }) },
                 ],
                 filter: [
-                    { from: `drop-shadow(0 0 0px ${glow})`, to: `drop-shadow(0 0 12px ${glow})`, duration: 360, delay: 700 },
+                    {
+                        from: `drop-shadow(0 0 0px ${glow})`,
+                        to: `drop-shadow(0 0 12px ${glow})`,
+                        duration: 360,
+                        delay: 700,
+                    },
                     { to: `drop-shadow(0 0 0px ${glow})`, duration: 900 },
                 ],
             });

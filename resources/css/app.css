@@ -229,3 +229,21 @@ html[data-vt-old-top]::view-transition-old(root) {
         @apply text-ink;
     }
 }
+
+/* The moonling's passing faces (spec 2026-11-26-luna-moonling-redesign): lib/ocs.ts sets data-pet-react on its svg. */
+@layer components {
+    [data-pet-eyes-happy],
+    [data-pet-mouth-o] {
+        display: none;
+    }
+
+    [data-pet-react='happy'] [data-pet-eyes-happy],
+    [data-pet-react='surprised'] [data-pet-mouth-o] {
+        display: inline;
+    }
+
+    [data-pet-react='happy'] :is([data-pet-eyes-open], [data-pet-eyes-closed]),
+    [data-pet-react='surprised'] [data-pet-mouth] {
+        display: none;
+    }
+}

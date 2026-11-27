@@ -70,6 +70,47 @@ export function glanceFor(key: string): Point | null {
     );
 }
 
+/** The next blink (spec 2026-11-26-luna-moonling-redesign): a random 1.8–5.2 s wait, a quarter of them double. */
+export function blinkPlan(
+    wait: number,
+    roll: number,
+): { delay: number; double: boolean } {
+    return { delay: Math.round(1800 + wait * 3400), double: roll < 0.25 };
+}
+
+export type Fidget = 'look' | 'wave' | 'hop' | 'wiggle';
+
+/** An idle fidget from a roll in [0, 1): it only waves with arms and looks around with eyes. */
+export function fidgetFor(
+    roll: number,
+    has: { arms: boolean; gaze: boolean },
+): Fidget {
+    const can: Fidget[] = [
+        ...(has.gaze ? (['look'] as const) : []),
+        ...(has.arms ? (['wave'] as const) : []),
+        ...(has.gaze ? (['hop'] as const) : []),
+        'wiggle',
+    ];
+
+    return can[Math.min(can.length - 1, Math.floor(roll * can.length))];
+}
+
+const MAX_TILT = 5;
+
+/** The lean toward a pointer `dx` from the sprite's centre, in degrees, capped. */
+export function leanFor(dx: number, width: number, reduced = false): number {
+    if (reduced || width <= 0) {
+        return 0;
+    }
+
+    return round(Math.max(-MAX_TILT, Math.min(MAX_TILT, (dx / width) * 10)));
+}
+
+/** Petting: the pointer has stroked over twice the sprite's width. */
+export function isPetStroke(path: number, size: number): boolean {
+    return path > size * 2;
+}
+
 const reducedMotion = () =>
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
@@ -84,11 +125,14 @@ export function usePetPlay(
         area,
         tug = false,
         onTap,
+        onPet,
         active = true,
     }: {
         area?: RefObject<HTMLElement | null>;
         tug?: boolean;
         onTap?: () => void;
+        /** Stroking the pet: a mouse moving over it, or a finger dragging on it. */
+        onPet?: () => void;
         active?: boolean;
     },
 ): void {
@@ -107,7 +151,7 @@ export function usePetPlay(
             cancelAnimationFrame(frame);
             unbind();
         };
-    }, [wrapper, area, tug, onTap, active]);
+    }, [wrapper, area, tug, onTap, onPet, active]);
 
     function bind(): () => void {
         const el = wrapper.current;
@@ -127,20 +171,50 @@ export function usePetPlay(
                     g.setAttribute('transform', `translate(${p.x} ${p.y})`),
                 );
         const box = () => el.querySelector('svg')?.getBoundingClientRect();
+        const lean = (deg: number) =>
+            el
+                .querySelectorAll<SVGElement>('[data-pet-lean]')
+                .forEach(
+                    (g) => (g.style.transform = deg ? `rotate(${deg}deg)` : ''),
+                );
         let down: { x: number; y: number; id: number } | null = null;
         let glance = 0;
+        let stroked = 0;
 
         const follow = (e: PointerEvent) => {
             const b = box();
             // A mouse anywhere in the area; a finger only while it's pressing the pet.
             if (b && (e.pointerType === 'mouse' || down)) {
                 look(gazeOffset(e.clientX, e.clientY, b, reducedMotion()));
+                lean(
+                    leanFor(
+                        e.clientX - (b.left + b.width / 2),
+                        b.width,
+                        reducedMotion(),
+                    ),
+                );
             }
         };
         const rest = () => {
             if (!down) {
                 look({ x: 0, y: 0 });
+                lean(0);
             }
+        };
+        // Stroking: the pointer's path over the pet itself, a mouse hovering or a finger pressing.
+        const stroke = (e: PointerEvent) => {
+            const b = box();
+            if (!onPet || !b || (e.pointerType !== 'mouse' && !down)) {
+                return;
+            }
+            stroked += Math.abs(e.movementX) + Math.abs(e.movementY);
+            if (isPetStroke(stroked, b.width)) {
+                stroked = 0;
+                onPet();
+            }
+        };
+        const unstroke = () => {
+            stroked = 0;
         };
 
         const press = (e: PointerEvent) => {
@@ -175,6 +249,8 @@ export function usePetPlay(
                 'transform 450ms cubic-bezier(0.34, 1.8, 0.64, 1)';
             el.style.transform = '';
             look({ x: 0, y: 0 });
+            lean(0);
+            stroked = 0;
             if (e.type === 'pointerup') {
                 onTap?.();
             }
@@ -194,6 +270,8 @@ export function usePetPlay(
         zone.addEventListener('pointerleave', rest);
         el.addEventListener('pointerdown', press);
         el.addEventListener('pointermove', pull);
+        el.addEventListener('pointermove', stroke);
+        el.addEventListener('pointerleave', unstroke);
         el.addEventListener('pointerup', release);
         el.addEventListener('pointercancel', release);
         keys.addEventListener('keydown', key);
@@ -203,6 +281,8 @@ export function usePetPlay(
             zone.removeEventListener('pointerleave', rest);
             el.removeEventListener('pointerdown', press);
             el.removeEventListener('pointermove', pull);
+            el.removeEventListener('pointermove', stroke);
+            el.removeEventListener('pointerleave', unstroke);
             el.removeEventListener('pointerup', release);
             el.removeEventListener('pointercancel', release);
             keys.removeEventListener('keydown', key);
