@@ -6,12 +6,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * CSS-only and skipped under reduced motion. Place it inside a `relative` box around the sprite.
  */
 const PLACE = {
-    // Centred above the sprite, or at `top` inside it (the panel).
+    // Centred above the sprite, or at the top of its box, in a lane the box keeps free (the panel and the Nest), so
+    // it never covers an item.
     above: {
         box: 'bottom-full left-1/2 mb-1 -translate-x-1/2',
         tail: 'top-full left-1/2',
     },
-    top: { box: 'top-2 left-1/2 -translate-x-1/2', tail: 'top-full left-1/2' },
+    top: { box: 'top-0 left-1/2 -translate-x-1/2', tail: 'top-full left-1/2' },
     // The Home card: beside the sprite, inside the card, over its text for a moment. Above the card it would
     // be clipped (the dark card and the desktop rail both cut off what sticks out).
     card: { box: 'top-1 left-full ml-2', tail: 'top-4 left-0' },
@@ -20,15 +21,27 @@ const PLACE = {
 export function PetBubble({
     text,
     place = 'above',
+    bottom,
 }: {
     text: string | null;
     /** Where it sits in the `relative` box around the sprite. */
     place?: keyof typeof PLACE;
+    /** With `top`: where its tail ends, in px from the box's top (just above the drawing; lib/pet-play bubbleBottom). */
+    bottom?: number;
 }) {
     return (
         <span
             role="status"
             className={`pointer-events-none absolute z-10 ${PLACE[place].box}`}
+            style={
+                bottom === undefined
+                    ? undefined
+                    : // Lifted by its tail, the light theme's offset shadow and room for its breathing and landing bounce.
+                      {
+                          top: bottom,
+                          transform: 'translateY(calc(-100% - 14px))',
+                      }
+            }
         >
             {text && (
                 <span

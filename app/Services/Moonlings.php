@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * Each person's collection of moonlings (spec 2026-11-25-luna-moonling-life, slice 6). One is active and gets the
  * new XP; the others rest in the moon nest. Eggs come from achievements, once each (by `source`), never from
- * attendance, leave or lates. Another can be raised once the active one has hatched.
+ * attendance, leave or lates. Any other can be raised at any time, eggs included; each keeps its own XP.
  */
 final class Moonlings
 {
@@ -144,17 +144,13 @@ final class Moonlings
         return (int) PetEvent::query()->where('moonling_id', $moonling->id)->sum('xp');
     }
 
-    /** Raise another of your moonlings, once the active one has hatched. */
+    /** Raise another of your moonlings, egg or hatched (spec 2026-11-27-luna-item-icons-switch-eggs); XP stays with each. */
     public static function switchTo(User $user, int $moonlingId): void
     {
         $refuse = fn (string $why) => throw ValidationException::withMessages(['moonling_id' => $why]);
         $target = Moonling::query()->where('user_id', $user->id)->find($moonlingId);
         if (! $target) {
             $refuse('That moonling isn’t in your nest.');
-        }
-        $current = self::active($user);
-        if ($current->isNot($target) && Pet::stageFor(self::xp($current)) < 1) {
-            $refuse('Your moonling has to hatch first ('.Pet::STAGES[1].' XP) before you raise another.');
         }
 
         Moonling::query()->where('user_id', $user->id)->update(['active' => false]);
@@ -427,11 +423,11 @@ final class Moonlings
     /**
      * The moon nest: every moonling (the active one first), whether another can be raised, and the eggs.
      *
-     * @return array{moonlings: list<array<string, mixed>>, can_switch: bool, eggs: list<array{kind: string, how: string, earned: bool}>}
+     * @return array{moonlings: list<array<string, mixed>>, eggs: list<array{kind: string, how: string, earned: bool}>}
      */
     public static function nest(User $user): array
     {
-        $active = self::active($user);
+        self::active($user); // the nest starts with their first moonling
         $moonlings = Moonling::query()->where('user_id', $user->id)->orderByDesc('active')->orderBy('id')->get();
         $xp = PetEvent::query()->whereIn('moonling_id', $moonlings->pluck('id'))->groupBy('moonling_id')
             ->selectRaw('moonling_id, sum(xp) as total')->toBase()->pluck('total', 'moonling_id');
@@ -450,7 +446,6 @@ final class Moonlings
                 'wear' => $m->wear,
                 'dyes' => $m->dyes,
             ])->values()->all(),
-            'can_switch' => $stage($active) >= 1,
             'eggs' => collect(self::EGGS)->map(fn (string $how, string $kind) => [
                 'kind' => $kind, 'how' => $how, 'earned' => $sources->has($kind),
             ])->values()->all(),

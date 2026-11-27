@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
     blinkPlan,
+    bubbleBottom,
     fidgetFor,
     GAZE_RADIUS,
     gazeOffset,
@@ -118,5 +119,25 @@ describe('isPetStroke', () => {
     it('counts as petting once the pointer has travelled over twice the sprite width', () => {
         expect(isPetStroke(399, 200)).toBe(false);
         expect(isPetStroke(401, 200)).toBe(true);
+    });
+});
+
+// The bubble sits just above the drawing's real top, items included (spec 2026-11-27-luna-item-fit-play-bubble).
+describe('bubbleBottom', () => {
+    // A 240 px sprite whose svg starts 80 px down the lane box: 2 px per viewBox unit.
+    const at = (drawnTop: number) =>
+        bubbleBottom({ svgTop: 80, svgSize: 240, drawnTop });
+
+    it('sits a small gap above the top of what is drawn', () => {
+        // An egg's tip at y 32 is 64 px into the svg: the bubble ends 8 px above it.
+        expect(at(32)).toBe(80 + 64 - 8);
+    });
+
+    it('comes down for a small moonling and stays up for a tall outfit', () => {
+        expect(at(44)).toBeGreaterThan(at(2));
+    });
+
+    it('never ends above the top of the lane box', () => {
+        expect(bubbleBottom({ svgTop: 0, svgSize: 240, drawnTop: 0 })).toBe(0);
     });
 });

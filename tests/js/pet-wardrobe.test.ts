@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import { PetSprite } from '../../resources/js/components/pet-sprite';
+import { ItemIcon, PetSprite } from '../../resources/js/components/pet-sprite';
 import {
     dyeColor,
     DYE_NAMES,
@@ -252,7 +252,7 @@ describe('PetSprite wardrobe', () => {
                 }
             }
         }
-    });
+    }, 30_000); // 1,365 renders: past the default 5 s on a busy machine.
 
     it('outlines the body at every stage and kind, but not a locked silhouette', () => {
         for (const kind of Object.keys(KINDS) as MoonlingKind[]) {
@@ -332,5 +332,27 @@ describe('lockNote', () => {
         ).toBeNull();
         expect(lockNote({ unlocked: true, how: null })).toBeNull();
         expect(lockNote(undefined)).toBeNull();
+    });
+});
+
+/** Wardrobe tiles show the item alone (spec 2026-11-27-luna-item-icons-switch-eggs). */
+describe('ItemIcon', () => {
+    const icon = (item: WearItem, dye?: Dye, locked = false) =>
+        renderToStaticMarkup(
+            createElement(ItemIcon, { item, dye, locked, title: 'x' }),
+        );
+
+    it('draws every item on its own, with no moonling', () => {
+        for (const item of Object.keys(WEAR) as WearItem[]) {
+            const s = icon(item);
+            expect(s, item).toContain(`data-pet-wear="${item}"`);
+            expect(s, item).not.toContain('data-pet-outline');
+            expect(s, item).not.toContain('data-pet-eye');
+        }
+    });
+
+    it('draws it in its dye, and still shows a locked item', () => {
+        expect(icon('bow', 'sun')).toContain(dyeColor('sun', 'bow'));
+        expect(icon('bow', undefined, true)).toContain('data-pet-wear="bow"');
     });
 });

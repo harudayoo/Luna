@@ -33,9 +33,8 @@ const moonling = (
     active,
 });
 
-const nest = (moonlings: PetNest['moonlings'], can_switch = true): PetNest => ({
+const nest = (moonlings: PetNest['moonlings']): PetNest => ({
     moonlings,
-    can_switch,
     eggs: [],
 });
 
@@ -65,16 +64,18 @@ describe('KINDS', () => {
 describe('raiseState', () => {
     const n = nest([moonling(1, 'moon', 2, true), moonling(2, 'star', 0)]);
 
-    it('lets you raise another once the active one has hatched', () => {
+    it('lets you raise another, even while raising an egg (spec 2026-11-27-luna-item-icons-switch-eggs)', () => {
         expect(raiseState(n, 2)).toEqual({ can: true, reason: null });
+        const eggs = nest([
+            moonling(1, 'moon', 0, true),
+            moonling(2, 'star', 0),
+        ]);
+        expect(raiseState(eggs, 2)).toEqual({ can: true, reason: null });
     });
 
-    it('says why not: already raising it, or still an egg', () => {
+    it('says why not when you are already raising it', () => {
         expect(raiseState(n, 1).can).toBe(false);
         expect(raiseState(n, 1).reason).toMatch(/raising/i);
-        const egg = raiseState({ ...n, can_switch: false }, 2);
-        expect(egg.can).toBe(false);
-        expect(egg.reason).toMatch(/hatch/i);
     });
 });
 

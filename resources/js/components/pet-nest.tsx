@@ -242,7 +242,7 @@ export function PetNest() {
             >
                 <NestSky />
                 <PetBubble text={line} place="top" />
-                <div className="relative flex min-w-max items-end gap-1 px-3 pt-10 pb-4">
+                <div className="relative flex min-w-max items-end gap-1 px-3 pt-16 pb-4">
                     {cradle.map((m) => tile(m, 'size-18 min-[390px]:size-20'))}
                     {eggs.length > 0 && (
                         <div

@@ -9,6 +9,8 @@
 import * as anime from 'animejs';
 import type { AnimationParams } from 'animejs';
 import '../../ocs/ocs.js';
+import { WEAR } from './pet';
+import type { ItemFx, WearItem } from './pet';
 import { blinkPlan, fidgetFor, GAZE_RADIUS } from './pet-play';
 
 window.anime = anime;
@@ -445,6 +447,9 @@ export function ringBell(el: HTMLElement): void {
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const HEART = 'M0 2C-1 -1 -6 -1 -6 3C-6 6 -2 8 0 10C2 8 6 6 6 3C6 -1 1 -1 0 2Z';
 const ZED = 'M0 0h6l-6 7h6';
+const STAR = 'M0 -6L1.6 -1.6L6 0L1.6 1.6L0 6L-1.6 1.6L-6 0L-1.6 -1.6Z';
+const NOTE = 'M2 5a3.2 2.4 0 1 1 -6.4 0a3.2 2.4 0 1 1 6.4 0ZM2 5V-7q4 1 5 5';
+const PUFF = { heart: HEART, zed: ZED, star: STAR, note: NOTE };
 
 const spriteOf = (el: HTMLElement) => el.querySelector('svg');
 
@@ -462,7 +467,7 @@ function petFace(el: HTMLElement, face: 'happy' | 'surprised', ms: number) {
 /** Floats a small shape up from (x, y) in the sprite's empty [data-pet-fx] layer, then removes it. */
 function petPuff(
     el: HTMLElement,
-    shape: 'heart' | 'zed',
+    shape: keyof typeof PUFF,
     x: number,
     y: number,
     delay = 0,
@@ -474,10 +479,10 @@ function petPuff(
     const g = document.createElementNS(SVG_NS, 'g');
     g.setAttribute('transform', `translate(${x} ${y})`);
     const p = document.createElementNS(SVG_NS, 'path');
-    p.setAttribute('d', shape === 'heart' ? HEART : ZED);
-    p.setAttribute('fill', shape === 'heart' ? 'var(--pet-mark)' : 'none');
+    p.setAttribute('d', PUFF[shape]);
+    p.setAttribute('fill', shape === 'zed' ? 'none' : 'var(--pet-mark)');
     p.setAttribute('stroke', 'var(--pet-line)');
-    p.setAttribute('stroke-width', shape === 'heart' ? '1.5' : '2');
+    p.setAttribute('stroke-width', shape === 'zed' ? '2' : '1.5');
     p.setAttribute('stroke-linecap', 'round');
     p.setAttribute('stroke-linejoin', 'round');
     p.setAttribute('paint-order', 'stroke');
@@ -688,7 +693,10 @@ function petFidget(el: HTMLElement): void {
             });
             break;
         case 'hop':
-            petHop(el, 0.45);
+            // Not while it talks: its bubble sits just above its head (the panel sets data-pet-talking).
+            if (!el.hasAttribute?.('data-pet-talking')) {
+                petHop(el, 0.45);
+            }
             break;
         default:
             if (body) {
@@ -709,6 +717,9 @@ function petFidget(el: HTMLElement): void {
  * petHop: crouch, stretch up, squash on landing and settle, on [data-pet-hop]; the arms trail and the shadow shrinks
  * while it's up. `size` scales the height (a fidget hops at under half). LIGHT lands hard; DARK lands on a spring.
  */
+/** How long a hop takes from the crouch to touching down (petHop's y timeline). */
+const hopMs = (dark: boolean) => 560 * (dark ? 1.25 : 1);
+
 export function petHop(el: HTMLElement, size = 1): void {
     const { animate, spring } = anime;
     const hop = el.querySelector('[data-pet-hop]');
@@ -849,13 +860,14 @@ export function petGrow(el: HTMLElement, from?: string): void {
  * petPoke: the pet was tapped in its panel (cosmetic, no XP): a surprised face with wide eyes, then a hop.
  *   LIGHT (paper): a quick start and a small hop that lands hard.
  *   DARK  (code):  a higher, springy hop while its glow flares.
+ * Returns the ms until the hop lands, so the panel can speak then (0 under reduced motion).
  */
-export function petPoke(el: HTMLElement): void {
+export function petPoke(el: HTMLElement): number {
     const { animate } = anime;
     const glow = el.querySelectorAll<SVGElement>('[data-pet-glow]');
 
     if (ocs().reduced()) {
-        return;
+        return 0;
     }
 
     el.querySelectorAll('[data-pet-wear-tap]').forEach(petWearTap);
@@ -880,6 +892,8 @@ export function petPoke(el: HTMLElement): void {
             ],
         });
     }
+
+    return 180 + hopMs(dark);
 }
 
 /**
@@ -933,7 +947,51 @@ const WEAR_IDLE: Record<string, { to: AnimationParams; duration: number }> = {
     float: { to: { y: -2 }, duration: 1500 },
     // Slice 16 (collection): a mug's steam rises and fades.
     steam: { to: { y: -4, opacity: { from: 0.2, to: 0.8 } }, duration: 1300 },
+    // Spec 2026-11-27-luna-item-fit-play-bubble: a small part breathes and tilts; a glint comes and goes.
+    pulse: {
+        to: { scale: { from: 1, to: 1.12 }, rotate: { from: -6, to: 6 } },
+        duration: 1300,
+    },
+    shine: { to: { opacity: { from: 0, to: 0.9 } }, duration: 1700 },
 };
+
+/**
+ * petItemTap: one worn item was tapped in the panel (cosmetic, no XP): its own moves, two puffs of its kind (WEAR `fx`)
+ * rising from where it is, and a small hop for the items that lift (`hop`). Returns the ms until that hop lands (0 when
+ * there is none, or under reduced motion), so the panel can speak then.
+ */
+export function petItemTap(
+    el: HTMLElement,
+    part: Element,
+    item: WearItem,
+): number {
+    if (ocs().reduced()) {
+        return 0;
+    }
+
+    part.querySelectorAll('[data-pet-wear-tap]').forEach(petWearTap);
+    if (part.hasAttribute('data-pet-wear-tap')) {
+        petWearTap(part);
+    }
+    const row: { fx: ItemFx; hop?: boolean } = WEAR[item];
+    let x = 60;
+    let y = 30;
+    try {
+        const b = (part as SVGGraphicsElement).getBBox();
+        x = b.x + b.width / 2;
+        y = Math.max(20, b.y + 4);
+    } catch {
+        // Not laid out (hidden): puff from the head.
+    }
+    petPuff(el, row.fx, x - 6, y);
+    petPuff(el, row.fx, x + 6, y - 4, 200);
+    if (!row.hop) {
+        return 0;
+    }
+    petHop(el, 0.6);
+
+    return hopMs(ocs().isDark());
+}
 
 /*
  * petWearTap: one worn item's own move, by its data-pet-wear-tap name: when the moonling is tapped (petPoke runs it

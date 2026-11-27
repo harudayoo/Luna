@@ -18,10 +18,10 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { petIdle, petPet, petPoke, petWearTap } from '@/lib/ocs';
+import { petIdle, petItemTap, petPet, petPoke } from '@/lib/ocs';
 import type { Pet, PetDetail } from '@/lib/pet';
 import { knownItem, stagePath, stageProgress, streakLabel } from '@/lib/pet';
-import { usePetPlay } from '@/lib/pet-play';
+import { bubbleBottom, usePetPlay } from '@/lib/pet-play';
 import { itemLine, MOODS, voiceLine } from '@/lib/pet-voice';
 
 /** One square per office day this week (pet_detail.week). */
@@ -88,6 +88,46 @@ export function PetPanel({
     const lastItemLine = useRef<string | undefined>(undefined);
     const lastLine = useRef<string | undefined>(undefined);
     const taps = useRef<number[]>([]);
+    // A hop rises into the bubble's lane, so the old line clears and the new one waits until it lands.
+    const speak = useRef(0);
+    useEffect(() => () => window.clearTimeout(speak.current), []);
+    // The lane is sized for the tallest outfit; the bubble itself sits just above what is drawn, measured as it speaks.
+    const lane = useRef<HTMLDivElement>(null);
+    const [bubbleAt, setBubbleAt] = useState<number>();
+    const show = useCallback(
+        (text: string) => {
+            const svg = sprite.current?.querySelector('svg');
+            // The innermost moving layer: its box leaves out the hop and breath, so a squash on landing can't lower it.
+            const drawn =
+                svg?.querySelector<SVGGraphicsElement>('[data-pet-breath]');
+            if (svg && drawn && lane.current) {
+                const box = svg.getBoundingClientRect();
+                setBubbleAt(
+                    bubbleBottom({
+                        svgTop:
+                            box.top - lane.current.getBoundingClientRect().top,
+                        svgSize: box.height,
+                        drawnTop: drawn.getBBox().y,
+                    }),
+                );
+            }
+            say(text);
+        },
+        [say],
+    );
+    const sayAfter = useCallback(
+        (text: string, wait: number) => {
+            window.clearTimeout(speak.current);
+            if (wait <= 0) {
+                show(text);
+
+                return;
+            }
+            say('');
+            speak.current = window.setTimeout(() => show(text), wait);
+        },
+        [say, show],
+    );
 
     // A tap or a tug: it wobbles, says something, and the first one each office day is its pat (no XP).
     const tap = useCallback(() => {
@@ -95,16 +135,13 @@ export function PetPanel({
         const item = part?.getAttribute('data-pet-wear') ?? '';
         pressed.current = null;
         if (part && knownItem(item)) {
-            part.querySelectorAll('[data-pet-wear-tap]').forEach(petWearTap);
-            if (part.hasAttribute('data-pet-wear-tap')) {
-                petWearTap(part);
-            }
+            const wait = sprite.current
+                ? petItemTap(sprite.current, part, item)
+                : 0;
             lastItemLine.current = itemLine(item, lastItemLine.current);
-            say(lastItemLine.current);
+            sayAfter(lastItemLine.current, wait);
         } else {
-            if (sprite.current) {
-                petPoke(sprite.current);
-            }
+            const wait = sprite.current ? petPoke(sprite.current) : 0;
             // Three quick taps in a row get their own giggle (slice 8); never the same line twice in a row.
             const now = Date.now();
             taps.current = [...taps.current.filter((t) => now - t < 1500), now];
@@ -119,7 +156,7 @@ export function PetPanel({
                 lastLine.current,
                 pet.kind,
             );
-            say(lastLine.current);
+            sayAfter(lastLine.current, wait);
         }
         if (!pet.mood.patted) {
             router.post(
@@ -128,7 +165,7 @@ export function PetPanel({
                 { preserveScroll: true, preserveState: true, only: ['pet'] },
             );
         }
-    }, [pet.mood.level, pet.mood.patted, pet.kind, say]);
+    }, [pet.mood.level, pet.mood.patted, pet.kind, sayAfter]);
 
     // Stroking it, with a mouse or a finger dragging on it, pets it (spec 2026-11-26-luna-moonling-redesign).
     const stroked = useCallback(() => {
@@ -316,7 +353,11 @@ export function PetPanel({
                 ) : (
                     <>
                         {/* The pet, large. Tap or tug it (no XP; the first each day is its pat); arrows make it look. */}
-                        <div className="relative mx-auto w-fit">
+                        {/* The bubble has its own lane above the pet (pt-18), so it never covers an item. */}
+                        <div
+                            ref={lane}
+                            className="relative mx-auto w-fit pt-18"
+                        >
                             <button
                                 ref={pat}
                                 type="button"
@@ -333,7 +374,11 @@ export function PetPanel({
                                 }}
                                 className="block cursor-grab touch-none p-2 select-none focus-visible:bg-surface-hover focus-visible:outline-none active:cursor-grabbing"
                             >
-                                <span ref={sprite} className="inline-block">
+                                <span
+                                    ref={sprite}
+                                    data-pet-talking={line ? '' : undefined}
+                                    className="inline-block"
+                                >
                                     <PetSprite
                                         stage={progress.stage}
                                         kind={pet.kind}
@@ -347,7 +392,11 @@ export function PetPanel({
                                     />
                                 </span>
                             </button>
-                            <PetBubble text={line} place="top" />
+                            <PetBubble
+                                text={line}
+                                place="top"
+                                bottom={bubbleAt}
+                            />
                             <span id="pet-play-hint" className="sr-only">
                                 Arrow keys make it look around.
                             </span>
@@ -409,7 +458,7 @@ export function PetPanel({
                                         Math.random,
                                         lastLine.current,
                                     );
-                                    say(lastLine.current);
+                                    show(lastLine.current);
                                 }}
                             />
                         )}

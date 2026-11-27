@@ -111,6 +111,22 @@ export function isPetStroke(path: number, size: number): boolean {
     return path > size * 2;
 }
 
+/**
+ * Where the speech bubble's tail ends, in px from the top of its box: a small gap above the drawing's real top (`drawnTop`, in
+ * the sprite's 120-unit viewBox, items included), for an svg `svgSize` px tall starting `svgTop` px down the box.
+ */
+export function bubbleBottom({
+    svgTop,
+    svgSize,
+    drawnTop,
+}: {
+    svgTop: number;
+    svgSize: number;
+    drawnTop: number;
+}): number {
+    return Math.max(0, round(svgTop + (drawnTop * svgSize) / 120 - 8));
+}
+
 const reducedMotion = () =>
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 

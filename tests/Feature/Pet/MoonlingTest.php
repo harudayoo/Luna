@@ -19,7 +19,8 @@ use Tests\TestCase;
 
 /**
  * The collection (spec 2026-11-25-luna-moonling-life, slice 6): moonlings as records, XP to the active one, eggs from
- * achievements (once each, with a bell notice), switching once the active one hatched, the moon nest. The streak
+ * achievements (once each, with a bell notice), switching freely, eggs included (spec 2026-11-27-luna-item-icons-
+ * switch-eggs), the moon nest. The streak
  * stays per person. "Now" is Thu 2026-11-19 10:00 Manila.
  */
 class MoonlingTest extends TestCase
@@ -141,22 +142,26 @@ class MoonlingTest extends TestCase
                 ->where('pet.kind', 'moon')->where('pet.stage', 2)->where('pet.xp', 200));
     }
 
-    public function test_switching_needs_the_active_one_hatched_and_only_to_your_own_moonling()
+    public function test_switching_works_between_eggs_keeps_each_ones_xp_and_only_to_your_own_moonling()
     {
         $moon = Moonlings::active($this->ana);
+        $this->xp($this->ana, 20);
         $star = $this->egg($this->ana, 'star');
 
-        $this->actingAs($this->ana)->patch(route('pet.active'), ['moonling_id' => $star->id])->assertSessionHasErrors('moonling_id');
-        $this->assertTrue($moon->fresh()->active);
+        // The moon is still an egg: switching to another egg works, and nothing moves over.
+        $this->actingAs($this->ana)->patch(route('pet.active'), ['moonling_id' => $star->id])->assertSessionHasNoErrors();
+        $this->assertSame([$star->id], Moonling::query()->where('user_id', $this->ana->id)->where('active', true)->pluck('id')->all());
+        $this->assertSame(20, Moonlings::xp($moon));
+        $this->assertSame(0, Moonlings::xp($star));
 
-        $this->xp($this->ana, 40);
+        $this->actingAs($this->ana)->patch(route('pet.active'), ['moonling_id' => $moon->id])->assertSessionHasNoErrors();
+        $this->assertTrue($moon->fresh()->active);
+        $this->assertSame(20, Moonlings::xp($moon));
+
         $bens = Moonlings::active(User::factory()->create());
         $this->actingAs($this->ana)->patch(route('pet.active'), ['moonling_id' => $bens->id])->assertSessionHasErrors('moonling_id');
         $this->assertTrue($moon->fresh()->active);
         $this->assertTrue($bens->fresh()->active);
-
-        $this->actingAs($this->ana)->patch(route('pet.active'), ['moonling_id' => $star->id])->assertSessionHasNoErrors();
-        $this->assertSame([$star->id], Moonling::query()->where('user_id', $this->ana->id)->where('active', true)->pluck('id')->all());
     }
 
     public function test_eggs_come_from_achievements_once_each_with_a_bell_notice()
@@ -300,7 +305,7 @@ class MoonlingTest extends TestCase
                     ->where('pet_nest.moonlings.1.active', false)
                     ->where('pet_nest.moonlings.1.stage', 0)
                     ->hasAll(['pet_nest.moonlings.1.id', 'pet_nest.moonlings.1.name', 'pet_nest.moonlings.1.stage_name'])
-                    ->where('pet_nest.can_switch', true)
+                    ->missing('pet_nest.can_switch')
                     ->has('pet_nest.eggs', 12)
                     ->where('pet_nest.eggs.0.kind', 'star')
                     ->where('pet_nest.eggs.0.earned', true)

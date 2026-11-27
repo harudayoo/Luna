@@ -6,7 +6,8 @@ import {
     outlinePath,
     PetSprite,
 } from '../../resources/js/components/pet-sprite';
-import type { MoodLevel } from '../../resources/js/lib/pet';
+import { WEAR } from '../../resources/js/lib/pet';
+import type { MoodLevel, WearItem } from '../../resources/js/lib/pet';
 
 const svg = (stage: number, mood?: MoodLevel) =>
     renderToStaticMarkup(createElement(PetSprite, { stage, title: 'x', mood }));
@@ -106,5 +107,56 @@ describe('PetSprite jetpack', () => {
                 }
             }
         }
+    });
+});
+
+/** Items fit every size and all move (spec 2026-11-27-luna-item-fit-play-bubble). */
+describe('PetSprite items', () => {
+    const worn = (item: WearItem, stage: number) =>
+        renderToStaticMarkup(
+            createElement(PetSprite, { stage, title: 'x', wear: [item] }),
+        );
+
+    it('gives every item an idle loop and a tap move', () => {
+        for (const item of Object.keys(WEAR) as WearItem[]) {
+            const s = worn(item, 3);
+            expect(s, item).toContain('data-pet-wear-idle=');
+            expect(s, item).toContain('data-pet-wear-tap=');
+        }
+    });
+
+    it('scales the fixed-size items with the body, drawn for the Moonling', () => {
+        const fixed: WearItem[] = [
+            'star_clip',
+            'comet_trail',
+            'bow',
+            'scarf',
+            'wings',
+            'balloon',
+            'wand',
+            'lantern',
+            'umbrella',
+            'flower_crown',
+            'bowtie',
+            'orchid_pin',
+            'coffee',
+            'headphones',
+            'kite',
+        ];
+        for (const item of fixed) {
+            expect(worn(item, 4), item).toMatch(
+                /data-pet-fit[^>]*scale\(1\.25\)/,
+            );
+            expect(worn(item, 1), item).toMatch(
+                /data-pet-fit[^>]*scale\(0\.75\)/,
+            );
+        }
+    });
+
+    it('scales the Moon Cup crown too', () => {
+        const s = renderToStaticMarkup(
+            createElement(PetSprite, { stage: 4, title: 'x', crown: true }),
+        );
+        expect(s).toMatch(/data-pet-fit[^>]*scale\(1\.25\)/);
     });
 });

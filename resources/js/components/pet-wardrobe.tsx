@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { useId, useState } from 'react';
 import PetController from '@/actions/App/Http/Controllers/PetController';
 import InputError from '@/components/input-error';
-import { PetSprite } from '@/components/pet-sprite';
+import { ItemIcon } from '@/components/pet-sprite';
 import type { Dye, Palette, Pet, PetDetail, Slot, WearItem } from '@/lib/pet';
 import {
     DYE_NAMES,
@@ -187,15 +187,12 @@ export function PetWardrobe({
                                 }}
                                 className="flex size-full min-h-24 cursor-pointer flex-col items-center gap-1 bg-bg px-2 py-2 text-center focus-visible:shadow-lift focus-visible:outline-none disabled:cursor-default aria-pressed:bg-surface-hover"
                             >
-                                <PetSprite
-                                    stage={Math.max(2, pet.stage)}
-                                    kind={pet.kind}
+                                <ItemIcon
+                                    item={item.key}
+                                    dye={pet.dyes[item.key]}
                                     palette={pet.palette}
-                                    wear={[item.key]}
-                                    dyes={pet.dyes}
                                     locked={!item.unlocked}
-                                    title=""
-                                    className="size-14"
+                                    className="size-12"
                                 />
                                 <span className="text-xs font-semibold">
                                     {WEAR[item.key].label}

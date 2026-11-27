@@ -8,9 +8,10 @@
  * shows them (resources/css/app.css).
  */
 import type { CSSProperties } from 'react';
-import { useId } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { dyeColor, knownItem, paletteStyle, WEAR } from '@/lib/pet';
 import type {
+    Dye,
     Dyes,
     MoodLevel,
     MoonlingKind,
@@ -136,6 +137,8 @@ export function PetSprite({
         // The hands: on the arms from the Moonling on, else at the sides.
         handDx: egg ? 24 : stage >= 2 ? r * 1.05 + 1 : r - 2,
         handY: egg ? 76 : cy + r * 0.3,
+        // Items are drawn for the Moonling (r 32); fixed-size parts scale by this (spec 2026-11-27-luna-item-fit-play-bubble).
+        k: (egg ? 26 : r) / 32,
     };
 
     const holding = wear.some((w) => knownItem(w) && WEAR[w].slot === 'hand');
@@ -196,13 +199,95 @@ export function PetSprite({
                                 />
                             )}
                             {!locked && <Wear layer="front" {...fit} />}
-                            {crown && !locked && <Crown base={top + 4} />}
+                            {crown && !locked && (
+                                <Crown base={top + 4} k={fit.k} />
+                            )}
                         </g>
                     </g>
                 </g>
             </g>
             {!locked && stage === 4 && <Sparkles />}
             <g data-pet-fx />
+        </svg>
+    );
+}
+
+/**
+ * Where items sit on a body of radius `r`, at the Moonling's item size (k 1): the wardrobe's icons. The wings sit on a
+ * narrow body, so the pair reads as wings without the moonling between them.
+ */
+const iconFit = (r: number) => {
+    const cy = 96 - r - 4;
+    const face = faceOf(r, cy);
+
+    return {
+        top: cy - r,
+        cy,
+        r,
+        neck: cy + r * 0.58,
+        half: r * 0.89,
+        eyeY: face.eyeY,
+        eyeDx: face.eyeDx,
+        handDx: r * 1.05 + 1,
+        handY: cy + r * 0.3,
+        k: 1,
+    };
+};
+
+/**
+ * One item on its own, no moonling (spec 2026-11-27-luna-item-icons-switch-eggs): the wardrobe's tiles. The viewBox
+ * is cropped to the item's own box once it's drawn, so every item fills its tile. Locked: faded and grey.
+ */
+export function ItemIcon({
+    item,
+    dye,
+    palette = 'classic',
+    locked = false,
+    title,
+    className = 'size-14',
+}: {
+    item: WearItem;
+    dye?: Dye;
+    palette?: Palette;
+    locked?: boolean;
+    /** Leave out when the tile already names the item. */
+    title?: string;
+    className?: string;
+}) {
+    const drawn = useRef<SVGGElement>(null);
+    const [view, setView] = useState('0 0 120 120');
+    const wear = {
+        wear: [item],
+        dyes: dye ? { [item]: dye } : {},
+        palette,
+        crown: false,
+        ...iconFit(item === 'wings' ? 8 : SIZE[2]),
+    };
+
+    useLayoutEffect(() => {
+        const b = drawn.current?.getBBox?.();
+        if (!b || b.width === 0) {
+            return;
+        }
+        const side = Math.max(b.width, b.height) + 8;
+        setView(
+            `${n(b.x + b.width / 2 - side / 2)} ${n(b.y + b.height / 2 - side / 2)} ${n(side)} ${n(side)}`,
+        );
+    }, [item, dye]);
+
+    return (
+        <svg
+            viewBox={view}
+            role={title ? 'img' : undefined}
+            aria-label={title}
+            aria-hidden={title ? undefined : true}
+            style={paletteStyle(palette) as CSSProperties}
+            className={`shrink-0 overflow-visible ${locked ? 'opacity-40 grayscale' : ''} ${className}`}
+        >
+            <g ref={drawn}>
+                <Wear layer="back" {...wear} />
+                <Wear layer="front" {...wear} />
+            </g>
         </svg>
     );
 }
@@ -900,14 +985,16 @@ function Shell({ r, cy }: { r: number; cy: number }) {
 }
 
 /** The Moon Cup crown: three points and a gem, tipped a little, its base on the head. */
-function Crown({ base }: { base: number }) {
+function Crown({ base, k }: { base: number; k: number }) {
     return (
-        <g data-pet-crown transform={`rotate(-8 60 ${base})`}>
-            <path
-                d={`M47 ${base} V${base - 9} L53.5 ${base - 4} L60 ${base - 13} L66.5 ${base - 4} L73 ${base - 9} V${base} Z`}
-                fill={ACCENT}
-            />
-            <circle cx="60" cy={base - 3} r="2" fill={FACE} />
+        <g {...fitAt(60, base, k)}>
+            <g data-pet-crown transform={`rotate(-8 60 ${base})`}>
+                <path
+                    d={`M47 ${base} V${base - 9} L53.5 ${base - 4} L60 ${base - 13} L66.5 ${base - 4} L73 ${base - 9} V${base} Z`}
+                    fill={ACCENT}
+                />
+                <circle cx="60" cy={base - 3} r="2" fill={FACE} />
+            </g>
         </g>
     );
 }
@@ -925,8 +1012,34 @@ function Sparkles() {
     );
 }
 
+/** A glint that comes and goes on round lenses (glasses, monocle). */
+function Glint({ xs, y, lens }: { xs: number[]; y: number; lens: number }) {
+    return (
+        <g data-pet-wear-idle="shine" style={box()} opacity="0.6">
+            {xs.map((x) => (
+                <path
+                    key={x}
+                    d={`M${n(x - lens * 0.55)} ${n(y + lens * 0.05)} l${n(lens * 0.5)} ${n(-lens * 0.5)}`}
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                />
+            ))}
+        </g>
+    );
+}
+
 /** A thinner cartoon outline for items. */
 const INK_THIN = { ...INK, strokeWidth: 2.5 } as const;
+
+/**
+ * Scales a fixed-size part by `k` around its anchor (x, y), as an svg attribute: never on an element anime.js moves,
+ * whose CSS transform would replace it.
+ */
+const fitAt = (x: number, y: number, k: number) => ({
+    'data-pet-fit': '',
+    transform: `translate(${n(x)} ${n(y)}) scale(${n(k)}) translate(${n(-x)} ${n(-y)})`,
+});
 
 /** A part that moves around its own box (anime.js transforms), from `origin`. */
 const box = (origin = '50% 50%') =>
@@ -954,6 +1067,7 @@ function Wear({
     eyeDx,
     handDx,
     handY,
+    k,
 }: {
     layer: 'back' | 'front';
     wear: WearItem[];
@@ -969,6 +1083,7 @@ function Wear({
     eyeDx: number;
     handDx: number;
     handY: number;
+    k: number;
 }) {
     const shown = wear.filter(
         (w) =>
@@ -988,22 +1103,23 @@ function Wear({
                 });
 
                 switch (item) {
-                    case 'star_clip':
+                    case 'star_clip': {
+                        const x = 60 + half * 0.45;
+                        const y = top + 6;
                         return (
-                            <path
-                                key={item}
-                                {...root('twinkle')}
-                                {...INK_THIN}
-                                d={starPath(
-                                    60 + half * 0.45,
-                                    top + 6,
-                                    6.5,
-                                    5,
-                                    0.45,
-                                )}
-                                fill={c}
-                            />
+                            <g key={item} {...root('twinkle')}>
+                                <g {...fitAt(x, y, k)}>
+                                    <path
+                                        data-pet-wear-idle="pulse"
+                                        style={box()}
+                                        {...INK_THIN}
+                                        d={starPath(x, y, 6.5, 5, 0.45)}
+                                        fill={c}
+                                    />
+                                </g>
+                            </g>
                         );
+                    }
                     case 'halo': {
                         const rx = Math.max(12, half * 0.55);
                         return (
@@ -1036,19 +1152,23 @@ function Wear({
                         const y = top + 6;
                         return (
                             <g key={item} {...root('wiggle')}>
-                                <path
-                                    {...INK_THIN}
-                                    d={`M${x} ${y} L${x - 9} ${y - 7} L${x - 9} ${y + 7} Z M${x} ${y} L${x + 9} ${y - 7} L${x + 9} ${y + 7} Z`}
-                                    fill={c}
-                                />
-                                <circle
-                                    cx={x}
-                                    cy={y}
-                                    r="2.8"
-                                    fill={c}
-                                    stroke={LINE}
-                                    strokeWidth="1.5"
-                                />
+                                <g {...fitAt(x, y, k)}>
+                                    <g data-pet-wear-idle="pulse" style={box()}>
+                                        <path
+                                            {...INK_THIN}
+                                            d={`M${x} ${y} L${x - 9} ${y - 7} L${x - 9} ${y + 7} Z M${x} ${y} L${x + 9} ${y - 7} L${x + 9} ${y + 7} Z`}
+                                            fill={c}
+                                        />
+                                        <circle
+                                            cx={x}
+                                            cy={y}
+                                            r="2.8"
+                                            fill={c}
+                                            stroke={LINE}
+                                            strokeWidth="1.5"
+                                        />
+                                    </g>
+                                </g>
                             </g>
                         );
                     }
@@ -1069,7 +1189,7 @@ function Wear({
                                     strokeWidth="2.5"
                                 />
                                 <path
-                                    d={`M60 ${y - w * 0.8} v-5`}
+                                    d={`M60 ${y - w * 0.8} v${n(-5 * k)}`}
                                     stroke={LINE}
                                     strokeWidth="2"
                                 />
@@ -1077,9 +1197,9 @@ function Wear({
                                     <ellipse
                                         {...INK_THIN}
                                         cx="60"
-                                        cy={y - w * 0.8 - 6}
-                                        rx="12"
-                                        ry="2.6"
+                                        cy={n(y - w * 0.8 - 6 * k)}
+                                        rx={n(w * 0.77)}
+                                        ry={n(2.6 * k)}
                                         fill={c}
                                     />
                                 </g>
@@ -1119,6 +1239,11 @@ function Wear({
                                     stroke={c}
                                     strokeWidth="2.2"
                                 />
+                                <Glint
+                                    xs={[60 - eyeDx, 60 + eyeDx]}
+                                    y={eyeY}
+                                    lens={lens}
+                                />
                             </g>
                         );
                     }
@@ -1130,15 +1255,17 @@ function Wear({
                                     d={`M${60 - half} ${neck - 3} Q60 ${neck + 3} ${60 + half} ${neck - 3} L${60 + half} ${neck + 4} Q60 ${neck + 10} ${60 - half} ${neck + 4} Z`}
                                     fill={c}
                                 />
-                                <g
-                                    data-pet-wear-idle="sway"
-                                    style={box('50% 0%')}
-                                >
-                                    <path
-                                        {...INK_THIN}
-                                        d={`M${60 + half * 0.4} ${neck + 4} l5 13 l7 -2 l-5 -12 Z`}
-                                        fill={c}
-                                    />
+                                <g {...fitAt(60 + half * 0.4, neck + 4, k)}>
+                                    <g
+                                        data-pet-wear-idle="sway"
+                                        style={box('50% 0%')}
+                                    >
+                                        <path
+                                            {...INK_THIN}
+                                            d={`M${60 + half * 0.4} ${neck + 4} l5 13 l7 -2 l-5 -12 Z`}
+                                            fill={c}
+                                        />
+                                    </g>
                                 </g>
                             </g>
                         );
@@ -1151,19 +1278,29 @@ function Wear({
                                     stroke={LINE}
                                     strokeWidth="1.8"
                                 />
-                                <g data-pet-wear-tap="twinkle" style={box()}>
-                                    <path
-                                        {...INK_THIN}
-                                        d={`M58 ${neck + 4} L48 ${neck - 1} L52 ${neck + 8} Z`}
-                                        fill={c}
-                                    />
-                                    <circle
-                                        {...INK_THIN}
-                                        cx="60"
-                                        cy={neck + 6}
-                                        r="3.8"
-                                        fill={c}
-                                    />
+                                <g {...fitAt(60, neck + 2, k)}>
+                                    <g
+                                        data-pet-wear-idle="sway"
+                                        style={box('70% 0%')}
+                                    >
+                                        <g
+                                            data-pet-wear-tap="twinkle"
+                                            style={box()}
+                                        >
+                                            <path
+                                                {...INK_THIN}
+                                                d={`M58 ${neck + 4} L48 ${neck - 1} L52 ${neck + 8} Z`}
+                                                fill={c}
+                                            />
+                                            <circle
+                                                {...INK_THIN}
+                                                cx="60"
+                                                cy={neck + 6}
+                                                r="3.8"
+                                                fill={c}
+                                            />
+                                        </g>
+                                    </g>
                                 </g>
                             </g>
                         );
@@ -1174,28 +1311,29 @@ function Wear({
                                     const ax = 60 + side * r * 0.7;
                                     const ay = cy - r * 0.15;
                                     return (
-                                        <g
-                                            key={side}
-                                            data-pet-wear-idle="flap"
-                                            style={box(
-                                                side < 0
-                                                    ? '100% 60%'
-                                                    : '0% 60%',
-                                            )}
-                                        >
-                                            <path
-                                                {...INK_THIN}
-                                                d={`M${ax} ${ay} C${ax + side * 18} ${ay - 24} ${ax + side * 32} ${ay - 8} ${ax + side * 22} ${ay + 8} C${ax + side * 15} ${ay + 13} ${ax + side * 6} ${ay + 9} ${ax} ${ay + 5} Z`}
-                                                fill={c}
-                                            />
-                                            <path
-                                                d={`M${ax + side * 6} ${ay - 2} q${side * 9} -8 ${side * 17} -4`}
-                                                fill="none"
-                                                stroke="#ffffff"
-                                                strokeOpacity="0.55"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                            />
+                                        <g key={side} {...fitAt(ax, ay, k)}>
+                                            <g
+                                                data-pet-wear-idle="flap"
+                                                style={box(
+                                                    side < 0
+                                                        ? '100% 60%'
+                                                        : '0% 60%',
+                                                )}
+                                            >
+                                                <path
+                                                    {...INK_THIN}
+                                                    d={`M${ax} ${ay} C${ax + side * 18} ${ay - 24} ${ax + side * 32} ${ay - 8} ${ax + side * 22} ${ay + 8} C${ax + side * 15} ${ay + 13} ${ax + side * 6} ${ay + 9} ${ax} ${ay + 5} Z`}
+                                                    fill={c}
+                                                />
+                                                <path
+                                                    d={`M${ax + side * 6} ${ay - 2} q${side * 9} -8 ${side * 17} -4`}
+                                                    fill="none"
+                                                    stroke="#ffffff"
+                                                    strokeOpacity="0.55"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                />
+                                            </g>
                                         </g>
                                     );
                                 })}
@@ -1219,7 +1357,7 @@ function Wear({
                     case 'balloon': {
                         const hx = 60 + handDx;
                         const bx = hx + 7;
-                        const by = Math.max(12, top - 4);
+                        const by = Math.max(11 * k + 2, top - 4);
                         return (
                             <g key={item} {...root('jump')}>
                                 <g
@@ -1227,33 +1365,35 @@ function Wear({
                                     style={box('50% 100%')}
                                 >
                                     <path
-                                        d={`M${hx} ${handY} Q${hx + 6} ${(handY + by) / 2} ${bx} ${by + 11}`}
+                                        d={`M${hx} ${handY} Q${hx + 6} ${(handY + by) / 2} ${bx} ${n(by + 11 * k)}`}
                                         fill="none"
                                         stroke={LINE}
                                         strokeWidth="1.5"
                                     />
-                                    <ellipse
-                                        {...INK_THIN}
-                                        cx={bx}
-                                        cy={by}
-                                        rx="9"
-                                        ry="11"
-                                        fill={c}
-                                    />
-                                    <path
-                                        d={`M${bx - 2} ${by + 13} h4 l-2 -3 Z`}
-                                        fill={c}
-                                        stroke={LINE}
-                                        strokeWidth="1"
-                                    />
-                                    <ellipse
-                                        cx={bx - 3}
-                                        cy={by - 4}
-                                        rx="2.5"
-                                        ry="3.5"
-                                        fill="#ffffff"
-                                        opacity="0.55"
-                                    />
+                                    <g {...fitAt(bx, by, k)}>
+                                        <ellipse
+                                            {...INK_THIN}
+                                            cx={bx}
+                                            cy={by}
+                                            rx="9"
+                                            ry="11"
+                                            fill={c}
+                                        />
+                                        <path
+                                            d={`M${bx - 2} ${by + 13} h4 l-2 -3 Z`}
+                                            fill={c}
+                                            stroke={LINE}
+                                            strokeWidth="1"
+                                        />
+                                        <ellipse
+                                            cx={bx - 3}
+                                            cy={by - 4}
+                                            rx="2.5"
+                                            ry="3.5"
+                                            fill="#ffffff"
+                                            opacity="0.55"
+                                        />
+                                    </g>
                                 </g>
                             </g>
                         );
@@ -1264,25 +1404,29 @@ function Wear({
                         const ty = handY - 16;
                         return (
                             <g key={item} data-pet-wear={item}>
-                                <path
-                                    d={`M${hx - 1} ${handY + 2} L${tx} ${ty}`}
-                                    stroke={LINE}
-                                    strokeWidth="4.5"
-                                    strokeLinecap="round"
-                                />
-                                <path
-                                    d={`M${hx - 1} ${handY + 2} L${tx} ${ty}`}
-                                    stroke="#ffffff"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                />
-                                <path
-                                    data-pet-wear-tap="burst"
-                                    style={box()}
-                                    {...INK_THIN}
-                                    d={starPath(tx, ty, 7, 5, 0.45)}
-                                    fill={c}
-                                />
+                                <g {...fitAt(hx, handY, k)}>
+                                    <path
+                                        d={`M${hx - 1} ${handY + 2} L${tx} ${ty}`}
+                                        stroke={LINE}
+                                        strokeWidth="4.5"
+                                        strokeLinecap="round"
+                                    />
+                                    <path
+                                        d={`M${hx - 1} ${handY + 2} L${tx} ${ty}`}
+                                        stroke="#ffffff"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                    />
+                                    <g data-pet-wear-idle="pulse" style={box()}>
+                                        <path
+                                            data-pet-wear-tap="burst"
+                                            style={box()}
+                                            {...INK_THIN}
+                                            d={starPath(tx, ty, 7, 5, 0.45)}
+                                            fill={c}
+                                        />
+                                    </g>
+                                </g>
                             </g>
                         );
                     }
@@ -1291,35 +1435,37 @@ function Wear({
                         const ly = handY + 6;
                         return (
                             <g key={item} {...root('flare', '50% 0%')}>
-                                <path
-                                    d={`M${hx} ${handY} V${ly}`}
-                                    stroke={LINE}
-                                    strokeWidth="2"
-                                />
-                                <circle
-                                    data-pet-wear-idle="flicker"
-                                    style={box()}
-                                    cx={hx}
-                                    cy={ly + 8}
-                                    r="12"
-                                    fill="#fff3b0"
-                                    opacity="0.55"
-                                />
-                                <rect
-                                    {...INK_THIN}
-                                    x={hx - 6}
-                                    y={ly}
-                                    width="12"
-                                    height="15"
-                                    fill={c}
-                                />
-                                <rect
-                                    x={hx - 3}
-                                    y={ly + 3}
-                                    width="6"
-                                    height="9"
-                                    fill="#fff3b0"
-                                />
+                                <g {...fitAt(hx, handY, k)}>
+                                    <path
+                                        d={`M${hx} ${handY} V${ly}`}
+                                        stroke={LINE}
+                                        strokeWidth="2"
+                                    />
+                                    <circle
+                                        data-pet-wear-idle="flicker"
+                                        style={box()}
+                                        cx={hx}
+                                        cy={ly + 8}
+                                        r="12"
+                                        fill="#fff3b0"
+                                        opacity="0.55"
+                                    />
+                                    <rect
+                                        {...INK_THIN}
+                                        x={hx - 6}
+                                        y={ly}
+                                        width="12"
+                                        height="15"
+                                        fill={c}
+                                    />
+                                    <rect
+                                        x={hx - 3}
+                                        y={ly + 3}
+                                        width="6"
+                                        height="9"
+                                        fill="#fff3b0"
+                                    />
+                                </g>
                             </g>
                         );
                     }
@@ -1365,7 +1511,7 @@ function Wear({
                     case 'umbrella': {
                         const hx = 60 + handDx;
                         const ux = hx + 4;
-                        const uy = Math.max(18, handY - 30);
+                        const uy = Math.max(12 * k + 6, handY - 30);
                         return (
                             <g key={item} data-pet-wear={item}>
                                 <path
@@ -1373,24 +1519,26 @@ function Wear({
                                     stroke={LINE}
                                     strokeWidth="2"
                                 />
-                                <g
-                                    data-pet-wear-idle="sway"
-                                    style={box('50% 100%')}
-                                >
-                                    <path
-                                        {...INK_THIN}
-                                        d={`M${ux - 15} ${uy} a15 12 0 0 1 30 0 q-5 -3 -10 0 q-5 -3 -10 0 q-5 -3 -10 0 Z`}
-                                        fill={c}
-                                    />
-                                </g>
-                                <g data-pet-wear-tap="drip" style={box()}>
-                                    {[-10, 0, 10].map((dx) => (
+                                <g {...fitAt(ux, uy, k)}>
+                                    <g
+                                        data-pet-wear-idle="sway"
+                                        style={box('50% 100%')}
+                                    >
                                         <path
-                                            key={dx}
-                                            d={`M${ux + dx} ${uy + 4} q-2 3 0 4 q2 -1 0 -4 Z`}
-                                            fill="#9fd3ff"
+                                            {...INK_THIN}
+                                            d={`M${ux - 15} ${uy} a15 12 0 0 1 30 0 q-5 -3 -10 0 q-5 -3 -10 0 q-5 -3 -10 0 Z`}
+                                            fill={c}
                                         />
-                                    ))}
+                                    </g>
+                                    <g data-pet-wear-tap="drip" style={box()}>
+                                        {[-10, 0, 10].map((dx) => (
+                                            <path
+                                                key={dx}
+                                                d={`M${ux + dx} ${uy + 4} q-2 3 0 4 q2 -1 0 -4 Z`}
+                                                fill="#9fd3ff"
+                                            />
+                                        ))}
+                                    </g>
                                 </g>
                             </g>
                         );
@@ -1406,7 +1554,7 @@ function Wear({
                                         const fx = 60 + i * half * 0.32;
                                         const fy = top + 3 + Math.abs(i) * 2.5;
                                         return (
-                                            <g key={i}>
+                                            <g key={i} {...fitAt(fx, fy, k)}>
                                                 <circle
                                                     {...INK_THIN}
                                                     cx={fx}
@@ -1429,19 +1577,23 @@ function Wear({
                     case 'bowtie':
                         return (
                             <g key={item} {...root('spin')}>
-                                <path
-                                    {...INK_THIN}
-                                    d={`M60 ${neck + 1} L50 ${neck - 5} L50 ${neck + 7} Z M60 ${neck + 1} L70 ${neck - 5} L70 ${neck + 7} Z`}
-                                    fill={c}
-                                />
-                                <circle
-                                    cx="60"
-                                    cy={neck + 1}
-                                    r="2.8"
-                                    fill={c}
-                                    stroke={LINE}
-                                    strokeWidth="1.5"
-                                />
+                                <g {...fitAt(60, neck + 1, k)}>
+                                    <g data-pet-wear-idle="pulse" style={box()}>
+                                        <path
+                                            {...INK_THIN}
+                                            d={`M60 ${neck + 1} L50 ${neck - 5} L50 ${neck + 7} Z M60 ${neck + 1} L70 ${neck - 5} L70 ${neck + 7} Z`}
+                                            fill={c}
+                                        />
+                                        <circle
+                                            cx="60"
+                                            cy={neck + 1}
+                                            r="2.8"
+                                            fill={c}
+                                            stroke={LINE}
+                                            strokeWidth="1.5"
+                                        />
+                                    </g>
+                                </g>
                             </g>
                         );
                     case 'orchid_pin': {
@@ -1449,24 +1601,28 @@ function Wear({
                         const y = top + 7;
                         return (
                             <g key={item} {...root('twinkle')}>
-                                {[-55, 0, 55].map((deg) => (
-                                    <ellipse
-                                        key={deg}
-                                        {...INK_THIN}
-                                        cx={x}
-                                        cy={y - 4}
-                                        rx="2.6"
-                                        ry="4.5"
-                                        fill={c}
-                                        transform={`rotate(${deg} ${x} ${y})`}
-                                    />
-                                ))}
-                                <circle
-                                    cx={x}
-                                    cy={y + 1}
-                                    r="2.4"
-                                    fill="#fff6c2"
-                                />
+                                <g {...fitAt(x, y, k)}>
+                                    <g data-pet-wear-idle="pulse" style={box()}>
+                                        {[-55, 0, 55].map((deg) => (
+                                            <ellipse
+                                                key={deg}
+                                                {...INK_THIN}
+                                                cx={x}
+                                                cy={y - 4}
+                                                rx="2.6"
+                                                ry="4.5"
+                                                fill={c}
+                                                transform={`rotate(${deg} ${x} ${y})`}
+                                            />
+                                        ))}
+                                        <circle
+                                            cx={x}
+                                            cy={y + 1}
+                                            r="2.4"
+                                            fill="#fff6c2"
+                                        />
+                                    </g>
+                                </g>
                             </g>
                         );
                     }
@@ -1474,34 +1630,36 @@ function Wear({
                         const hx = 60 + handDx;
                         return (
                             <g key={item} {...root('wiggle')}>
-                                <g data-pet-wear-idle="steam" style={box()}>
-                                    {[-3, 2].map((dx) => (
-                                        <path
-                                            key={dx}
-                                            d={`M${hx + dx} ${handY - 9} q-2 -3 0 -6 q2 -3 0 -6`}
-                                            fill="none"
-                                            stroke="#ffffff"
-                                            strokeWidth="1.6"
-                                            strokeLinecap="round"
-                                            opacity="0.7"
-                                        />
-                                    ))}
+                                <g {...fitAt(hx, handY, k)}>
+                                    <g data-pet-wear-idle="steam" style={box()}>
+                                        {[-3, 2].map((dx) => (
+                                            <path
+                                                key={dx}
+                                                d={`M${hx + dx} ${handY - 9} q-2 -3 0 -6 q2 -3 0 -6`}
+                                                fill="none"
+                                                stroke="#ffffff"
+                                                strokeWidth="1.6"
+                                                strokeLinecap="round"
+                                                opacity="0.7"
+                                            />
+                                        ))}
+                                    </g>
+                                    <path
+                                        d={`M${hx + 5} ${handY - 3} a4 4 0 0 1 0 7`}
+                                        fill="none"
+                                        stroke={LINE}
+                                        strokeWidth="2"
+                                    />
+                                    <rect
+                                        {...INK_THIN}
+                                        x={hx - 6}
+                                        y={handY - 6}
+                                        width="11"
+                                        height="12"
+                                        rx="2"
+                                        fill={c}
+                                    />
                                 </g>
-                                <path
-                                    d={`M${hx + 5} ${handY - 3} a4 4 0 0 1 0 7`}
-                                    fill="none"
-                                    stroke={LINE}
-                                    strokeWidth="2"
-                                />
-                                <rect
-                                    {...INK_THIN}
-                                    x={hx - 6}
-                                    y={handY - 6}
-                                    width="11"
-                                    height="12"
-                                    rx="2"
-                                    fill={c}
-                                />
                             </g>
                         );
                     }
@@ -1522,16 +1680,24 @@ function Wear({
                                         strokeWidth="3"
                                     />
                                     {[-1, 1].map((side) => (
-                                        <rect
+                                        <g
                                             key={side}
-                                            {...INK_THIN}
-                                            x={60 + side * r * 0.98 - 4}
-                                            y={eyeY - 6}
-                                            width="8"
-                                            height="12"
-                                            rx="3"
-                                            fill={c}
-                                        />
+                                            {...fitAt(
+                                                60 + side * r * 0.98,
+                                                eyeY,
+                                                k,
+                                            )}
+                                        >
+                                            <rect
+                                                {...INK_THIN}
+                                                x={60 + side * r * 0.98 - 4}
+                                                y={eyeY - 6}
+                                                width="8"
+                                                height="12"
+                                                rx="3"
+                                                fill={c}
+                                            />
+                                        </g>
                                     ))}
                                 </g>
                             </g>
@@ -1539,29 +1705,31 @@ function Wear({
                     case 'kite': {
                         const hx = 60 + handDx;
                         const kx = Math.min(108, hx + 16);
-                        const ky = Math.max(14, top - 4);
+                        const ky = Math.max(9 * k + 5, top - 4);
                         return (
                             <g key={item} {...root('jump')}>
                                 <path
-                                    d={`M${hx} ${handY} Q${hx + 14} ${(handY + ky) / 2} ${kx} ${ky + 9}`}
+                                    d={`M${hx} ${handY} Q${hx + 14} ${(handY + ky) / 2} ${kx} ${n(ky + 9 * k)}`}
                                     fill="none"
                                     stroke={LINE}
                                     strokeWidth="1.2"
                                 />
-                                <g
-                                    data-pet-wear-idle="sway"
-                                    style={box('50% 100%')}
-                                >
-                                    <path
-                                        {...INK_THIN}
-                                        d={`M${kx} ${ky - 9} L${kx + 7} ${ky} L${kx} ${ky + 9} L${kx - 7} ${ky} Z`}
-                                        fill={c}
-                                    />
-                                    <path
-                                        d={`M${kx} ${ky - 9} V${ky + 9} M${kx - 7} ${ky} H${kx + 7}`}
-                                        stroke={LINE}
-                                        strokeWidth="1"
-                                    />
+                                <g {...fitAt(kx, ky, k)}>
+                                    <g
+                                        data-pet-wear-idle="sway"
+                                        style={box('50% 100%')}
+                                    >
+                                        <path
+                                            {...INK_THIN}
+                                            d={`M${kx} ${ky - 9} L${kx + 7} ${ky} L${kx} ${ky + 9} L${kx - 7} ${ky} Z`}
+                                            fill={c}
+                                        />
+                                        <path
+                                            d={`M${kx} ${ky - 9} V${ky + 9} M${kx - 7} ${ky} H${kx + 7}`}
+                                            stroke={LINE}
+                                            strokeWidth="1"
+                                        />
+                                    </g>
                                 </g>
                             </g>
                         );
@@ -1594,6 +1762,7 @@ function Wear({
                                     stroke={c}
                                     strokeWidth="1.2"
                                 />
+                                <Glint xs={[x]} y={eyeY} lens={lens} />
                             </g>
                         );
                     }

@@ -67,7 +67,6 @@ export type PetNest = {
         wear: WearItem[];
         dyes: Dyes;
     }[];
-    can_switch: boolean;
     eggs: { kind: MoonlingKind; how: string; earned: boolean }[];
 };
 
@@ -80,12 +79,6 @@ export function raiseState(
 ): { can: boolean; reason: string | null } {
     if (nest.moonlings.find((m) => m.id === id)?.active) {
         return { can: false, reason: 'You’re raising this one.' };
-    }
-    if (!nest.can_switch) {
-        return {
-            can: false,
-            reason: 'Your moonling has to hatch first (40 XP) before you raise another.',
-        };
     }
 
     return { can: true, reason: null };
@@ -188,36 +181,104 @@ export const SLOT_NAMES: Record<Slot, string> = {
     hand: 'Hand',
 };
 
+/** What a tap on a worn item sets off (spec 2026-11-27-luna-item-fit-play-bubble): two puffs of this, and a hop with `hop`. */
+export type ItemFx = 'star' | 'heart' | 'note';
+
 /**
  * The wardrobe's items (App\Services\Moonlings::WEAR), each with its own colour (slice 12): the `default` dye, which
  * the moonling's shade never changes. A new item is one row here and one on the server.
  */
 export const WEAR = {
-    star_clip: { slot: 'head', label: 'Star clip', color: '#ffcc33' },
-    comet_trail: { slot: 'neck', label: 'Comet trail', color: '#5aa9ff' },
-    halo: { slot: 'head', label: 'Halo', color: '#ffd84d' },
-    scarf: { slot: 'neck', label: 'Scarf', color: '#e8433f' },
-    bow: { slot: 'head', label: 'Bow', color: '#ff6fae' },
-    propeller: { slot: 'head', label: 'Propeller cap', color: '#3d8bff' },
-    glasses: { slot: 'face', label: 'Round glasses', color: '#7a4a2a' },
-    wings: { slot: 'back', label: 'Wings', color: '#f4f1ff' },
-    cape: { slot: 'back', label: 'Cape', color: '#d6343f' },
-    balloon: { slot: 'hand', label: 'Balloon', color: '#ff4d5e' },
-    wand: { slot: 'hand', label: 'Wand', color: '#ffd23f' },
-    lantern: { slot: 'hand', label: 'Lantern', color: '#c9963b' },
+    star_clip: {
+        slot: 'head',
+        label: 'Star clip',
+        color: '#ffcc33',
+        fx: 'star',
+    },
+    comet_trail: {
+        slot: 'neck',
+        label: 'Comet trail',
+        color: '#5aa9ff',
+        fx: 'star',
+    },
+    halo: { slot: 'head', label: 'Halo', color: '#ffd84d', fx: 'star' },
+    scarf: { slot: 'neck', label: 'Scarf', color: '#e8433f', fx: 'heart' },
+    bow: { slot: 'head', label: 'Bow', color: '#ff6fae', fx: 'heart' },
+    propeller: {
+        slot: 'head',
+        label: 'Propeller cap',
+        color: '#3d8bff',
+        fx: 'star',
+        hop: true,
+    },
+    glasses: {
+        slot: 'face',
+        label: 'Round glasses',
+        color: '#7a4a2a',
+        fx: 'star',
+    },
+    wings: {
+        slot: 'back',
+        label: 'Wings',
+        color: '#f4f1ff',
+        fx: 'heart',
+        hop: true,
+    },
+    cape: { slot: 'back', label: 'Cape', color: '#d6343f', fx: 'star' },
+    balloon: {
+        slot: 'hand',
+        label: 'Balloon',
+        color: '#ff4d5e',
+        fx: 'heart',
+        hop: true,
+    },
+    wand: { slot: 'hand', label: 'Wand', color: '#ffd23f', fx: 'star' },
+    lantern: { slot: 'hand', label: 'Lantern', color: '#c9963b', fx: 'star' },
     // Spec 2026-11-26-luna-moonling-collection, slice 16.
-    jetpack: { slot: 'back', label: 'Jetpack', color: '#9aa7b8' },
-    umbrella: { slot: 'hand', label: 'Umbrella', color: '#3f7fd9' },
-    flower_crown: { slot: 'head', label: 'Flower crown', color: '#ff8fb8' },
-    bowtie: { slot: 'neck', label: 'Bowtie', color: '#c2185b' },
-    orchid_pin: { slot: 'head', label: 'Orchid pin', color: '#b05fd6' },
-    coffee: { slot: 'hand', label: 'Coffee mug', color: '#f2efe8' },
-    headphones: { slot: 'head', label: 'Headphones', color: '#3b3f52' },
-    kite: { slot: 'hand', label: 'Kite', color: '#ff7043' },
-    monocle: { slot: 'face', label: 'Monocle', color: '#d4a537' },
+    jetpack: {
+        slot: 'back',
+        label: 'Jetpack',
+        color: '#9aa7b8',
+        fx: 'star',
+        hop: true,
+    },
+    umbrella: { slot: 'hand', label: 'Umbrella', color: '#3f7fd9', fx: 'note' },
+    flower_crown: {
+        slot: 'head',
+        label: 'Flower crown',
+        color: '#ff8fb8',
+        fx: 'heart',
+    },
+    bowtie: { slot: 'neck', label: 'Bowtie', color: '#c2185b', fx: 'heart' },
+    orchid_pin: {
+        slot: 'head',
+        label: 'Orchid pin',
+        color: '#b05fd6',
+        fx: 'heart',
+    },
+    coffee: {
+        slot: 'hand',
+        label: 'Coffee mug',
+        color: '#f2efe8',
+        fx: 'heart',
+    },
+    headphones: {
+        slot: 'head',
+        label: 'Headphones',
+        color: '#3b3f52',
+        fx: 'note',
+    },
+    kite: {
+        slot: 'hand',
+        label: 'Kite',
+        color: '#ff7043',
+        fx: 'heart',
+        hop: true,
+    },
+    monocle: { slot: 'face', label: 'Monocle', color: '#d4a537', fx: 'star' },
 } as const satisfies Record<
     string,
-    { slot: Slot; label: string; color: string }
+    { slot: Slot; label: string; color: string; fx: ItemFx; hop?: boolean }
 >;
 
 export type WearItem = keyof typeof WEAR;
